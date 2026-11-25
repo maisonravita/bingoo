@@ -1719,6 +1719,26 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     return { image, ...(await clipLancer(image, String(b.mouvement ?? ""))) };
   },
   // Vidéo motion design libre (sans SaaS) : une phrase → scénario + style ; animée et exportée dans le navigateur
+  // Les photos et vidéos du membre pour ses vidéos : une photo arrive en image encodée (réduite par le navigateur) ;
+  // une vidéo, trop lourde pour ce chemin, reçoit une adresse d'envoi à usage unique dans le dossier de son espace
+  async "video-media"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    await quota(ws.id, "video_media", 30);
+    if (b.quoi === "video") {
+      const ext = ["mp4", "webm"].includes(b.type) ? b.type : null;
+      if (!ext) throw new HttpError(400, "Vidéo en MP4 ou WebM");
+      const chemin = `videos/${ws.id}/${crypto.randomUUID()}.${ext}`;
+      const { data, error } = await admin.storage.from("apps").createSignedUploadUrl(chemin);
+      if (error || !data?.token) throw new HttpError(503, "L'envoi de vidéo est indisponible pour le moment");
+      return { chemin, jeton: data.token, url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl };
+    }
+    const m = String(b.image ?? "").match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+    if (!m || m[2].length > 4_000_000) throw new HttpError(400, "Photo invalide (JPG, PNG ou WebP, 3 Mo au plus)");
+    const chemin = `images/video-${ws.id.slice(0, 8)}-${crypto.randomUUID().slice(0, 12)}.${m[1] === "jpeg" ? "jpg" : m[1]}`;
+    const { error } = await admin.storage.from("apps").upload(chemin, Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0)), { contentType: `image/${m[1]}`, cacheControl: "31536000" });
+    if (error) throw new HttpError(503, "La photo n'a pas pu être enregistrée, réessaie");
+    return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl };
+  },
   // Où en sont les clips animés d'une vidéo : ceux qui sont prêts remplacent l'image fixe dans le scénario
   async "video-clips"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
@@ -1768,7 +1788,7 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     // Images : les photos du membre (déposées chez Bingoo!) passent d'abord ; les images créées sont réservées aux offres payantes
     const prefixeImg = admin.storage.from("apps").getPublicUrl("images/").data.publicUrl;
     const photosVideo = (Array.isArray(b.photos) ? b.photos : []).map((u: unknown) => String(u ?? "")).filter((u: string) => u.startsWith(prefixeImg) && /\.(jpg|png|webp)$/.test(u) && !/["<>\s]/.test(u)).slice(0, 3);
-    try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? [], { photos: photosVideo, images: !produit && ws.plan !== "essai", clips: !produit && ws.plan !== "essai" && Deno.env.get("CLIPS_VIDEO") !== "non" && userId === "ff2e0bc3-a5dd-46c8-80e7-45bf334dd807" /* clips animés : compte robot seulement, en attendant la limite par offre */ }); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
+    try { sc = await videoLibre(produit?.nom ? `${texte} (le logiciel s'appelle « ${produit.nom} » : c'est ce nom-là, jamais un autre)` : texte, produit?.titres ?? [], { photos: photosVideo, videos: (Array.isArray(b.videos) ? b.videos : []).map((u: unknown) => String(u ?? "")).filter((u: string) => u.startsWith(admin.storage.from("apps").getPublicUrl(`videos/${ws.id}/`).data.publicUrl) && /^[^"<>\s?#]+\.(mp4|webm)$/.test(u)).slice(0, 3), images: !produit && ws.plan !== "essai", clips: !produit && ws.plan !== "essai" && Deno.env.get("CLIPS_VIDEO") !== "non" && userId === "ff2e0bc3-a5dd-46c8-80e7-45bf334dd807" /* clips animés : compte robot seulement, en attendant la limite par offre */ }); } catch (e) { if ((e as any)?.status === 400) throw new HttpError(400, (e as Error).message); throw e; }
     const { categorieDesign, tirerDesign } = await import("../_shared/design.ts");
     const d: any = tirerDesign(categorieDesign(String(sc.secteur_en ?? "") || texte));
     const { secteur_en: _s, ...script } = sc;

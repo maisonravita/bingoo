@@ -168,6 +168,31 @@ export default function Motion() {
     finally { setEnvoiLogo(false); }
   }
 
+  // Ses propres photos et vidéos (3 au plus) : elles passent en plein écran dans la prochaine vidéo créée, jamais retouchées.
+  // Une photo est réduite ici avant l'envoi ; une vidéo part directement dans le dossier de son espace.
+  const [medias, setMedias] = useState([]), [envoiMedia, setEnvoiMedia] = useState(false), fichiersMedia = useRef(null);
+  async function ajouterMedias(liste) {
+    const fs = [...(liste ?? [])].slice(0, 3 - medias.length); if (!fs.length || !ws?.id) return;
+    setEnvoiMedia(true);
+    try {
+      for (const f of fs) {
+        if (/^video\/(mp4|webm)$/.test(f.type)) {
+          if (f.size > 45e6) throw new Error("Vidéo trop lourde : 45 Mo au plus (quelques secondes suffisent).");
+          const r = await fn("r/video-media", { workspace_id: ws.id, quoi: "video", type: f.type.slice(6) });
+          const { error } = await supabase.storage.from("apps").uploadToSignedUrl(r.chemin, r.jeton, f, { contentType: f.type });
+          if (error) throw new Error("La vidéo n'a pas pu être envoyée, réessaie.");
+          setMedias((l) => [...l, { type: "video", url: r.url, nom: f.name }]);
+        } else if (/^image\/(jpeg|png|webp)$/.test(f.type)) {
+          const img = await new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error("Photo illisible.")); i.src = URL.createObjectURL(f); });
+          const k = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          const r = await fn("r/video-media", { workspace_id: ws.id, quoi: "photo", image: c.toDataURL("image/jpeg", 0.86) });
+          setMedias((l) => [...l, { type: "photo", url: r.url, nom: f.name }]);
+        } else throw new Error("Photos en JPG, PNG ou WebP ; vidéos en MP4 ou WebM.");
+      }
+    } catch (e) { alert(e.message); } finally { setEnvoiMedia(false); }
+  }
+
   // Une phrase : la première crée la vidéo, les suivantes la retouchent
   async function envoyer(texte, nouvelle = false) {
     const t = String(texte ?? saisie).trim();
@@ -178,8 +203,8 @@ export default function Motion() {
     const n = fil.length;
     setFil((l) => [...l, { moi: t, etat: "encours", creer }]); setSaisie(""); setBusy(true);
     try {
-      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && avecProduit ? { app_id: monApp.id } : {}) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
-      setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true);
+      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && avecProduit ? { app_id: monApp.id } : {}), photos: medias.filter((m) => m.type === "photo").map((m) => m.url), videos: medias.filter((m) => m.type === "video").map((m) => m.url) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
+      setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true); if (creer) setMedias([]);
       const lm = creer ? memoLogo() : null; if (lm?.url) await poserLogo(v, lm).catch(() => null);
       setFil((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", note: v.script?.note } : x)));
     } catch (e) {
@@ -234,6 +259,10 @@ export default function Motion() {
             <span>Montrer les vrais écrans de <b>{monApp.spec?.nom ?? "mon SaaS"}</b> dans la vidéo</span>
           </label>}
           <div className="rounded-2xl border border-line bg-[#FCFBF9] p-2 focus-within:border-ink/30">
+            {medias.length > 0 && <div className="mb-1.5 flex flex-wrap gap-1.5 px-1">
+              {medias.map((m, i) => <span key={m.url} className="flex items-center gap-1 rounded-full bg-[#F1EFEA] py-0.5 pl-2.5 pr-1 text-[12px] font-semibold text-ink">{m.type === "video" ? "Vidéo" : "Photo"} · <span className="max-w-[110px] truncate font-normal">{m.nom}</span><button type="button" aria-label="Retirer" onClick={() => setMedias((l) => l.filter((_, k) => k !== i))} className="grid h-5 w-5 place-items-center rounded-full hover:bg-black/10">×</button></span>)}
+              <span className="self-center text-[11.5px] text-ink-faint">{sel ? "Pour ta prochaine vidéo : clique « Nouvelle vidéo »" : "Elles passeront en plein écran dans ta vidéo"}</span>
+            </div>}
             <textarea value={saisie} onChange={(e) => setSaisie(e.target.value)} rows={2} disabled={busy} maxLength={800}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); envoyer(); } }}
               placeholder={sel ? "Demande un changement (ex. : fond blanc, plus court, change l'accroche)…" : "Ex. : une vidéo pour présenter mon salon de barbier"} className="block w-full resize-none bg-transparent px-1.5 text-[14.5px] outline-none placeholder:text-ink-faint" />
@@ -241,6 +270,8 @@ export default function Motion() {
               <input ref={fichier} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { choisirLogo(e.target.files?.[0]); e.target.value = ""; }} />
               <button type="button" onClick={() => fichier.current?.click()} disabled={busy || envoiLogo} className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12.5px] font-semibold text-ink-soft hover:bg-[#F1EFEA] hover:text-ink disabled:opacity-40">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4" /></svg>{envoiLogo ? "Envoi du logo…" : script?.logo ? "Changer mon logo" : "Ajouter mon logo"}</button>
+              <input ref={fichiersMedia} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" className="hidden" onChange={(e) => { ajouterMedias(e.target.files); e.target.value = ""; }} />
+              <button type="button" onClick={() => fichiersMedia.current?.click()} disabled={busy || envoiMedia || medias.length >= 3} className="mr-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12.5px] font-semibold text-ink-soft hover:bg-[#F1EFEA] hover:text-ink disabled:opacity-40">{envoiMedia ? "Envoi…" : medias.length ? `Mes photos et vidéos (${medias.length}/3)` : "Mes photos et vidéos"}</button>
               <button type="submit" disabled={busy || saisie.trim().length < 3} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg></button>
             </div>
