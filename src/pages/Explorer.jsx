@@ -2790,9 +2790,9 @@ function OngletCode({ app, appel, onChange }) {
         ) : (
           <div className="mt-3 max-w-xl rounded-xl border border-white/10 bg-white/[.04] p-3.5">
             <label className="text-[13px] font-semibold" htmlFor="gh-depot">Ton dépôt</label>
-            <input id="gh-depot" value={depot} onChange={(e) => setDepot(e.target.value)} placeholder="ton-compte/mon-projet" className={cx(champSombre, "mt-1.5")} />
+            <input id="gh-depot" name="gh-depot" autoComplete="off" value={depot} onChange={(e) => setDepot(e.target.value)} placeholder="ton-compte/mon-projet" className={cx(champSombre, "mt-1.5")} />
             <label className="mt-3 block text-[13px] font-semibold" htmlFor="gh-jeton">Jeton d'accès à ce dépôt</label>
-            <input id="gh-jeton" type="password" autoComplete="off" value={jeton} onChange={(e) => setJeton(e.target.value)} placeholder="github_pat_…" className={cx(champSombre, "mt-1.5")} />
+            <input id="gh-jeton" name="gh-jeton" type="text" autoComplete="off" spellCheck={false} data-1p-ignore data-lpignore="true" style={{ WebkitTextSecurity: "disc" }} value={jeton} onChange={(e) => setJeton(e.target.value)} placeholder="github_pat_…" className={cx(champSombre, "mt-1.5")} />
             <p className="mt-1.5 text-[12px] text-white/45">Jamais ton mot de passe. Sur GitHub : Settings › Developer settings › Fine-grained tokens › Generate new token, limité à ce seul dépôt, avec le droit « Contents : Read and write ». Bingoo! le range côté serveur et ne l'affiche plus.</p>
             <button disabled={!!busy || !depot.trim() || !jeton.trim()} onClick={() => faire("b", async () => { const r = await appel("github-brancher", { depot: depot.trim(), jeton: jeton.trim() }); setGh(r.github); setJeton(""); toast("Dépôt branché : tu peux envoyer ton code"); })} className="mt-3 rounded-xl bg-[#E8571C] px-4 py-2 text-[13.5px] font-semibold !text-white hover:brightness-110 disabled:opacity-50">{busy === "b" ? "Vérification…" : "Brancher mon dépôt"}</button>
           </div>
