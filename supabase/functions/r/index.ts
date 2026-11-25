@@ -1706,10 +1706,10 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     return res;
   },
   // Essai des clips animés (un objet qui bouge vraiment) : fermé aux membres tant que Jean n'a pas décidé — seuls les espaces
-  // du robot y ont accès, et seulement quand le secret CLIPS_VIDEO vaut « essai »
+  // du compte robot y ont accès (son identifiant, pas une donnée secrète) ; le secret CLIPS_VIDEO = « non » ferme tout
   async "video-clip-essai"(req, b) {
-    const { ws } = await requireMember(req, b.workspace_id);
-    if (Deno.env.get("CLIPS_VIDEO") !== "essai" || !String(ws.name ?? "").startsWith("Robot ") || ws.plan === "essai") throw new HttpError(403, "Les clips animés ne sont pas encore ouverts");
+    const { ws, userId } = await requireMember(req, b.workspace_id);
+    if (Deno.env.get("CLIPS_VIDEO") === "non" || userId !== "ff2e0bc3-a5dd-46c8-80e7-45bf334dd807" || !String(ws.name ?? "").startsWith("Robot ") || ws.plan === "essai") throw new HttpError(403, "Les clips animés ne sont pas encore ouverts");
     await quota(ws.id, "video_clip", 4);
     setAi({ ws: ws.id, live: true, feature: "video" });
     const { imagesPage, clipLancer, clipEtat } = await import("../_shared/gen-images.ts");
