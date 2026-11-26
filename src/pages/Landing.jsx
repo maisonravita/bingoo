@@ -415,7 +415,7 @@ export default function Landing() {
             <span className="block text-[34px] sm:text-[56px] lg:text-[72px] font-medium leading-[1.08] tracking-[-.02em] text-[#3A3F55]">Donne ton idée.</span>
             <span className="mt-1 block text-[42px] sm:text-[68px] lg:text-[88px] font-bold leading-[1.04] tracking-[-.035em] text-ink">Bingoo! <span className="fx-texte">la construit.</span></span>
           </h1>
-          <p className="hero-in mx-auto mt-6 sm:mt-8 max-w-[720px] text-[17px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ animationDelay: ".1s" }}><b className="font-semibold text-[#1E2030]">Pour les indépendants, commerçants et porteurs de projet qui ne codent pas.</b> Décris ce que tu veux : Bingoo! construit ton site, ton logiciel ou ton appli, le met en ligne à ton nom en quelques minutes, puis t'aide à trouver tes premiers clients.</p>
+          <p className="hero-in mx-auto mt-6 sm:mt-8 max-w-[720px] text-[17px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ animationDelay: ".1s" }}><b className="font-semibold text-[#1E2030]">Pas besoin de savoir coder pour donner vie à tes idées.</b> Crée tes sites web, applications, logiciels, jeux vidéo, blogs et vidéos en motion design grâce à l'IA, sans écrire une seule ligne de code.</p>
           <IdeeHero nav={nav} nb={nb} />
           <div id="film" className="hero-in mx-auto mt-16 sm:mt-20 max-w-[1120px] scroll-mt-24 text-left" style={{ animationDelay: ".3s" }}>
             <FilmAuto />
