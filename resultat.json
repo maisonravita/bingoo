@@ -1,0 +1,117 @@
+{
+  "duree_s": 180,
+  "app": {
+    "slug": "atelier-nord-0y1j",
+    "statut": "pret",
+    "version": 4,
+    "verif": {
+      "at": "2026-11-26T14:48:06.544Z",
+      "ok": true,
+      "phase": "fini",
+      "reste": [],
+      "essais": {
+        "__page": 2
+      },
+      "mesure": {
+        "ok": true,
+        "fin": "2026-11-26T14:48:06.282Z",
+        "cout": 0.093,
+        "debut": "2026-11-26T14:46:25.931Z",
+        "ecrans": 5,
+        "entree": "site",
+        "essais": 2,
+        "modele": "site",
+        "famille": "gestion",
+        "premier": {
+          "ko": 0,
+          "ok": true,
+          "testes": 5
+        }
+      },
+      "repare": [],
+      "journal": [
+        {
+          "t": "Les 5 écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.",
+          "at": "2026-11-26T14:46:25.931Z",
+          "type": "info"
+        },
+        {
+          "t": "Test n° 1 : les 5 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T14:46:55.894Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 1/2) : Contraste trop faible (minimum 4,5:1) : « Atelier Nord (1.0:1) », « Prestations (1.0:1) ».",
+          "at": "2026-11-26T14:46:55.894Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T14:47:02.985689+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 2 : les 5 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T14:47:30.850Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 2/2) : Contraste trop faible (minimum 4,5:1) : « Atelier Nord (1.0:1) », « Prestations (1.0:1) ».",
+          "at": "2026-11-26T14:47:30.851Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T14:47:36.427931+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 3 : les 5 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T14:48:06.282Z",
+          "type": "ok"
+        },
+        {
+          "t": "Petit défaut d'affichage sur ta page, à revoir dans l'atelier : Contraste trop faible (minimum 4,5:1) : « Atelier Nord (1.0:1) », « Prestations (1.0:1) ».",
+          "at": "2026-11-26T14:48:06.282Z",
+          "type": "info"
+        },
+        {
+          "t": "Tout est propre : ton espace gérant (5 écrans) a été testé et fonctionne. Ton site est prêt.",
+          "at": "2026-11-26T14:48:06.282Z",
+          "type": "ok"
+        }
+      ],
+      "version": 4,
+      "passages": 3,
+      "dernieres": {},
+      "resultats": [
+        {
+          "id": "accueil",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "realisations",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "demandes",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "services",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "infos",
+          "ok": true,
+          "erreur": null
+        }
+      ],
+      "en_reparation": []
+    }
+  }
+}

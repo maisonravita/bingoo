@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "e0": {
+    "p": "#171717",
+    "c": "#171717",
+    "g": "taste",
+    "n": 0,
+    "cta": "Demander un devis"
+  },
+  "e1": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "taste",
+    "n": 1,
+    "cta": "Demander un devis"
+  },
+  "e2": {
+    "p": "#171717",
+    "c": "#171717",
+    "g": "taste",
+    "n": 1,
+    "cta": "Demander un devis"
+  },
+  "e3": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "taste",
+    "n": 1,
+    "cta": "Demander un devis"
+  }
+}

@@ -1,0 +1,16 @@
+<title>Atelier Nord · Architecte d&#39;intérieur à Annecy</title>
+<meta name="description" content="Rénovation d&#39;appartements et de chalets à Annecy et en Haute-Savoie, de la conception au suivi de chantier.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Atelier Nord">
+<meta property="og:title" content="Atelier Nord · Architecte d&#39;intérieur à Annecy">
+<meta property="og:description" content="Rénovation d&#39;appartements et de chalets à Annecy et en Haute-Savoie, de la conception au suivi de chantier.">
+<meta property="og:url" content="https://www.bingoo.fr/s/atelier-nord-0y1j">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=atelier-nord-0y1j&amp;v=12-171717">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=atelier-nord-0y1j&amp;v=12-171717">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Atelier Nord · Architecte d&#39;intérieur à Annecy">
+<meta name="twitter:description" content="Rénovation d&#39;appartements et de chalets à Annecy et en Haute-Savoie, de la conception au suivi de chantier.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Atelier Nord","description":"Rénovation d'appartements et de chalets à Annecy et en Haute-Savoie, de la conception au suivi de chantier.","url":"https://www.bingoo.fr/s/atelier-nord-0y1j","image":"https://www.bingoo.fr/api/og?slug=atelier-nord-0y1j&v=12-171717","telephone":"04 50 00 00 00","areaServed":"Annecy et Haute-Savoie","makesOffer":[{"@type":"Offer","name":"Conception d'intérieur","description":"Plans, choix des matériaux et des couleurs, agencement de chaque pièce."},{"@type":"Offer","name":"Rénovation d'appartement","description":"Accompagnement complet de la conception au suivi de chantier pour votre appartement."},{"@type":"Offer","name":"Rénovation de chalet","description":"Aménagement et rénovation intérieure de chalets, adaptés au climat et au caractère montagnard."},{"@type":"Offer","name":"Suivi de chantier","description":"Coordination des artisans, contrôle du planning et de la conformité au projet validé."}]}</script>
