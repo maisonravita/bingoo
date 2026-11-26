@@ -11,7 +11,8 @@ export function modeleDe(p: any): string | null {
   const t = [p?.pitch, p?.cible, p?.probleme, ...(p?.equivalences ?? []).map((x: any) => x?.chez_toi), ...(p?.mvp ?? []).map((x: any) => x?.fonction)].join(" ").toLowerCase();
   const n = (re: RegExp) => (t.match(re) ?? []).length;
   // Pas pour un logiciel dont le cœur est ailleurs (billetterie, location de biens, restaurant…). Mots entiers : « tableau de bord » n'est pas une « table »
-  const autre = /billett?erie|\bbillets?\b|\btickets?\b|location de (voiture|v[ée]hicule|mat[ée]riel)|\brestaurants?\b|r[ée]servation de tables?|\btables? (de|pour) \d|\bh[ôo]tels?\b|chambres? d.h[ôo]te/.test(t);
+  // Place de marché (des membres proposent, d'autres réservent ou achètent) : jamais un logiciel de rendez-vous d'un seul professionnel
+  const autre = /place de march[ée]|marketplace|entre particuliers|entre voisins|\bvoisins?\b|annonces?\b|propri[ée]taires?.{0,80}locataires?|locataires?.{0,80}propri[ée]taires?|vendeurs?.{0,80}acheteurs?|\bcommission\b|billett?erie|\bbillets?\b|\btickets?\b|location de (voiture|v[ée]hicule|mat[ée]riel|outils?)|\brestaurants?\b|r[ée]servation de tables?|\btables? (de|pour) \d|\bh[ôo]tels?\b|chambres? d.h[ôo]te/.test(t);
   const reservation = autre ? 0 : n(/r[ée]serv|rendez-vous|\brdv\b|cr[ée]neau|planning d.intervention|interventions? (à|a) domicile|s[ée]ances?|agenda en ligne/g);
   const devis = n(/\bdevis\b|factur|\bquotes?\b|invoic|estimat|bons? de commande|acomptes?|relances? de paiement|impay/g);
   // Outil d'écriture par IA : le cœur du produit est un texte écrit par l'IA (CV, posts, articles, guides, réponses…)
