@@ -10,7 +10,7 @@ import { texteDesign } from "./design.ts";
 import { FICHES, typeDeProjet } from "./design-fiches.ts";
 import { MARQUEURS_DONNEES, REGLES_PAGE } from "./gen-regles.ts";
 import { detourer, estAlimentaire, imagesPage } from "./gen-images.ts";
-import { choisirComposition, consigneComposition } from "./gen-compositions.ts";
+import { choisirComposition, consigneComposition, controlerCompo, nettoyerHeroCompo } from "./gen-compositions.ts";
 import { controlerSection, nettoyer, remplacerTextePage } from "./gen-nettoyage.ts";
 export { controlerSection, nettoyer, remplacerTextePage };
 
@@ -96,6 +96,8 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
   if (plan.sections[0].id !== "hero") plan.sections[0].id = "hero";
   journal.push(`Plan : ${plan.sections.map((s) => s.id).join(", ")}`);
   const ecrites = new Map<string, string>();
+  // Le premier écran d'une composition : structure du kit seulement (sans <style> ni style écrit à la main)
+  const poser = (id: string, html: string) => { const h = nettoyer(html, jetons); return compo && id === "hero" ? nettoyerHeroCompo(h) : h; };
   let imagesVues: PageGeneree["images"] = {};
   // Jamais bloquant : une mise à jour en direct qui échoue ne gêne pas la construction
   const signaler = async () => { if (!e.progres) return; try { const attente = plan.sections.filter((x) => !ecrites.has(x.id)).map((x) => ({ id: x.id, idee: String(x.idee ?? "").slice(0, 160) })); await e.progres({ sections: ["nav", ...plan.sections.map((x) => x.id)].map((id) => ecrites.has(id) ? { id, html: ecrites.get(id)! } : { id, html: "", attente: attente.find((a) => a.id === id)?.idee ?? "" }).filter((x) => x.html || x.id !== "nav"), attente, images: imagesVues, nav: plan.nav ?? [] }); } catch (x) { console.error("progres page", x); } };
@@ -142,15 +144,15 @@ ${retouches}
 Format : pour chacune, une ligne <!--section:ID--> puis son HTML. Rien d'autre (ni explication ni balise de code).
 ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers leurs ancres, le bouton principal, le bouton de menu .nav__toggle.\n" : ""}Chaque <section> porte son id ; la section closing est un footer.footer.closing id="contact".`, opts(9000));
   // Chaque lot s'affiche dès qu'il est écrit (construction en direct), sans attendre les autres
-  const brutes = await Promise.all(lots.map((lot, i) => ecrire(lot, i === 0).then(async (b) => { for (const s of decoupe(b)) ecrites.set(s.id, nettoyer(s.html, jetons)); await signaler(); return b; })));
+  const brutes = await Promise.all(lots.map((lot, i) => ecrire(lot, i === 0).then(async (b) => { for (const s of decoupe(b)) ecrites.set(s.id, poser(s.id, s.html)); await signaler(); return b; })));
   budget();
-  for (const b of brutes) for (const s of decoupe(b)) ecrites.set(s.id, nettoyer(s.html, jetons));
+  for (const b of brutes) for (const s of decoupe(b)) ecrites.set(s.id, poser(s.id, s.html));
 
   // 4. Contrôles et corrections (3 essais par section, dans le budget)
   let corrections = 0;
   const ids = ["nav", ...plan.sections.map((s) => s.id)];
   for (let essai = 1; essai <= 3; essai++) {
-    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`) : ["Section manquante."] })).filter((x) => x.pbs.length);
+    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
     if (!fautives.length) break;
     journal.push(`Essai ${essai} : ${fautives.map((f) => `${f.id} (${f.pbs[0].slice(0, 60)})`).join(" ; ")}`);
     // Temps : une fonction a une durée limitée ; passé 110 s, plus de réécriture (retrait des sections fautives ou secours)
@@ -167,7 +169,7 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
     const avecNav = fautives.some((f) => f.id === "nav");
     const texte = await ecrire(lot.filter((s) => s.id !== "nav"), avecNav, `CORRIGE ces sections (même idée, mêmes marqueurs) :\n${fautives.map((f) => `- ${f.id} : ${f.pbs.join(" ")}`).join("\n")}`);
     corrections += fautives.length;
-    for (const s of decoupe(texte)) ecrites.set(s.id, nettoyer(s.html, jetons));
+    for (const s of decoupe(texte)) ecrites.set(s.id, poser(s.id, s.html));
     budget();
   }
 

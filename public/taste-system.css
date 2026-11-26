@@ -1379,7 +1379,7 @@ section.hero.hero-mot { position: relative; min-height: 100svh; padding: 0; over
 .hero-mot__fond, .hero-mot__sujet { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 62%; }
 .hero-mot__fond { z-index: 0; animation: compo-zoom 18s cubic-bezier(.2,.6,.2,1) both; }
 .hero-mot__sujet { z-index: 2; animation: compo-zoom 18s cubic-bezier(.2,.6,.2,1) both; pointer-events: none; }
-.hero-mot__mot { position: absolute; z-index: 1; left: 0; right: 0; top: calc(var(--nav) + 3vh); margin: 0; text-align: center; white-space: nowrap; font-family: var(--font-display); font-weight: 600; font-size: min(26vw, calc(168vw / var(--lettres, 6)), 440px); line-height: .82; letter-spacing: -.06em; color: #fff; text-transform: lowercase; animation: compo-monte 1.3s cubic-bezier(.2,.7,.2,1) both; }
+.hero-mot__mot { position: absolute; z-index: 1; left: 0; right: 0; top: calc(var(--nav) + 7vh); margin: 0; text-align: center; white-space: nowrap; font-family: var(--font-display); font-weight: 600; font-size: min(26vw, calc(168vw / var(--lettres, 6)), 440px); line-height: .82; letter-spacing: -.06em; color: #fff; text-transform: lowercase; animation: compo-monte 1.3s cubic-bezier(.2,.7,.2,1) both; }
 .hero-mot::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; background: linear-gradient(0deg, rgb(0 0 0 / .55), rgb(0 0 0 / 0) 42%); }
 .hero-mot__carte { position: absolute; z-index: 4; left: var(--gut); bottom: clamp(20px, 4vh, 44px); width: min(380px, calc(100% - 2 * var(--gut))); padding: 20px 22px; border-radius: 20px; background: rgb(16 18 26 / .42); border: 1px solid rgb(255 255 255 / .16); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); animation: compo-monte 1s .5s both; }
 .hero-mot__carte .t-label { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .04em; color: rgb(255 255 255 / .75); }
@@ -1388,7 +1388,7 @@ section.hero.hero-mot { position: relative; min-height: 100svh; padding: 0; over
 .hero-mot__carte p { margin: 0 0 16px; color: rgb(255 255 255 / .78); font-size: 15px; }
 .hero-mot__phrase { position: absolute; z-index: 4; right: var(--gut); bottom: clamp(24px, 5vh, 52px); max-width: 36ch; margin: 0; text-align: right; font-size: clamp(16px, 1.3vw, 19px); line-height: 1.45; color: #fff; text-shadow: 0 1px 16px rgb(0 0 0 / .5); animation: compo-apparait 1s .7s both; }
 .hero-mot__phrase a { display: inline-block; margin-top: 12px; color: #fff; font-weight: 600; text-decoration: underline; text-underline-offset: 6px; }
-@media (max-width: 767px) { .hero-mot__phrase { display: none; } .hero-mot__mot { font-size: min(27vw, calc(170vw / var(--lettres, 6))); } }
+@media (max-width: 767px) { .hero-mot__phrase { display: none; } .hero-mot__mot { top: calc(var(--nav) + 10vh); font-size: min(36vw, calc(190vw / var(--lettres, 6))); } }
 
 /* 3. Hublot : salle sombre, titre fin centré, la photo vue par une grande baie arrondie, trois colonnes en bas */
 section.hero.hero-hublot { position: relative; min-height: 100svh; padding: calc(var(--nav) + clamp(28px, 6vh, 72px)) 0 28px; display: flex; flex-direction: column; overflow: hidden; color: #F1F1EF;
@@ -1460,8 +1460,8 @@ section.hero.hero-galerie { padding: calc(var(--nav) + clamp(36px, 8vh, 96px)) 0
 @keyframes galerie-berce { from { transform: rotateY(-2.5deg); } to { transform: rotateY(2.5deg); } }
 .tuile { flex: none; width: clamp(34px, 5.2vw, 92px); height: clamp(60px, 9vw, 150px); margin: 0; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--surface); color: var(--ink); font-family: var(--font-display); font-size: clamp(14px, 2vw, 34px); font-weight: 600; letter-spacing: -.03em; box-shadow: 0 18px 40px -22px rgb(0 0 0 / .55); animation: compo-monte 1s both; }
 .tuile img { width: 100%; height: 100%; object-fit: cover; }
-.hero-galerie__piste > .tuile:nth-child(1), .hero-galerie__piste > .tuile:nth-child(11) { width: clamp(80px, 15vw, 260px); height: clamp(190px, 28vw, 410px); }
-.hero-galerie__piste > .tuile:nth-child(2), .hero-galerie__piste > .tuile:nth-child(10) { width: clamp(56px, 9vw, 160px); height: clamp(130px, 19vw, 290px); }
+.hero-galerie__piste > .tuile:nth-child(1), .hero-galerie__piste > .tuile:nth-child(11) { width: clamp(80px, 12vw, 210px); height: clamp(180px, 25vw, 380px); }
+.hero-galerie__piste > .tuile:nth-child(2), .hero-galerie__piste > .tuile:nth-child(10) { width: clamp(56px, 8vw, 140px); height: clamp(130px, 18vw, 270px); }
 .hero-galerie__piste > .tuile:nth-child(3), .hero-galerie__piste > .tuile:nth-child(9) { width: clamp(44px, 6.6vw, 118px); height: clamp(96px, 14vw, 216px); }
 .hero-galerie__piste > .tuile:nth-child(4), .hero-galerie__piste > .tuile:nth-child(8) { width: clamp(38px, 5.6vw, 100px); height: clamp(76px, 11vw, 176px); }
 .hero-galerie__piste > .tuile:nth-child(1) { transform: rotateY(38deg); transform-origin: right; } .hero-galerie__piste > .tuile:nth-child(11) { transform: rotateY(-38deg); transform-origin: left; }
@@ -1476,6 +1476,15 @@ section.hero.hero-galerie { padding: calc(var(--nav) + clamp(36px, 8vh, 96px)) 0
 .tuile--points { background-color: var(--bg); background-image: radial-gradient(circle, var(--ink) 0 28%, transparent 30%); background-size: 33% 20%; }
 .tuile--clair { background: color-mix(in srgb, var(--accent) 14%, var(--bg)); color: var(--ink); }
 .tuile--italique { background: var(--surface); font-style: italic; font-weight: 400; }
+@media (max-width: 639px) {
+  .hero-galerie__rail { height: 46vw; }
+  .hero-galerie__piste { gap: 1.4vw; }
+  .hero-galerie__piste > .tuile { width: 5vw; height: 11vw; font-size: 2.6vw; border-radius: 3px; }
+  .hero-galerie__piste > .tuile:nth-child(1), .hero-galerie__piste > .tuile:nth-child(11) { width: 13vw; height: 40vw; }
+  .hero-galerie__piste > .tuile:nth-child(2), .hero-galerie__piste > .tuile:nth-child(10) { width: 9.5vw; height: 29vw; }
+  .hero-galerie__piste > .tuile:nth-child(3), .hero-galerie__piste > .tuile:nth-child(9) { width: 7vw; height: 21vw; }
+  .hero-galerie__piste > .tuile:nth-child(4), .hero-galerie__piste > .tuile:nth-child(8) { width: 6vw; height: 16vw; }
+}
 .hero-galerie__legende { display: flex; justify-content: space-between; max-width: 1320px; margin: 18px auto 0; padding-inline: var(--gut); font-size: 13px; color: var(--muted); }
 
 /* 6. Bento vivant : grand titre à gauche, des widgets animés du produit à droite */

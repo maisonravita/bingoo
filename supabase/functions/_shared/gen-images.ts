@@ -5,7 +5,7 @@
 import { admin } from "./core.ts";
 /** Restauration et métiers de bouche : AUCUNE image inventée (générée ou photo libre). Un plat, une salle ou une vitrine
  *  qui ne sont pas les siens tromperaient ses clients ; la page attend ses vraies photos (choix de Jean du 23/11). */
-export const estAlimentaire = (t: unknown) => /\b(restaurants?|resto|brasseries?|bistrots?|bistros?|pizzerias?|traiteurs?|boulangeries?|p[aâ]tisseries?|caf[ée]s?|bars?|sushis?|kebabs?|burgers?|cr[eê]peries?|glaciers?|chocolatiers?|[ée]piceries?|food ?trucks?|cantines?|gastronomi\w*|cuisines? (japonaise|italienne|indienne|libanaise|thai|chinoise|fran[cç]aise|du monde)|plats?|recettes?|cuisiniers?|boucheries?|fromageries?|cavistes?|salons? de th[ée]|coffee|bakery|restaurant|food|recipes?|dishes|meals?)\b/i.test(String(t ?? ""));
+export const estAlimentaire = (t: unknown) => /\b(restaurants?|resto|brasseries?|bistrots?|bistros?|pizzerias?|traiteurs?|boulangeries?|p[aâ]tisseries?|caf[ée]s?|bars?|sushis?|kebabs?|burgers?|cr[eê]peries?|artisans? glaciers?|ma[iî]tres? glaciers?|glaces artisanales|cr[eè]mes glac[ée]es|chocolatiers?|[ée]piceries?|food ?trucks?|cantines?|gastronomi\w*|cuisines? (japonaise|italienne|indienne|libanaise|thai|chinoise|fran[cç]aise|du monde)|plats?|recettes?|cuisiniers?|boucheries?|fromageries?|cavistes?|salons? de th[ée]|coffee|bakery|restaurant|food|recipes?|dishes|meals?)\b/i.test(String(t ?? ""));
 import { aiCtx } from "./ai-ctx.ts";
 
 const MODELE_BASE = () => Deno.env.get("FAL_MODELE") ?? "fal-ai/flux-2-pro";

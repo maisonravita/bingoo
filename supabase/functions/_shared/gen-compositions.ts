@@ -156,3 +156,24 @@ ${HONNETE}
 L'en-tête (nav) reste celui du kit : il devient transparent tout seul au-dessus de ce premier écran.
 La section juste après le premier écran est calme (fond de page, beaucoup d'air, un grand texte ou une photo large) pour laisser respirer cette ouverture.`;
 }
+
+/** La section hero d'une composition : aucune feuille de style ni style écrit à la main (le kit fait tout) ; seules les
+ *  variables de réglage (--lettres, --h, --p) restent. Sans cela l'IA réécrit la mise en page et casse la composition. */
+export function nettoyerHeroCompo(html: string): string {
+  return String(html ?? "")
+    .replace(/<style\b[\s\S]*?<\/style>/gi, "")
+    .replace(/\sstyle\s*=\s*("|')([^"']*)\1/gi, (_m, q, css) => { const garde = String(css).split(";").map((x) => x.trim()).filter((x) => /^--(lettres|h|p)\s*:/.test(x)); return garde.length ? ` style=${q}${garde.join(";")}${q}` : ""; });
+}
+const CLES: Record<Composition["id"], string[]> = {
+  cinema: ["hero-cine__fond", "hero-cine__titre", "hero-cine__bas"],
+  "mot-geant": ["hero-mot__fond", "hero-mot__mot", "hero-mot__carte"],
+  hublot: ["hero-hublot__tete", "hero-hublot__cadre", "hero-hublot__bas"],
+  lueur: ["hero-lueur__tete", "hero-lueur__arc", "hero-lueur__ecran"],
+  galerie: ["hero-galerie__tete", "hero-galerie__piste", "tuile"],
+  bento: ["hero-bento__texte", "hero-bento__widgets", "widget"],
+};
+/** Ce qui manque à la structure imposée (vide si tout y est) */
+export function controlerCompo(c: Composition, html: string): string[] {
+  const manque = [`hero-${{ cinema: "cine", "mot-geant": "mot", hublot: "hublot", lueur: "lueur", galerie: "galerie", bento: "bento" }[c.id]}`, ...CLES[c.id]].filter((k) => !new RegExp(`class="[^"]*\\b${k}\\b`).test(html));
+  return manque.length ? [`Composition « ${c.nom} » non respectée : il manque ${manque.join(", ")}. Reprends EXACTEMENT la structure imposée, sans <style>.`] : [];
+}
