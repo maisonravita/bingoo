@@ -1,0 +1,20 @@
+{
+  "gen": {
+    "at": "2026-11-26T13:58:48.194Z",
+    "cout": 0.28,
+    "appels": 4,
+    "entree": 99520,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 5419,
+    "duree_s": 40,
+    "journal": [
+      "Premier écran : composition Cinéma",
+      "Plan : hero, destinations, aurores, deroule, paysages, faq, contact",
+      "Images : 3 générée(s), 0.083 €",
+      "Sections : destinations=liste, deroule=etapes, paysages=duo"
+    ],
+    "images_eur": 0.0828,
+    "corrections": 0
+  },
+  "sections": 8
+}

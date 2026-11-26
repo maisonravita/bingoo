@@ -1,0 +1,112 @@
+{
+  "duree_s": 159,
+  "app": {
+    "slug": "cap-lointain-6a2v",
+    "statut": "pret",
+    "version": 4,
+    "verif": {
+      "at": "2026-11-26T14:00:13.484Z",
+      "ok": true,
+      "phase": "fini",
+      "reste": [],
+      "essais": {
+        "__page": 2
+      },
+      "mesure": {
+        "ok": true,
+        "fin": "2026-11-26T14:00:13.014Z",
+        "cout": 0.091,
+        "debut": "2026-11-26T13:58:50.380Z",
+        "ecrans": 4,
+        "entree": "site",
+        "essais": 2,
+        "modele": "site",
+        "famille": "gestion",
+        "premier": {
+          "ko": 0,
+          "ok": true,
+          "testes": 4
+        }
+      },
+      "repare": [],
+      "journal": [
+        {
+          "t": "Les 4 écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.",
+          "at": "2026-11-26T13:58:50.380Z",
+          "type": "info"
+        },
+        {
+          "t": "Test n° 1 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T13:59:13.199Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 1/2) : Contraste trop faible (minimum 4,5:1) : « Cap Lointain (1.1:1) », « Destinations (1.1:1) ».",
+          "at": "2026-11-26T13:59:13.200Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T13:59:19.451391+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 2 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T13:59:41.586Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 2/2) : Contraste trop faible (minimum 4,5:1) : « Cap Lointain (1.1:1) », « Destinations (1.1:1) ».",
+          "at": "2026-11-26T13:59:41.587Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T13:59:46.479785+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 3 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T14:00:13.014Z",
+          "type": "ok"
+        },
+        {
+          "t": "Petit défaut d'affichage sur ta page, à revoir dans l'atelier : Contraste trop faible (minimum 4,5:1) : « Cap Lointain (1.1:1) », « Destinations (1.1:1) ».",
+          "at": "2026-11-26T14:00:13.014Z",
+          "type": "info"
+        },
+        {
+          "t": "Tout est propre : ton espace gérant (4 écrans) a été testé et fonctionne. Ton site est prêt.",
+          "at": "2026-11-26T14:00:13.014Z",
+          "type": "ok"
+        }
+      ],
+      "version": 4,
+      "passages": 3,
+      "dernieres": {},
+      "resultats": [
+        {
+          "id": "accueil",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "demandes",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "services",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "infos",
+          "ok": true,
+          "erreur": null
+        }
+      ],
+      "en_reparation": []
+    }
+  }
+}

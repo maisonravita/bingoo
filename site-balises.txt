@@ -1,0 +1,16 @@
+<title>Cap Lointain · Agence de voyages sur mesure à Lille</title>
+<meta name="description" content="Cap Lointain conçoit votre voyage en Islande et en Norvège : aurores boréales, fjords et glaciers, au départ de Lille.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Cap Lointain">
+<meta property="og:title" content="Cap Lointain · Agence de voyages sur mesure à Lille">
+<meta property="og:description" content="Cap Lointain conçoit votre voyage en Islande et en Norvège : aurores boréales, fjords et glaciers, au départ de Lille.">
+<meta property="og:url" content="https://www.bingoo.fr/s/cap-lointain-6a2v">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=cap-lointain-6a2v&amp;v=12-096D9A">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=cap-lointain-6a2v&amp;v=12-096D9A">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cap Lointain · Agence de voyages sur mesure à Lille">
+<meta name="twitter:description" content="Cap Lointain conçoit votre voyage en Islande et en Norvège : aurores boréales, fjords et glaciers, au départ de Lille.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Cap Lointain","description":"Cap Lointain conçoit votre voyage en Islande et en Norvège : aurores boréales, fjords et glaciers, au départ de Lille.","url":"https://www.bingoo.fr/s/cap-lointain-6a2v","image":"https://www.bingoo.fr/api/og?slug=cap-lointain-6a2v&v=12-096D9A","telephone":"03 20 00 00 00","areaServed":"Au départ de Lille","makesOffer":[{"@type":"Offer","name":"Voyage sur mesure en Islande","description":"Itinéraire complet avec hébergements, circuits et activités selon vos envies et la saison."},{"@type":"Offer","name":"Voyage sur mesure en Norvège","description":"Parcours entre fjords, villes et paysages nordiques, organisé de A à Z selon votre budget."},{"@type":"Offer","name":"Chasse aux aurores boréales","description":"Programme centré sur les meilleures périodes et les meilleurs lieux pour observer les aurores."}]}</script>
