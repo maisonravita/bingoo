@@ -1553,6 +1553,18 @@ function Tour({ onFin }) {
       <button onClick=\${onFin} class="shrink-0 rounded-full bg-[var(--c)] px-3 py-1.5 font-semibold">Essayer gratuitement</button></div></div>\`;
 }
 
+// Données d'exemple : dit clairement que les chiffres et les fiches sont là pour montrer l'application, et les vide en un clic
+function BandeauExemples({ n }) {
+  const [busy, setBusy] = useState(false), [cache, setCache] = useState(false);
+  if (cache) return null;
+  const vider = async () => { if (!confirm("Supprimer les " + n + " données d'exemple ? Vos propres données ne sont pas touchées.")) return; setBusy(true); try { await call("vider-exemples", {}); location.reload(); } catch (e) { bus.emit("toast", { id: Math.random(), msg: e.message, type: "bad" }); setBusy(false); } };
+  return html\`<div class="flex flex-wrap items-center gap-3 border-b border-amber-200 bg-amber-50 px-5 py-2.5 text-sm text-amber-900" role="status">
+    <span class="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold uppercase tracking-wide">Exemple</span>
+    <span class="min-w-0 flex-1">Les fiches et les chiffres affichés sont des exemples pour vous montrer l'application. Ils ne sont pas réels.</span>
+    <button disabled=\${busy} onClick=\${vider} class="rounded-lg bg-amber-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-800 disabled:opacity-50">\${busy ? "Suppression…" : "Vider les exemples et commencer"}</button>
+    <button onClick=\${() => setCache(true)} class="text-xs font-semibold underline">Plus tard</button>
+  </div>\`;
+}
 function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const PRIVES = ECRANS.filter((e) => !e.public), PUBLIQUES = ECRANS.filter((e) => e.public);
   const [cur, setCur] = useState({ id: PRIVES.some((e) => e.id === B.ecran) ? B.ecran : PRIVES[0]?.id, params: null }), [menu, setMenu] = useState(false), [toasts, setToasts] = useState([]);
@@ -1586,6 +1598,7 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
     \${menu && html\`<div class="fixed inset-0 z-30 bg-slate-900/30 lg:hidden" onClick=\${() => setMenu(false)}/>\`}
     <main class=\${cls("flex-1 min-w-0 min-h-screen", !["creme", "gris", "sombre"].includes(S.fond) && "bg-[#F7F7F9]", "pb-20 md:pb-0")}><div class=\${cls("lg:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-3", DISPO !== "barre" && "!hidden")}><button onClick=\${() => setMenu(true)}><\${Icone} nom="menu"/></button><span class="font-bold">\${S.nom}</span><span class="w-5"/></div>
       \${user.role === "lecture" && html\`<div class="bg-amber-50 text-amber-800 text-sm px-5 py-2">Accès en lecture seule : vous voyez tout, mais vous ne pouvez rien modifier.</div>\`}
+      \${etat.exemples > 0 && !B.verif && !B.capture && html\`<\${BandeauExemples} n=\${etat.exemples}/>\`}
       <div class="max-w-6xl mx-auto p-5 sm:p-8">\${!tour && E?.id === PRIVES[0]?.id && html\`<\${PremiersPas} user=\${user} publiques=\${PUBLIQUES} lien=\${lienPage}/>\`}\${E ? html\`<\${Garde} k=\${E.id} titre=\${E.titre}><\${E.Comp} key=\${E.id + JSON.stringify(cur.params)} user=\${user} params=\${cur.params} etat=\${etat}/></\${Garde}>\` : null}</div></main>
     <\${Onglets}/>
     \${tour && html\`<\${Tour} onFin=\${onFinTour}/>\`}

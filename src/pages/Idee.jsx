@@ -8,6 +8,11 @@ import { cx } from "../lib/utils";
 import { demanderCompte, estInvite } from "../lib/invite";
 import CompanyLogo from "../components/CompanyLogo";
 
+// Le nom donné à une idée est retenu (par texte d'idée) : refaire la même idée ne change pas le nom du projet
+const cleNom = (t) => "bingoo-nom:" + String(t ?? "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 200);
+const nomGarde = (t) => { try { return localStorage.getItem(cleNom(t)) || ""; } catch { return ""; } };
+const garderNom = (t, n) => { try { if (n?.trim()) localStorage.setItem(cleNom(t), n.trim().slice(0, 40)); } catch { /* stockage indisponible */ } };
+
 // « Construire mon idée » : l'aperçu gratuit avant de payer.
 // Modération et questions si l'idée est floue, puis : les SaaS proches qui gagnent déjà de l'argent (« m'en inspirer »)
 // ou l'idée telle quelle, avec son nom, sa cible, ses écrans, une maquette de l'écran principal, ce qui viendra
@@ -173,7 +178,8 @@ export default function Idee() {
     try {
       const x = await fn("r/saas-idee-apercu", { workspace_id: ws.id, texte: idee.texte, type: idee.type, reponses: rep });
       setR(x); setEtat(x.refus ? "refus" : x.questions ? "questions" : "apercu");
-      if (x.apercu) { setNom(idee.nom || x.apercu.nom); ecrire("bingoo-idee", { ...idee, reponses: rep, apercu: x.apercu, proches: x.proches }); }
+      // Même idée déjà construite ou nommée sur cet appareil : on garde le nom choisi la première fois
+      if (x.apercu) { const garde = nomGarde(idee.texte); setNom(idee.nom || garde || x.apercu.nom); ecrire("bingoo-idee", { ...idee, ...(garde && !idee.nom ? { nom: garde } : {}), reponses: rep, apercu: x.apercu, proches: x.proches }); }
     } catch (e) { setErr(e.message); setEtat("erreur"); }
   };
   useEffect(() => { if (idee?.texte && ws?.id) { if (idee.apercu?.nom) { setR({ apercu: idee.apercu, proches: idee.proches ?? [] }); setNom(idee.nom || idee.apercu.nom); setEtat("apercu"); } else charger(); } }, [ws?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -190,6 +196,7 @@ export default function Idee() {
     if (estInvite(session) || !ws) { demanderCompte("Crée ton compte gratuit pour construire ton idée."); return; }
     const ap = r?.apercu;
     if (quoi === "idee") {
+      garderNom(idee.texte, nom.trim() || ap.nom);
       ecrire(`bingoo-reponses-${DOMAINE_IDEE}`, { nom: nom.trim() || ap.nom, clients: ap.cible, mieux: "", angle: null });
       ecrire(CLE_CHANTIER, { idee: true, domaine: DOMAINE_IDEE, nom: nom.trim() || ap.nom, categorie: "", ws: ws.id, ideeTexte: idee.texte, type: idee.type, reponses: idee.reponses ?? [], apercu: { ...ap, nom: nom.trim() || ap.nom }, source: idee.source ?? null });
     } else {
@@ -242,7 +249,7 @@ export default function Idee() {
             <div className={cx("mt-4 grid grid-cols-1 gap-6 [&>*]:min-w-0", idee.type === "app" && "lg:grid-cols-[400px_minmax(0,1fr)] lg:items-start")}>
               <div>
                 <label className="text-[12.5px] font-semibold text-ink-soft" htmlFor="nom-idee">{site ? "Le nom affiché sur ton site" : "Son nom"}</label>
-                <input id="nom-idee" value={nom} onChange={(e) => setNom(e.target.value.slice(0, 40))} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
+                <input id="nom-idee" value={nom} onChange={(e) => { setNom(e.target.value.slice(0, 40)); garderNom(idee.texte, e.target.value); }} className="mt-1 w-full rounded-xl border border-line px-3 py-2 text-[22px] font-black outline-none focus:border-ink" style={HF} />
                 <p className="mt-3 text-[15px]">{ap.pitch}</p>
                 <p className="mt-1 text-[13.5px] text-ink-soft">Pour : {ap.cible}</p>
                 <p className="mt-5 text-[13px] font-bold">{outil ? "Ce qu'on verra et ce qu'on pourra faire dans la page" : site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : idee.type === "app" ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} onglets)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>

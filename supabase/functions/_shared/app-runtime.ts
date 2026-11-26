@@ -64,9 +64,11 @@ const propre = (d: unknown) => {
   if (JSON.stringify(o).length > LIM.taille) throw new Err(413, "Élément trop volumineux");
   return o;
 };
-const ligne = (r: any) => ({ ...(r.data ?? {}), id: r.id, created_at: r.at, updated_at: r.maj });
+// _exemple : ligne semée à la création du compte (donnée d'exemple), jamais montrée telle quelle à l'application
+const ligne = (r: any) => { const { _exemple, ...d } = r.data ?? {}; return { ...d, id: r.id, created_at: r.at, updated_at: r.maj }; };
 // Champs calculés par le serveur (auteur d'un élément partagé) : jamais enregistrés tels quels
-const sansCalcul = (d: any) => { const { _auteur, _auteur_id, _moi, ...x } = d ?? {}; return x; };
+// (et _exemple : une donnée d'exemple modifiée par le membre devient la sienne)
+const sansCalcul = (d: any) => { const { _auteur, _auteur_id, _moi, _exemple, ...x } = d ?? {}; return x; };
 
 async function session(admin: SupabaseClient, user: any) {
   const jeton = hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -177,6 +179,8 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
   const rows = items.map(({ id, col, x }, i) => {
     const data: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id" && k !== "cree_le") data[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v;
+    // Marquée comme exemple (SaaS seulement : le contenu de départ d'un site est le vrai contenu du gérant) ; une modification par le membre la rend réelle
+    if (!semees) data._exemple = true;
     // cree_le (date d'exemple) : la ligne paraît créée ce jour-là (historique crédible dans les graphiques)
     const cree = typeof x.cree_le === "string" && !isNaN(Date.parse(x.cree_le)) ? new Date(Date.parse(x.cree_le.length === 10 ? x.cree_le + "T10:00:00Z" : x.cree_le) + (i % 9) * 3600e3).toISOString() : null;
     return { id, app_id: app.id, user_id: userId, espace_id: userId, col, data, at: cree ?? new Date(Date.now() - i * 3600e3 * 7).toISOString() };
@@ -662,7 +666,17 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
     };
     if (!u0.vu_at || Date.now() - new Date(u0.vu_at).getTime() > 3600e3) await admin.from("saas_app_users").update({ vu_at: new Date().toISOString() }).eq("id", u0.id);
 
-    if (action === "me") return { status: 200, body: { user, ...et, espace, variante: titulaire.variante ?? "A" } };
+    if (action === "me") {
+      // Données d'exemple encore présentes dans l'espace : l'application l'affiche (et propose de les vider) à l'administrateur
+      const { count: exemples } = user.role === "admin" ? await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).eq("data->>_exemple", "true") : { count: 0 };
+      return { status: 200, body: { user, ...et, espace, variante: titulaire.variante ?? "A", exemples: exemples ?? 0 } };
+    }
+    if (action === "vider-exemples") {
+      if (user.role !== "admin") throw new Err(403, "Seul l'administrateur de l'espace peut vider les exemples");
+      const { error } = await admin.from("saas_app_rows").delete().eq("app_id", app.id).eq("espace_id", espace).eq("data->>_exemple", "true");
+      if (error) throw new Err(500, "Les exemples n'ont pas pu être vidés, réessayez");
+      return { status: 200, body: { ok: true } };
+    }
 
     if (action === "checkout" || action === "portail") {
       if (!et.payant) throw new Err(400, "Cette application est gratuite");
