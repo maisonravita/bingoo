@@ -42,6 +42,9 @@ export function controlerSection(id: string, html: string, brief: string): strin
   // Zone ou portée inventée (« partout en France ») : seulement si le brief le dit
   const zone = texte.match(/(partout en France|toute la France|France enti[èe]re|dans toute la r[ée]gion|toute l'Europe|dans le monde entier|\d+\s*km (autour|à la ronde))/i)?.[0];
   if (zone && !brief.toLowerCase().includes(zone.toLowerCase())) pbs.push(`Zone inventée : « ${zone} » n'est pas dans le brief. Retire-la.`);
+  // Horaires ou adresse écrits à la main à côté du marqueur qui les affiche déjà : la même information deux fois
+  if (/data-bingoo="horaires"/.test(html) && /(lundi|mardi|mercredi|jeudi|vendredi|samedi)[^.]{0,40}\d{1,2}\s*h/i.test(texte)) pbs.push("Les horaires sont déjà affichés par le marqueur horaires : ne les réécris pas (ni en liste, ni en phrase).");
+  if (/data-bingoo="(adresse|horaires)"/.test(html) && /\b\d{5}\b/.test(texte)) pbs.push("L'adresse est déjà affichée par le marqueur : ne la réécris pas (ni en liste, ni en phrase).");
   // Section maigre (un titre et une ligne) : sans données ni image, elle doit porter au moins deux phrases ou une liste
   const mots = texte.split(" ").filter((m) => /[A-Za-zÀ-ÿ]{2,}/.test(m)).length;
   if (!/^(nav|hero)$/.test(id) && !/<footer\b/i.test(html) && !/data-bingoo=|<img\b|<form\b|<iframe\b/i.test(html) && mots < 22) pbs.push(`Section trop maigre (${mots} mots) : développe-la avec des faits du brief (deux phrases au moins, ou une liste de 3 éléments réels), ou fusionne-la avec une autre.`);

@@ -187,8 +187,8 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
     // Temps : une fonction a une durée limitée ; passé 110 s, plus de réécriture (retrait des sections fautives ou secours)
     if (essai === 3 || compteur.cout > PLAFOND_EUR * 0.8 || Date.now() - t0 > 110_000) {
       // Dernier recours : une section non conforme hors premier écran est retirée plutôt que livrée fausse
-      // (une photo déjà vue ou un sujet proche ne justifient pas de perdre la section : elle reste telle quelle)
-      for (const f of fautives) if (!["nav", "hero"].includes(f.id) && plan.sections.length > 4 && !f.pbs.every((p) => /^La photo |^Cette section reprend/.test(p))) { ecrites.delete(f.id); plan.sections = plan.sections.filter((s) => s.id !== f.id); }
+      // (une photo déjà vue, un sujet proche ou une information déjà affichée ne justifient pas de perdre la section)
+      for (const f of fautives) if (!["nav", "hero"].includes(f.id) && plan.sections.length > 4 && !f.pbs.every((p) => /^La photo |^Cette section reprend|^Ce titre (répète|commence)|^Cette section dit presque|déjà affiché/.test(p))) { ecrites.delete(f.id); plan.sections = plan.sections.filter((s) => s.id !== f.id); }
       // Premier écran : seule une information inventée, un prix hors brief ou une section vide empêchent la livraison ;
       // une remarque de style (typographie, h2) restée après 3 essais ne justifie pas de jeter toute la page
       const graves = fautives.filter((f) => ["nav", "hero"].includes(f.id) && f.pbs.some((p) => /inventée|Prix «|section est vide|manquante/.test(p)));
