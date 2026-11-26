@@ -181,8 +181,8 @@ export default function Motion() {
 
   // Ses propres photos et vidéos (3 au plus) : elles passent en plein écran dans la prochaine vidéo créée, jamais retouchées.
   // Une photo est réduite ici avant l'envoi ; une vidéo part directement dans le dossier de son espace.
-  const [styleVideo, setStyleVideo] = useState(() => { // le style du modèle choisi sur l'accueil, s'il y en a un de moins de deux jours
-    try { const x = JSON.parse(localStorage.getItem("bingoo-style-video") ?? "null"); return x?.look && Date.now() - Number(x.at ?? 0) < 2 * 864e5 ? String(x.look) : ""; } catch { return ""; } }), [medias, setMedias] = useState([]), [envoiMedia, setEnvoiMedia] = useState(false), fichiersMedia = useRef(null);
+  const [styleVideo, setStyleVideo] = useState(() => { // le style du modèle choisi sur l'accueil, s'il a été cliqué il y a moins de 30 minutes
+    try { const x = JSON.parse(localStorage.getItem("bingoo-style-video") ?? "null"); return x?.look && Date.now() - Number(x.at ?? 0) < 30 * 6e4 ? String(x.look) : ""; } catch { return ""; } }), [medias, setMedias] = useState([]), [envoiMedia, setEnvoiMedia] = useState(false), fichiersMedia = useRef(null);
   async function ajouterMedias(liste) {
     const fs = [...(liste ?? [])].slice(0, 3 - medias.length); if (!fs.length || !ws?.id) return;
     setEnvoiMedia(true);
