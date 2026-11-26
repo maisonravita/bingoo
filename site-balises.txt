@@ -1,0 +1,16 @@
+<title>Hôtel des Quais · Hôtel 4 étoiles à Bordeaux</title>
+<meta name="description" content="32 chambres classiques et avec vue sur le fleuve, petit-déjeuner servi sur place, réception ouverte 24 h sur 24 au 12 quai des Chartrons à Bordeaux.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Hôtel des Quais">
+<meta property="og:title" content="Hôtel des Quais · Hôtel 4 étoiles à Bordeaux">
+<meta property="og:description" content="32 chambres classiques et avec vue sur le fleuve, petit-déjeuner servi sur place, réception ouverte 24 h sur 24 au 12 quai des Chartrons à Bordeaux.">
+<meta property="og:url" content="https://www.bingoo.fr/s/hotel-des-quais-6u5r">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=hotel-des-quais-6u5r&amp;v=15-171717">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=hotel-des-quais-6u5r&amp;v=15-171717">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hôtel des Quais · Hôtel 4 étoiles à Bordeaux">
+<meta name="twitter:description" content="32 chambres classiques et avec vue sur le fleuve, petit-déjeuner servi sur place, réception ouverte 24 h sur 24 au 12 quai des Chartrons à Bordeaux.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Hôtel des Quais","description":"32 chambres classiques et avec vue sur le fleuve, petit-déjeuner servi sur place, réception ouverte 24 h sur 24 au 12 quai des Chartrons à Bordeaux.","url":"https://www.bingoo.fr/s/hotel-des-quais-6u5r","image":"https://www.bingoo.fr/api/og?slug=hotel-des-quais-6u5r&v=15-171717","telephone":"05 56 00 00 00","address":"12 quai des Chartrons, 33000 Bordeaux","areaServed":"Bordeaux","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":"Monday","opens":"00:00","closes":"23:59"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"00:00","closes":"23:59"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"00:00","closes":"23:59"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"00:00","closes":"23:59"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"00:00","closes":"23:59"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Saturday","opens":"00:00","closes":"23:59"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Sunday","opens":"00:00","closes":"23:59"}],"makesOffer":[{"@type":"Offer","name":"Chambre classique","description":"Chambre de l'hôtel, équipée pour un séjour à Bordeaux en couple ou en voyage.","price":145,"priceCurrency":"EUR"},{"@type":"Offer","name":"Chambre avec vue sur le fleuve","description":"Chambre donnant sur la Garonne, pour profiter du fleuve depuis votre lit.","price":195,"priceCurrency":"EUR"},{"@type":"Offer","name":"Petit-déjeuner","description":"Petit-déjeuner servi à l'hôtel, à ajouter à votre séjour.","price":18,"priceCurrency":"EUR"}]}</script>

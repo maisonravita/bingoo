@@ -1,0 +1,24 @@
+{
+  "gen": {
+    "at": "2026-11-26T15:16:37.983Z",
+    "cout": 0.2564,
+    "appels": 6,
+    "entree": 152063,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 7315,
+    "duree_s": 44,
+    "journal": [
+      "Premier écran : composition Cinéma",
+      "Plan : hero, quai, chambres, ambiance, venir, faq, contact",
+      "Images : Error: fal 403 : {\"detail\":\"User is locked. Reason: Exhausted balance. Top up your balance at fal.ai/dashboard/billing.\"",
+      "Images : 0 générée(s), 0.000 €",
+      "Sections : quai=manifeste, chambres=liste",
+      "Essai 1 : hero (Composition « Cinéma » non respectée : il manque hero-cine__) ; chambres (Les prestations (chambre classique, chambre avec vue sur le )",
+      "Essai 2 : hero (Composition « Cinéma » non respectée : il manque hero-cine__) ; chambres (Cette section reprend le sujet de la section « quai » (« fle) ; ambiance (Cette section reprend le sujet de la section « chambres » («)",
+      "Essai 3 : hero (Composition « Cinéma » non respectée : il manque hero-cine__) ; chambres (Les prestations (chambre classique, chambre avec vue sur le )"
+    ],
+    "images_eur": 0,
+    "corrections": 5
+  },
+  "sections": 7
+}
