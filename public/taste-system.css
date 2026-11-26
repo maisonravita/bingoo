@@ -1533,7 +1533,7 @@ section.hero.hero-bento { padding: calc(var(--nav) + clamp(32px, calc(var(--hv, 
 /* ================= Sections signatures (26/11) : le bas de page au niveau du premier écran =================
    Cinq mises en page imposées par le code, une par section, jamais deux voisines identiques. */
 /* Récit : une grande photo bord à bord, le texte posé en bas à gauche sur un voile */
-section.s-recit { position: relative; padding: 0 !important; min-height: clamp(460px, calc(var(--hv, 100vh) * .78), 760px) !important; display: flex; align-items: flex-end; overflow: hidden; isolation: isolate; color: #fff; background: #111; }
+section.s-recit { position: relative; padding: 0 !important; min-height: clamp(460px, calc(var(--hv, 100vh) * .78), 760px) !important; height: auto !important; display: flex; align-items: flex-end; overflow: hidden; isolation: isolate; color: #fff; background: #111; }
 .s-recit > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
 .s-recit::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, rgb(0 0 0 / .72), rgb(0 0 0 / .18) 55%, rgb(0 0 0 / .05)); }
 .s-recit__texte { width: 100%; max-width: 1320px; margin-inline: auto; padding: clamp(40px, 8vw, 96px) var(--gut); }
@@ -1563,7 +1563,7 @@ section.s-liste .s-liste__tete { display: flex; justify-content: space-between; 
 .s-liste__ligne p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.55; }
 @media (max-width: 767px) { .s-liste__ligne { grid-template-columns: 40px minmax(0, 1fr); } .s-liste__ligne p { grid-column: 2; } .s-liste__tete { flex-direction: column; align-items: start; } }
 /* Duo : une moitié photo pleine hauteur, l'autre le texte et une liste de points avec filets */
-section.s-duo { padding: 0 !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: clamp(480px, calc(var(--hv, 100vh) * .8), 780px) !important; }
+section.s-duo { padding: 0 !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: clamp(480px, calc(var(--hv, 100vh) * .8), 780px) !important; height: auto !important; }
 .s-duo > figure { margin: 0; position: relative; overflow: hidden; min-height: 320px; }
 .s-duo > figure img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s cubic-bezier(.2,.7,.2,1); }
 .s-duo:hover > figure img { transform: scale(1.03); }
