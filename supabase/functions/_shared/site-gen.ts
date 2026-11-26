@@ -10,7 +10,7 @@ import { texteDesign } from "./design.ts";
 import { FICHES, typeDeProjet } from "./design-fiches.ts";
 import { MARQUEURS_DONNEES, REGLES_PAGE } from "./gen-regles.ts";
 import { detourer, estAlimentaire, imagesPage } from "./gen-images.ts";
-import { choisirComposition, choisirSections, consigneComposition, consigneSections, controlerCompo, estSectionSignature, nettoyerHeroCompo } from "./gen-compositions.ts";
+import { COMPOSITIONS, choisirComposition, choisirSections, consigneComposition, consigneSections, controlerCompo, estSectionSignature, nettoyerHeroCompo } from "./gen-compositions.ts";
 import { controlerSection, nettoyer, remplacerTextePage } from "./gen-nettoyage.ts";
 export { controlerSection, nettoyer, remplacerTextePage };
 import { doublonsServices, sujetDejaTraite } from "./gen-nettoyage.ts";
@@ -26,6 +26,8 @@ export type EntreePage = {
   design: any; photosMembre?: string[]; services?: any[]; horaires?: any[]; infos?: any; faq?: any[];
   /** Consignes propres au genre de projet (page de présentation d'un SaaS : boutons vers l'essai, maquettes des vrais écrans) */
   consignes?: string;
+  /** Mise en scène du premier écran choisie par le membre (sinon Bingoo! choisit) */
+  compo?: string;
   /** Construction en direct : appelé à chaque étape (plan, images, chaque lot de sections écrit) avec la page en cours */
   progres?: (p: PageEnCours) => Promise<unknown> | unknown;
 };
@@ -65,7 +67,8 @@ export async function genererPage(e: EntreePage): Promise<{ page: PageGeneree; m
   const boucheP = estAlimentaire(`${e.brief} ${e.metier ?? ""}`);
   const nbPhotos = (e.photosMembre ?? []).length;
   const imagesPossibles = !boucheP && (nbPhotos > 0 || !!Deno.env.get("FAL_KEY"));
-  let compo = choisirComposition({ type: typeP, texte: `${e.brief} ${e.metier ?? ""}`, images: imagesPossibles });
+  const voulue = e.compo && e.compo in COMPOSITIONS ? COMPOSITIONS[e.compo as keyof typeof COMPOSITIONS] : null;
+  let compo = voulue && (!voulue.photo || imagesPossibles) ? voulue : choisirComposition({ type: typeP, texte: `${e.brief} ${e.metier ?? ""}`, images: imagesPossibles });
   if (compo?.id === "galerie" && nbPhotos > 0 && nbPhotos < 3) compo = choisirComposition({ type: typeP, texte: "nature", images: true });
   // Avec les photos du membre, la composition les utilise (PHOTO_n) à la place des images générées
   const jetonPhoto = (n: number) => (nbPhotos ? `PHOTO_${n}` : `IMG_${n}`);

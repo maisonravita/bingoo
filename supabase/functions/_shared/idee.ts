@@ -228,7 +228,20 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
     limites: (Array.isArray(r?.limites) ? r.limites : []).slice(0, 3).map((x: any) => ({ demande: court(x?.demande, 140), alternative: court(x?.alternative, 160) })).filter((x: any) => x.demande),
   };
   const ds = await designsApercu(`${r?.secteur_en ?? ""} ${apercu.metier ?? ""}`, wsId, [idee, ...precisions].join(" "));
-  return { apercu: { ...apercu, design: ds[0], designs: ds }, proches: [] };
+  // Les mises en scène du premier écran que le membre peut choisir (ou laisser Bingoo! choisir), avec une photo d'aperçu
+  // (modèle rapide, environ 0,003 €) quand le métier le permet : jamais pour la restauration (pas d'image inventée)
+  const { compositionsPour, COMPOSITIONS } = await import("./gen-compositions.ts");
+  const { typeDeProjet } = await import("./design-fiches.ts");
+  const { estAlimentaire, imagesPage } = await import("./gen-images.ts");
+  const texte = `${idee} ${precisions.join(" ")} ${apercu.metier}`;
+  const images = !estAlimentaire(texte) && !!Deno.env.get("FAL_KEY");
+  const compositions = compositionsPour({ type: typeDeProjet({ site: true, modele: apercu.modele, metier: apercu.metier, idee }), texte, images });
+  let photo: string | null = null;
+  const avecPhoto = compositions.find((c) => COMPOSITIONS[c].photo);
+  if (images && avecPhoto) {
+    try { const im = await imagesPage([{ id: "A1", pour: "hero", prompt: `${COMPOSITIONS[avecPhoto].image} Activity: ${apercu.metier}, ${String(r?.secteur_en ?? "")}. ${apercu.pitch}` }], 0.01, { apercu: true, taille: "landscape_16_9" }); photo = im.images.A1?.url ?? null; } catch (x) { console.error("photo d'aperçu", x); }
+  }
+  return { apercu: { ...apercu, design: ds[0], designs: ds, compositions: photo ? compositions : compositions.filter((c) => !COMPOSITIONS[c].photo), photo }, proches: [] };
 }
 
 

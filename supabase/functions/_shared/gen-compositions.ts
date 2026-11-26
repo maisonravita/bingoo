@@ -245,3 +245,13 @@ export function consigneSections(choix: Record<string, { mise: MiseSection; imag
 
 /** Une section signature : jamais de style écrit à la main (le kit fait le rendu) */
 export function estSectionSignature(html: string) { return /class="[^"]*\bs-(recit|manifeste|liste|duo|etapes)\b/.test(String(html ?? "")); }
+
+/** Les mises en scène à proposer dans l'aperçu (3 au plus, la plus adaptée d'abord, jamais deux fois la même) */
+export function compositionsPour(o: { type: TypeProjet; texte: string; images: boolean }): Composition["id"][] {
+  const vus: Composition["id"][] = [];
+  // Le tirage pondéré, répété, donne l'ordre d'adéquation ; puis on complète avec les autres mises en scène du même genre
+  for (let i = 0; i < 60 && vus.length < 3; i++) { const c = choisirComposition({ ...o, aleatoire: () => (i % 7) / 7 }); if (c && !vus.includes(c.id)) vus.push(c.id); }
+  const autres: Composition["id"][] = o.type === "software" ? ["lueur", "bento"] : o.images ? ["cinema", "hublot", "galerie", "mot-geant"] : [];
+  for (const a of autres) if (vus.length < 3 && !vus.includes(a)) vus.push(a);
+  return vus;
+}

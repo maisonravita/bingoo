@@ -32,20 +32,46 @@ const dollars = (n) => Number(n).toLocaleString("fr-FR", { maximumFractionDigits
 // L'aperçu d'un site : le VRAI gabarit des sites livrés par Bingoo!, avec les textes, services et le style de l'aperçu.
 // Aucune donnée inventée : pas d'avis, pas d'horaires, pas de chiffres ; le membre fait défiler sa future page.
 const prixNombre = (p) => { const m = String(p ?? "").replace(/\s/g, "").match(/(\d+(?:[.,]\d+)?)/); return m ? Number(m[1].replace(",", ".")) : null; };
-function specSite(nom, ap) {
+// Mises en scène du premier écran (mêmes classes que les sites construits : public/taste-system.css) : l'aperçu les montre
+// avec les vrais textes de l'idée et la photo d'aperçu, rendus par la même page publique que le site final
+const COMPOS = { cinema: "Cinéma", "mot-geant": "Mot géant", hublot: "Hublot", galerie: "Galerie courbe", lueur: "Lueur", bento: "Bento vivant" };
+// Coupe à la fin d'un mot (jamais au milieu), avec des points de suspension
+const coupe = (t, n) => { const x = String(t ?? ""); if (x.length <= n) return x; const c = x.slice(0, n); return c.slice(0, Math.max(c.lastIndexOf(" "), n * 0.6)).replace(/[,;:\s]+$/, "") + "…"; };
+const echap = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+function heroApercu(id, nom, ap) {
+  const titre = echap(ap.accroche || nom), mots = String(ap.accroche || nom).split(/\s+/), cta = echap(ap.cta || "Me contacter"), pitch = echap(ap.pitch), metier = echap(ap.metier || ""), N = echap(nom);
+  const tiers = [mots.slice(0, Math.ceil(mots.length / 3)), mots.slice(Math.ceil(mots.length / 3), Math.ceil((2 * mots.length) / 3)), mots.slice(Math.ceil((2 * mots.length) / 3))].map((x) => echap(x.join(" ")));
+  const pts = (ap.points_forts ?? []).slice(0, 3);
+  if (id === "cinema") return `<section id="hero" class="hero hero-cine"><img class="hero-cine__fond" src="IMG_1" alt=""><div class="hero-cine__contenu"><h1 class="hero-cine__titre"><span>${tiers[0]}</span><span>${tiers[1]}</span><span>${tiers[2]}</span></h1><div class="hero-cine__bas"><p>${pitch}</p><a class="btn btn--clair" href="#contact">${cta}</a></div></div></section>`;
+  if (id === "mot-geant") { const mot = (String(nom).toLowerCase().split(/\s+/).filter((m) => m.length > 2).pop() || String(nom).toLowerCase()).slice(0, 10); return `<section id="hero" class="hero hero-mot"><img class="hero-mot__fond" src="IMG_1" alt=""><p class="hero-mot__mot" aria-hidden="true" style="--lettres:${mot.length}">${echap(mot)}</p><div class="hero-mot__carte"><span class="t-label">${metier}</span><h1>${titre}</h1><p>${echap(coupe(ap.pitch, 90))}</p><a class="btn btn--clair" href="#contact">${cta}</a></div><p class="hero-mot__phrase">${pitch}</p></section>`; }
+  if (id === "hublot") return `<section id="hero" class="hero hero-hublot"><div class="hero-hublot__tete"><span class="t-label">${metier}</span><h1>${tiers[0]} ${tiers[1]}<span class="discret">${tiers[2]}</span></h1></div><figure class="hero-hublot__cadre"><img src="IMG_1" alt=""></figure><div class="hero-hublot__bas"><p><strong>${metier}</strong>${echap(coupe(ap.pitch, 90))}</p><div class="btn-row"><a class="btn btn--clair" href="#contact">${cta} →</a></div><p><strong>${N}</strong></p></div></section>`;
+  if (id === "galerie") { const t = (x, c = "") => `<div class="tuile ${c}">${echap(x)}</div>`; const w = (pts.map((p) => p.titre.split(" ")[0]).concat([metier.split(" ")[0], N.split(" ")[0]])).filter(Boolean); return `<section id="hero" class="hero hero-galerie"><div class="hero-galerie__tete"><span class="t-label">${metier}</span><h1>${tiers[0]} ${tiers[1]} <span class="discret">${tiers[2]}</span></h1><p>${pitch}</p><div class="btn-row"><a class="btn btn--primary" href="#contact">${cta}</a></div></div><div class="hero-galerie__rail" aria-hidden="true"><div class="hero-galerie__piste"><figure class="tuile"><img src="IMG_1" alt=""></figure>${t(w[0] ?? "", "tuile--aplat")}<div class="tuile tuile--cercles"></div>${t("01", "tuile--clair")}${t(N.slice(0, 1), "tuile--encre")}${t(w[1] ?? "", "tuile--italique")}<div class="tuile tuile--points"></div>${t("02", "tuile--clair")}${t(w[2] ?? "", "tuile--aplat")}${t(w[3] ?? "", "tuile--encre")}<figure class="tuile"><img src="IMG_1" alt=""></figure></div></div></section>`; }
+  if (id === "lueur") return `<section id="hero" class="hero hero-lueur"><div class="hero-lueur__tete"><span class="hero-lueur__pilule">${metier}</span><h1>${titre}</h1><p>${pitch}</p><div class="btn-row"><a class="btn btn--clair" href="#contact">${cta} →</a></div></div><div class="hero-lueur__arc" aria-hidden="true"></div><div class="hero-lueur__ecran"><div class="ecran__cote"><b>${N}</b>${(ap.ecrans ?? []).slice(0, 5).map((e, i) => `<span class="${i ? "" : "actif"}">${echap(e.titre)}</span>`).join("")}</div><div class="ecran__corps"><div class="ecran__haut"><strong>${echap((ap.ecrans ?? [])[0]?.titre ?? "")}</strong></div><div class="ecran__lignes">${pts.map((p) => `<div><span>${echap(p.titre)}</span><span>${echap(coupe(p.texte, 40))}</span></div>`).join("")}</div></div></div></section>`;
+  if (id === "bento") return `<section id="hero" class="hero hero-bento"><div class="hero-bento__grille"><div class="hero-bento__texte"><span class="t-label">${metier}</span><h1>${N}</h1><p>${pitch}</p><div class="hero-bento__pilules">${pts.map((p) => `<span>${echap(p.titre)}</span>`).join("")}</div></div><div class="hero-bento__widgets">${pts.map((p, i) => `<div class="widget ${["widget--grand widget--violet", "widget--large widget--vert", "widget--large widget--ambre"][i]}"><div class="widget__titre">${echap(p.titre)}</div><div class="widget__note">${echap(p.texte)}</div></div>`).join("")}</div></div></section>`;
+  return null;
+}
+export function pageApercu(id, nom, ap) {
+  const hero = heroApercu(id, nom, ap); if (!hero) return null;
+  const nav = `<header class="nav"><div class="wrap nav__bar"><a class="nav__logo" href="#hero">${echap(nom)}</a><nav class="nav__links">${(ap.ecrans ?? []).slice(1, 4).map((e) => `<div class="nav__item"><a class="nav__link" href="#suite">${echap(e.titre)}</a></div>`).join("")}</nav><div class="nav__actions"><a class="btn btn--primary" href="#contact">${echap(ap.cta || "Me contacter")}</a></div><button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu">≡</button></div></header>`;
+  const suite = `<section id="suite" class="section s-liste"><div class="wrap"><div class="s-liste__tete"><h2>${echap(ap.ecrans?.[1]?.titre || "Ce que nous faisons")}</h2><p>${echap(ap.cible || "")}</p></div>${(ap.points_forts ?? []).map((p, i) => `<div class="s-liste__ligne"><span class="s-liste__num">0${i + 1}</span><h3>${echap(p.titre)}</h3><p>${echap(p.texte)}</p></div>`).join("")}</div></section>`;
+  return { sections: [{ id: "nav", html: nav }, { id: "hero", html: hero }, { id: "suite", html: suite }], images: ap.photo ? { IMG_1: { url: ap.photo } } : {}, nav: [] };
+}
+function specSite(nom, ap, compo) {
+  const page = compo ? pageApercu(compo, nom, ap) : null;
   return {
     type: "site", nom, slogan: ap.accroche || "", pitch: ap.pitch || "", design: ap.design ?? undefined, couleur: ap.design?.couleurs?.primary ?? "#E8571C",
-    site: { gabarit: "editorial", metier: ap.metier || "", cta: ap.cta || "Me contacter", modele: ap.modele || "vitrine", demande: /devis/i.test(ap.cta ?? "") ? "devis" : /r[ée]serv/i.test(ap.cta ?? "") ? "reservation" : /rendez|rdv/i.test(ap.cta ?? "") ? "rdv" : "message", points_forts: ap.points_forts ?? [], etapes: ap.etapes ?? [] },
+    site: { ...(page ? { page } : {}), gabarit: "editorial", metier: ap.metier || "", cta: ap.cta || "Me contacter", modele: ap.modele || "vitrine", demande: /devis/i.test(ap.cta ?? "") ? "devis" : /r[ée]serv/i.test(ap.cta ?? "") ? "reservation" : /rendez|rdv/i.test(ap.cta ?? "") ? "rdv" : "message", points_forts: ap.points_forts ?? [], etapes: ap.etapes ?? [] },
     demo: { services: (ap.services ?? []).map((x) => { const n = prixNombre(x.prix); return { titre: x.titre, description: x.description || "", prix: n, prix_texte: /partir/i.test(x.prix ?? "") }; }), horaires: [], infos: [{}] },
     ecrans: [],
+    ...(page ? { site_page_apercu: true } : {}),
   };
 }
 // Aperçu d'un SaaS : la vraie coque des SaaS Bingoo! (menu, en-tête, style tiré) avec l'écran principal de l'idée,
 // écrit avec les vrais composants et des données d'exemple ; les autres écrans sont annoncés dans le menu.
 // Une des trois propositions de style : le VRAI rendu de la page (gabarit des sites, ou coque des SaaS), en petit
-function Vignette({ nom, ap, design, type, choisi, onClick, n }) {
+function Vignette({ nom, ap, design, type, choisi, onClick, n, compo }) {
   const ap2 = useMemo(() => ({ ...ap, design }), [ap, design]);
-  const spec = useMemo(() => (type === "site" ? specSite(nom, ap2) : { ...specApercuSaas(nom, ap2), ...(type === "app" ? { mobile: true } : {}) }), [nom, ap2, type]);
+  const spec = useMemo(() => (type === "site" ? specSite(nom, ap2, compo) : { ...specApercuSaas(nom, ap2), ...(type === "app" ? { mobile: true } : {}) }), [nom, ap2, type, compo]);
   const boite = useRef(null), [k, setK] = useState(0.22);
   const L = type === "app" ? 390 : 1280, Hs = type === "app" ? 700 : 800;
   useEffect(() => { const el = boite.current; if (!el) return; const o = new ResizeObserver(() => setK(el.clientWidth / L)); o.observe(el); return () => o.disconnect(); }, [L]);
@@ -55,12 +81,12 @@ function Vignette({ nom, ap, design, type, choisi, onClick, n }) {
       <div ref={boite} className="pointer-events-none relative w-full overflow-hidden" style={{ height: Hs * k }}>
         <div className="absolute left-0 top-0" style={{ width: L, height: Hs, transform: `scale(${k})`, transformOrigin: "0 0" }}>
           <Suspense fallback={<div className="h-full animate-pulse bg-[#F6F5F2]" />}>
-            <AppCadre slug={slug} spec={spec} version={JSON.stringify(design).length + n} {...(type === "site" ? { apercu: true } : { essai: true })} className="h-full w-full" />
+            <AppCadre slug={slug + (compo ?? "")} spec={spec} version={JSON.stringify(design).length + n + (compo ?? "").length} {...(type === "site" ? { apercu: true } : { essai: true })} className="h-full w-full" />
           </Suspense>
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-2 text-[12.5px] font-semibold">
-        <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: design?.couleurs?.primary }} /><span className="truncate">Style {n + 1}{design?.polices?.titres ? ` · ${design.polices.titres}` : ""}</span></span>
+        <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: design?.couleurs?.primary }} /><span className="truncate">{compo ? COMPOS[compo] : <>Style {n + 1}{design?.polices?.titres ? ` · ${design.polices.titres}` : ""}</>}</span></span>
         <span className={cx("shrink-0 rounded-full px-2 py-0.5 text-[11px]", choisi ? "bg-[#E8571C] text-white" : "bg-[#F1EFEA] text-ink-soft")}>{choisi ? "Choisi" : "Choisir"}</span>
       </div>
     </button>
@@ -103,7 +129,8 @@ function SaasReel({ nom, ap }) {
   );
 }
 function SiteReel({ nom, ap }) {
-  const spec = useMemo(() => specSite(nom, ap), [nom, ap]);
+  const compo = ap.composition && ap.composition !== "auto" ? ap.composition : ap.compositions?.[0];
+  const spec = useMemo(() => specSite(nom, ap, compo), [nom, ap, compo]);
   const slug = (nom || "mon-site").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "");
   // Rendu en largeur d'ordinateur (1280 px), réduit à la place disponible : on voit le site comme ses clients le verront
   const boite = useRef(null), [k, setK] = useState(0.6);
@@ -119,7 +146,7 @@ function SiteReel({ nom, ap }) {
       <div ref={boite} className="relative w-full overflow-hidden" style={{ height: H }}>
         <div className={large ? "absolute left-0 top-0" : ""} style={large ? { width: 1280, height: H / k, transform: `scale(${k})`, transformOrigin: "0 0" } : { height: H }}>
           <Suspense fallback={<div className="h-full animate-pulse bg-[#F6F5F2]" />}>
-            <AppCadre slug={"apercu-" + slug} spec={spec} version={JSON.stringify(spec).length} apercu className="h-full w-full" />
+            <AppCadre slug={"apercu-" + slug + (compo ?? "")} spec={spec} version={JSON.stringify(spec).length} apercu className="h-full w-full" />
           </Suspense>
         </div>
       </div>
@@ -187,6 +214,8 @@ export default function Idee() {
 
   // Lancer : un compte, l'abonnement, puis la construction habituelle (questions, paiement, construction, vérification)
   // Le style choisi devient celui de l'aperçu (et donc de la construction, qui reprend le design de l'aperçu)
+  // La mise en scène du premier écran : celle choisie, ou « auto » (Bingoo! choisit à la construction)
+  const choisirCompo = (c) => setR((x) => { const apercu = { ...x.apercu, composition: c }; ecrire("bingoo-idee", { ...idee, apercu, proches: x.proches }); return { ...x, apercu }; });
   const choisirStyle = (i) => setR((x) => {
     const apercu = { ...x.apercu, design: x.apercu.designs[i] };
     ecrire("bingoo-idee", { ...idee, apercu, proches: x.proches });
@@ -277,7 +306,18 @@ export default function Idee() {
                 </div>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[var(--p)]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
-              {(ap.designs?.length ?? 0) > 1 && <div className="order-first">
+              {site && (ap.compositions?.length ?? 0) > 0 && <div className="order-first">
+                <p className="mb-2 text-[14px] font-bold">Choisis ta mise en scène <span className="font-normal text-ink-faint">· de vrais rendus de ton premier écran, avec tes textes</span></p>
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                  <button type="button" onClick={() => choisirCompo("auto")} aria-pressed={!ap.composition || ap.composition === "auto"} className={cx("flex flex-col justify-between rounded-xl border-2 bg-white p-4 text-left transition", !ap.composition || ap.composition === "auto" ? "border-[#E8571C] shadow-[0_10px_30px_-12px_rgba(232,87,28,.6)]" : "border-line hover:border-ink-faint")}>
+                    <span><span className="block text-[15px] font-bold">Bingoo! choisit pour toi</span><span className="mt-1 block text-[13px] text-ink-soft">Pas de préférence : Bingoo! prend la mise en scène qui va le mieux à ton métier.</span></span>
+                    <span className={cx("mt-3 self-start rounded-full px-2 py-0.5 text-[11px] font-semibold", !ap.composition || ap.composition === "auto" ? "bg-[#E8571C] text-white" : "bg-[#F1EFEA] text-ink-soft")}>{!ap.composition || ap.composition === "auto" ? "Choisi" : "Choisir"}</span>
+                  </button>
+                  {ap.compositions.map((c, i) => <Vignette key={c} n={i} compo={c} nom={nom || ap.nom} ap={ap} design={ap.design} type="site" choisi={ap.composition === c} onClick={() => choisirCompo(c)} />)}
+                </div>
+                {(ap.designs?.length ?? 0) > 1 && <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]"><span className="font-semibold">Couleurs :</span>{ap.designs.map((d, i) => <button key={i} type="button" onClick={() => choisirStyle(i)} aria-pressed={JSON.stringify(d) === JSON.stringify(ap.design)} className={cx("flex items-center gap-1.5 rounded-full border px-2.5 py-1", JSON.stringify(d) === JSON.stringify(ap.design) ? "border-ink bg-white font-semibold" : "border-line bg-white text-ink-soft")}><span className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ background: d?.couleurs?.primary }} />{d?.polices?.titres ?? `Style ${i + 1}`}</button>)}</div>}
+              </div>}
+              {!(site && (ap.compositions?.length ?? 0) > 0) && (ap.designs?.length ?? 0) > 1 && <div className="order-first">
                 <p className="mb-2 text-[14px] font-bold">Choisis ton style <span className="font-normal text-ink-faint">· trois vrais rendus de ta page, Bingoo! construit celui que tu choisis</span></p>
                 <div className={cx("grid gap-3", idee.type === "app" ? "grid-cols-3 max-w-[560px]" : "grid-cols-1 sm:grid-cols-3")}>{ap.designs.map((d, i) => <Vignette key={i} n={i} nom={nom || ap.nom} ap={ap} design={d} type={site ? "site" : idee.type === "app" ? "app" : "saas"} choisi={JSON.stringify(d) === JSON.stringify(ap.design)} onClick={() => choisirStyle(i)} />)}</div>
               </div>}
