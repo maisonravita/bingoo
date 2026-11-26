@@ -81,8 +81,11 @@ export function specSite(c: any, p: any) {
   // Téléphone et adresse : seulement s'ils sont écrits dans l'idée du membre (vérifié ici, jamais inventés par l'IA)
   const ideeTxt = String(p?.idee?.texte ?? "") + " " + (Array.isArray(p?.idee?.reponses) ? p.idee.reponses.map((x: any) => x?.r ?? "").join(" ") : "");
   const chiffres = (x: unknown) => String(x ?? "").replace(/\D/g, "");
-  const tel = chiffres(c?.telephone).length >= 10 && chiffres(ideeTxt).includes(chiffres(c?.telephone)) ? court(c?.telephone, 30) : "";
-  const adr = court(c?.adresse, 160), adrOk = adr && adr.split(/[ ,]+/).filter((m: string) => m.length > 3).every((m: string) => ideeTxt.toLowerCase().includes(m.toLowerCase()));
+  // Si l'IA les a oubliés, on les reprend tels qu'ils sont écrits dans l'idée (jamais inventés)
+  const telIdee = ideeTxt.match(/(?:\+33\s?|0)[1-9](?:[\s.-]?\d{2}){4}/)?.[0] ?? "";
+  const adrIdee = ideeTxt.match(/\b\d{1,4}(?:\s?(?:bis|ter))?,?\s+(?:rue|avenue|av\.|boulevard|bd|place|quai|chemin|all[ée]e|impasse|cours|route|square|passage)\b[^,.\n]{2,60}(?:,?\s*\d{5}\s+[A-Za-zÀ-ÿ' -]{2,40})?/i)?.[0]?.trim() ?? "";
+  const tel = chiffres(c?.telephone).length >= 10 && chiffres(ideeTxt).includes(chiffres(c?.telephone)) ? court(c?.telephone, 30) : court(telIdee, 30);
+  const adr = court(c?.adresse, 160) || court(adrIdee, 160), adrOk = adr && adr.split(/[ ,]+/).filter((m: string) => m.length > 3).every((m: string) => ideeTxt.toLowerCase().includes(m.toLowerCase()));
   const infos = [{ telephone: tel, email: "", adresse: adrOk ? adr : "", zone: court(c?.zone, 120) || court(c?.ville, 60), instagram: "", facebook: "" }];
   const D = liste(c?.demandes).length ? liste(c.demandes) : services.map((s: any) => ({ service: s.titre, message: "Bonjour, je souhaiterais en savoir plus et connaître vos disponibilités." }));
   const statuts = ["nouvelle", "nouvelle", "nouvelle", "en_cours", "en_cours", "traitee", "traitee", "traitee"];

@@ -75,7 +75,10 @@ export async function genererPage(e: EntreePage): Promise<{ page: PageGeneree; m
   const jetonPhoto = (n: number) => (nbPhotos ? `PHOTO_${n}` : `IMG_${n}`);
   const consigneCompo = compo ? consigneComposition(compo).replace(/\bIMG_([1-3])\b/g, (_m, n) => jetonPhoto(Number(n))) : "";
   if (compo) journal.push(`Premier écran : composition ${compo.nom}`);
-  const consigneDe = (c: string) => `${REGLES_PAGE}\n\n${VOCABULAIRE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}${c ? `\n\n${c}` : ""}`;
+  // Horaires ou adresse inconnus : ni marqueur, ni étiquette « Horaires » ou « Adresse » vide sur la page
+  const sansH = !(e.horaires ?? []).some((h: any) => h?.ouvert), sansA = !String((e.infos as any)?.adresse ?? "").trim();
+  const manque = [sansH ? "Aucun horaire connu : pas de marqueur horaires, ni titre, ni étiquette « Horaires »." : "", sansA ? "Aucune adresse postale connue : pas de marqueur adresse, ni étiquette « Adresse » ; parle de la ville ou du quartier si le brief les cite." : ""].filter(Boolean).join("\n");
+  const consigneDe = (c: string) => `${REGLES_PAGE}\n\n${VOCABULAIRE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}${manque ? `\n\n## Données absentes\n${manque}` : ""}${c ? `\n\n${c}` : ""}`;
   let systeme = consigneDe(consigneCompo);
   const donnees = JSON.stringify({ nom: e.nom, modele: e.modele, metier: e.metier, ville: e.ville, bouton_principal: e.cta, demande: e.demande,
     services: (e.services ?? []).map((s: any) => ({ titre: s.titre, prix: s.prix, duree: s.duree })), horaires: e.horaires ?? [], coordonnees: e.infos ?? {}, faq: e.faq ?? [],
@@ -227,8 +230,12 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
     for (const k of Object.keys(SUJET)) { const avec = ids.filter((id) => new RegExp(`data-bingoo="${k}"`).test(ecrites.get(id) ?? "")); if (avec.length > 1) garde[k] = avec.find((id) => SUJET[k].test(id + " " + (ecrites.get(id)!.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1] ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())) ?? avec[0]; }
     for (const id of ids) { const h = ecrites.get(id); if (!h) continue;
       ecrites.set(id, h.replace(/<div\b[^>]*data-bingoo="(services|horaires|adresse|realisations)"[^>]*>\s*<\/div>/gi, (m, k) => { if (garde[k] && garde[k] !== id) { journal.push(`Marqueur ${k} en double retiré (${id}, gardé dans ${garde[k]})`); return ""; } return m; })); } }
+  // Une section qui a perdu son marqueur en double et n'a plus qu'un titre est retirée (elle se verrait vide)
+  for (const id of [...ids]) { const h = ecrites.get(id); if (!h || ["nav", "hero"].includes(id) || plan.sections.length <= 4) continue;
+    const mots = h.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").split(/\s+/).filter((m) => /[A-Za-zÀ-ÿ]{2,}/.test(m)).length;
+    if (mots < 22 && !/data-bingoo=|<img\b|<form\b|<footer\b/i.test(h)) { ecrites.delete(id); plan.sections = plan.sections.filter((x) => x.id !== id); journal.push(`Section ${id} retirée (vide après le retrait d'un doublon)`); } }
   // 5. Assemblage (marqueurs connus seulement)
-  const sections = ids.filter((id) => ecrites.has(id)).map((id) => ({ id, html: ecrites.get(id)!.replace(/data-bingoo="([a-z]+)"/g, (m, k) => (k in MARQUEURS_DONNEES ? m : "")) }));
+  const sections = ids.filter((id) => ecrites.has(id)).map((id) => ({ id, html: ecrites.get(id)!.replace(/data-bingoo="([a-z]+)"/g, (m, k) => (k in MARQUEURS_DONNEES && !(k === "horaires" && sansH) && !(k === "adresse" && sansA) ? m : "")) }));
   const mesure: MesurePage = { modele: Object.keys(compteur.modeles).join(", "), cout: Math.round((compteur.cout + imagesEur) * 1e4) / 1e4, images_eur: imagesEur,
     entree: compteur.entree, sortie: compteur.sortie, appels: compteur.appels, duree_s: Math.round((Date.now() - t0) / 1000), corrections, journal };
   return { page: { sections, images, nav: plan.nav ?? [] }, mesure };
