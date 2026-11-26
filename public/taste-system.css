@@ -1361,10 +1361,10 @@ main > .photo-band--hero:first-child > .photo-band__text { padding-top: calc(var
 @keyframes compo-apparait { from { opacity: 0; } }
 
 /* 1. Cinéma : photo plein cadre, titre à empattements en trois lignes décalées, phrase et bouton clair en bas */
-section.hero.hero-cine { position: relative; min-height: clamp(640px, 100svh, 960px); padding: 0; display: block; overflow: hidden; isolation: isolate; color: #fff; background: #111; }
+section.hero.hero-cine { position: relative; min-height: clamp(600px, var(--hv, 100svh), 980px); padding: 0; display: block; overflow: hidden; isolation: isolate; color: #fff; background: #111; }
 .hero-cine > .hero-cine__fond { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; animation: compo-zoom 16s cubic-bezier(.2,.6,.2,1) both; }
 .hero-cine::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, rgb(0 0 0 / .46) 0%, rgb(0 0 0 / .1) 34%, rgb(0 0 0 / .08) 58%, rgb(0 0 0 / .62) 100%); }
-.hero-cine__contenu { min-height: clamp(640px, 100svh, 960px); width: 100%; max-width: 1320px; margin-inline: auto; display: flex; flex-direction: column; justify-content: space-between; gap: 48px; padding: calc(var(--nav) + clamp(20px, 5vh, 64px)) var(--gut) clamp(40px, 8vh, 96px); }
+.hero-cine__contenu { min-height: clamp(600px, var(--hv, 100svh), 980px); width: 100%; max-width: 1320px; margin-inline: auto; display: flex; flex-direction: column; justify-content: space-between; gap: 48px; padding: calc(var(--nav) + clamp(20px, 5vh, 64px)) var(--gut) clamp(40px, 8vh, 96px); }
 .hero-cine__titre { margin: 0; display: flex; flex-direction: column; font-family: var(--font-display); font-weight: 400; font-size: clamp(46px, 7.6vw, 128px); line-height: .94; letter-spacing: -.025em; color: #fff; text-shadow: 0 2px 30px rgb(0 0 0 / .18); }
 .hero-cine__titre > * { display: block; animation: compo-monte 1.1s cubic-bezier(.2,.7,.2,1) both; }
 .hero-cine__titre > :nth-child(1) { align-self: flex-start; margin-left: 8%; }
@@ -1375,7 +1375,7 @@ section.hero.hero-cine { position: relative; min-height: clamp(640px, 100svh, 96
 @media (max-width: 767px) { .hero-cine__titre > * { align-self: flex-start !important; margin: 0 !important; } .hero-cine__bas { justify-items: start; text-align: left; } }
 
 /* 2. Mot géant : le nom en lettres immenses, posé DERRIÈRE le sujet détouré de la photo ; carte vitrée en bas à gauche */
-section.hero.hero-mot { position: relative; min-height: clamp(640px, 100svh, 960px); padding: 0; overflow: hidden; isolation: isolate; color: #fff; background: #0C1220; }
+section.hero.hero-mot { position: relative; min-height: clamp(600px, var(--hv, 100svh), 980px); padding: 0; overflow: hidden; isolation: isolate; color: #fff; background: #0C1220; }
 .hero-mot__fond, .hero-mot__sujet { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 62%; }
 .hero-mot__fond { z-index: 0; animation: compo-zoom 18s cubic-bezier(.2,.6,.2,1) both; }
 .hero-mot__sujet { z-index: 2; animation: compo-zoom 18s cubic-bezier(.2,.6,.2,1) both; pointer-events: none; }
@@ -1391,7 +1391,7 @@ section.hero.hero-mot { position: relative; min-height: clamp(640px, 100svh, 960
 @media (max-width: 767px) { .hero-mot__phrase { display: none; } .hero-mot__mot { top: calc(var(--nav) + 10vh); font-size: min(36vw, calc(190vw / var(--lettres, 6))); } }
 
 /* 3. Hublot : salle sombre, titre fin centré, la photo vue par une grande baie arrondie, trois colonnes en bas */
-section.hero.hero-hublot { position: relative; min-height: clamp(640px, 100svh, 960px); padding: calc(var(--nav) + clamp(28px, 6vh, 72px)) 0 28px; display: flex; flex-direction: column; overflow: hidden; color: #F1F1EF;
+section.hero.hero-hublot { position: relative; min-height: clamp(600px, var(--hv, 100svh), 980px); padding: calc(var(--nav) + clamp(28px, 6vh, 72px)) 0 28px; display: flex; flex-direction: column; overflow: hidden; color: #F1F1EF;
   background: radial-gradient(ellipse 60% 42% at 50% 56%, rgb(255 255 255 / .07), transparent 70%), linear-gradient(#050506, #0B0C0E 55%, #060607); }
 .hero-hublot__tete { text-align: center; padding-inline: var(--gut); animation: compo-monte 1.1s both; }
 .hero-hublot__tete .t-label { font-size: 12px; letter-spacing: .14em; color: rgb(255 255 255 / .55); }
