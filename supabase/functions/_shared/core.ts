@@ -200,9 +200,10 @@ export async function log(workspaceId: string, kind: string, summary: string) {
 }
 
 /** Limite quotidienne d'actions IA par espace (protège le budget). */
-export async function quota(workspaceId: string, kind: string, max: number, wanted = 1): Promise<number> {
+export async function quota(workspaceId: string, kind: string, max: number, wanted = 1, offert = false): Promise<number> {
   const { data: w } = await admin.from("workspaces").select("plan, plan_status, trial_ends").eq("id", workspaceId).single();
-  assertPlan(w ?? {});
+  // offert : action de l'offre gratuite (aperçu d'une idée), ouverte même après la fin de l'essai
+  if (!(offert && (w?.plan ?? "essai") === "essai")) assertPlan(w ?? {});
   max = Math.max(1, Math.round(max * (PLANS[w?.plan ?? "essai"]?.factor ?? 1)));
   const since = new Date(); since.setUTCHours(0, 0, 0, 0);
   const { count } = await admin.from("activity").select("id", { count: "exact", head: true })

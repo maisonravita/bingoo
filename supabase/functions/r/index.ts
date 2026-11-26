@@ -585,7 +585,8 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // Construire à partir d'une idée libre : l'aperçu gratuit (modération, questions si l'idée est floue, écrans, maquette, limites, SaaS proches)
   async "saas-idee-apercu"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    await quota(ws.id, "idee_apercu", 12);
+    // L'aperçu fait partie de l'offre gratuite (3 par mois) : jamais bloqué par la fin de l'essai, même pour un visiteur
+    await quota(ws.id, "idee_apercu", 12, 1, true);
     // Offre gratuite : 3 aperçus par mois, sans images IA (le reste de Bingoo! sans IA reste ouvert)
     const gratuit = ws.plan === "essai";
     if (gratuit) {
