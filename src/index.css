@@ -2,6 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ================= Design system Bingoo! : les jetons (design tokens) =================
+   Une seule source pour les couleurs, arrondis, ombres, durées. Les classes Tailwind
+   (bg-ink, text-ink-soft, border-line, bg-accent…) lisent ces variables : changer une
+   valeur ici la change partout. Thème sombre : data-theme="dark" sur n'importe quel bloc.
+   Contrastes vérifiés WCAG 2.2 AA par scripts/contrastes.mjs (texte ≥ 4,5:1). */
+:root {
+  --ink: 21 22 26;            /* texte principal            #15161A */
+  --ink-soft: 91 94 102;      /* texte secondaire           #5B5E66 */
+  --ink-faint: 107 110 118;   /* texte discret (≥ 4,5:1)    #6B6E76 */
+  --paper: 245 244 239;       /* fond de page               #F5F4EF */
+  --surface: 255 255 255;     /* cartes, champs, menus      #FFFFFF */
+  --line: 227 225 217;        /* filets et bordures         #E3E1D9 */
+  --accent: 224 83 31;        /* orange Bingoo!             #E0531F */
+  --accent-dark: 184 65 19;   /* orange pour du texte       #B84113 */
+  --accent-soft: 252 231 220; /*                             #FCE7DC */
+  --good: 30 118 74;          --good-soft: 221 240 229;
+  --warn: 148 93 0;           --warn-soft: 248 236 207;
+  --bad: 180 50 42;           --bad-soft: 248 222 219;
+  --info: 30 90 170;          --info-soft: 226 236 250;
+  --focus: 224 83 31;
+  --rayon-champ: 12px; --rayon-carte: 16px; --rayon-fenetre: 20px;
+  --ombre-menu: 0 12px 32px -12px rgb(21 22 26 / .28), 0 0 0 1px rgb(21 22 26 / .06);
+  --ombre-fenetre: 0 30px 80px -20px rgb(21 22 26 / .45);
+  --duree-rapide: 120ms; --duree: 200ms; --duree-lente: 320ms;
+  --courbe: cubic-bezier(.2,.7,.2,1);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --ink: 236 235 230; --ink-soft: 163 165 173; --ink-faint: 142 144 152;
+  --paper: 20 21 24; --surface: 28 29 33; --line: 48 50 56;
+  --accent: 224 83 31; --accent-dark: 240 138 75; --accent-soft: 64 33 20;
+  --good: 110 211 155; --good-soft: 22 52 37;
+  --warn: 236 184 92; --warn-soft: 58 44 16;
+  --bad: 245 135 125; --bad-soft: 66 26 24;
+  --info: 140 180 245; --info-soft: 24 38 64;
+  --focus: 240 138 75;
+  --ombre-menu: 0 12px 32px -12px rgb(0 0 0 / .7), 0 0 0 1px rgb(255 255 255 / .08);
+  color-scheme: dark;
+}
+[data-theme="dark"] { background-color: rgb(var(--paper)); color: rgb(var(--ink)); }
+:focus-visible { outline: 2px solid rgb(var(--focus)); outline-offset: 2px; }
+
 html, body, #root { height: 100%; }
 body { @apply bg-paper text-ink font-sans antialiased; font-size: 15px; }
 h1, h2, h3 { text-wrap: balance; }

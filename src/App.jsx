@@ -15,6 +15,7 @@ import Join, { JOIN_KEY } from "./pages/Join";
 import Explorer from "./pages/Explorer";
 const PublicRetrait = lazy(() => charger(() => import("./pages/PublicRetrait")));
 import Landing from "./pages/Landing";
+const DesignSystem = lazy(() => charger(() => import("./pages/DesignSystem")));
 const Decouvrir = lazy(() => charger(() => import("./pages/Decouvrir")));
 const PublicApp = lazy(() => charger(() => import("./pages/PublicApp")));
 import OnboardingExplorer from "./pages/OnboardingExplorer";
@@ -33,6 +34,8 @@ function Gate() {
   }, [ws?.id, ws?.app_url]);
   if (loc.pathname === "/retrait") return <PublicRetrait />;
   if (loc.pathname === "/accueil") return <Landing />;
+  // Le design system de Bingoo! : tous les composants communs, en vrai, en clair et en sombre
+  if (loc.pathname === "/design-system") return <Suspense fallback={<Splash />}><DesignSystem /></Suspense>;
   // « Pas d'idée ? » : les SaaS qui marchent, en public (quelques-uns en clair, le reste flouté)
   if (loc.pathname === "/decouvrir") return <Suspense fallback={<Splash />}><Decouvrir /></Suspense>;
   if (loc.pathname.startsWith("/app/")) return <PublicApp slug={loc.pathname.split("/")[2] ?? ""} />;

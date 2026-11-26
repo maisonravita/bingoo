@@ -304,6 +304,19 @@ await test("modèles faits main : le bon modèle est reconnu à partir du projet
   const cas = [["support", "Un helpdesk : les tickets de support client, un centre d'aide et des réponses aux clients par e-mail. Support client simple."], ["boutique", "Une boutique en ligne pour vendre en ligne : panier, commandes en ligne et stocks."], ["recrutement", "Recrutement simplifié : offres d'emploi, suivi des candidats, page carrières."], ["reseaux", "Planification des publications sur Instagram, LinkedIn et TikTok avec un calendrier éditorial."], ["formulaires", "Créez des formulaires et des sondages, questionnaires de satisfaction."], ["crm", "Un CRM : prospects, pipeline, leads et suivi commercial."]];
   for (const [attendu, pitch] of cas) { const m = T.modeleDe({ pitch }); if (m !== attendu) throw new Error(attendu + " attendu, " + m + " reconnu"); }
 });
+console.log("\nDesign system");
+await test("jetons de couleur : contrastes WCAG 2.2 AA en clair et en sombre", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync("src/index.css", "utf8");
+  const bloc = (sel) => { const i = css.indexOf(sel + " {"); const b = css.slice(i, css.indexOf("}", i)); const o = {}; for (const m of b.matchAll(/--([a-z-]+):\s*(\d+) (\d+) (\d+)/g)) o[m[1]] = [+m[2], +m[3], +m[4]]; return o; };
+  const L = (c) => { const v = c.map((x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+  const r = (a, b) => { const [x, y] = [L(a), L(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+  const clair = bloc(":root"), sombre = { ...clair, ...bloc('[data-theme="dark"]') };
+  const paires = [["ink", "paper"], ["ink-soft", "paper"], ["ink-faint", "paper"], ["ink-soft", "surface"], ["ink-faint", "surface"], ["accent-dark", "surface"], ["accent-dark", "accent-soft"], ["good", "good-soft"], ["warn", "warn-soft"], ["bad", "bad-soft"], ["info", "info-soft"]];
+  for (const [nom, t] of [["clair", clair], ["sombre", sombre]]) for (const [a, b] of paires) {
+    const v = r(t[a], t[b]); if (v < 4.5) throw new Error(`${nom} : ${a} sur ${b} = ${v.toFixed(2)} (4,5 minimum)`);
+  }
+});
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");
 process.exit(ko ? 1 : 0);

@@ -39,7 +39,7 @@ export function Donut({ items, total, center, sub }) {
   return (
     <div className="relative h-44 w-44 shrink-0">
       <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-        <circle cx="50" cy="50" r={R} fill="none" stroke="#F1EEE7" strokeWidth="13" />
+        <circle cx="50" cy="50" r={R} fill="none" stroke="rgb(var(--line))" strokeWidth="13" />
         {items.map((it, i) => {
           const len = total ? (it.value / total) * C : 0;
           const el = <circle key={it.key} cx="50" cy="50" r={R} fill="none" stroke={srcColor(it.key, i)} strokeWidth="13" strokeDasharray={`${Math.max(0, len - 1)} ${C}`} strokeDashoffset={-acc} />;
@@ -64,14 +64,14 @@ export function LineChart({ points, fmt = nf, height = 170, unit = "" }) {
     <div className="relative" style={{ height }}>
       <svg viewBox={`0 -8 ${W} ${H + 8}`} preserveAspectRatio="none" className="absolute inset-x-0 top-0 w-full" style={{ height: height - 22 }}
         onMouseMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHover(Math.round(((e.clientX - r.left) / r.width) * (points.length - 1))); }} onMouseLeave={() => setHover(null)}>
-        <defs><linearGradient id="kfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#F26B2A" stopOpacity=".28" /><stop offset="100%" stopColor="#F26B2A" stopOpacity="0" /></linearGradient></defs>
-        {[0.25, 0.5, 0.75].map((g) => <line key={g} x1="0" x2={W} y1={H * g} y2={H * g} stroke="#EEE9E0" strokeWidth=".6" vectorEffect="non-scaling-stroke" />)}
+        <defs><linearGradient id="kfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="rgb(var(--accent))" stopOpacity=".28" /><stop offset="100%" stopColor="rgb(var(--accent))" stopOpacity="0" /></linearGradient></defs>
+        {[0.25, 0.5, 0.75].map((g) => <line key={g} x1="0" x2={W} y1={H * g} y2={H * g} stroke="rgb(var(--line))" strokeWidth=".6" vectorEffect="non-scaling-stroke" />)}
         <path d={`${line} L${xy.at(-1)[0]},${H} L${xy[0][0]},${H} Z`} fill="url(#kfill)" />
-        <path d={line} fill="none" stroke="#E0531F" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-        <line x1={xy[h][0]} x2={xy[h][0]} y1="0" y2={H} stroke="#E0531F" strokeOpacity=".25" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        <path d={line} fill="none" stroke="rgb(var(--accent))" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+        <line x1={xy[h][0]} x2={xy[h][0]} y1="0" y2={H} stroke="rgb(var(--accent))" strokeOpacity=".25" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       </svg>
       <span className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent ring-4 ring-accent/20" style={{ left: `${(xy[h][0] / W) * 100}%`, top: `${((xy[h][1] + 8) / (H + 8)) * (height - 22)}px` }} />
-      <div className="absolute -translate-x-1/2 rounded-lg bg-white border border-line shadow-sm px-2 py-1 text-[11px] whitespace-nowrap pointer-events-none" style={{ left: `${Math.min(85, Math.max(15, (xy[h][0] / W) * 100))}%`, top: 0 }}>
+      <div className="absolute -translate-x-1/2 rounded-lg bg-surface border border-line shadow-sm px-2 py-1 text-[11px] whitespace-nowrap pointer-events-none" style={{ left: `${Math.min(85, Math.max(15, (xy[h][0] / W) * 100))}%`, top: 0 }}>
         <b>{fmt(points[h].v)}{unit}</b> <span className="text-ink-faint">· {points[h].label}</span>
       </div>
       <div className="absolute inset-x-0 bottom-0 flex justify-between text-[10px] text-ink-faint">{ticks.map((t) => <span key={t}>{points[t].label}</span>)}</div>
@@ -92,8 +92,8 @@ export function fillDays(rows, days, key) {
 
 export function Tabs({ tabs, value, onChange }) {
   return (
-    <div className="flex gap-1 overflow-x-auto border-b border-line">
-      {tabs.map(([k, l]) => <button key={k} onClick={() => onChange(k)} className={cx("shrink-0 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px", value === k ? "border-accent text-accent" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
+    <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-line">
+      {tabs.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={value === k} onClick={() => onChange(k)} className={cx("shrink-0 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px", value === k ? "border-accent text-accent-dark" : "border-transparent text-ink-soft hover:text-ink")}>{l}</button>)}
     </div>
   );
 }
