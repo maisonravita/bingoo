@@ -1312,6 +1312,8 @@ if (CONSTRUIRE === "spec") {
       const c2 = await browser.newContext({ viewport: vp, locale: "fr-FR" }); const p2 = await c2.newPage();
       await p2.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p2.waitForTimeout(8000);
       const f = p2.frames().find((x) => x !== p2.mainFrame());
+      // Le premier écran tel qu'un visiteur le voit (avant d'agrandir la fenêtre pour la capture pleine page)
+      await p2.screenshot({ path: `${DOSSIER}/${nom}-haut.png` }).catch(() => null);
       if (f) { const h = await f.evaluate(() => document.body.scrollHeight).catch(() => 0); if (h > vp.height) await p2.setViewportSize({ width: vp.width, height: Math.min(h + 80, 9000) }); await p2.waitForTimeout(1500); }
       await p2.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom); await c2.close();
     }

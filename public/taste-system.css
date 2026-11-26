@@ -1349,7 +1349,7 @@ main > .photo-band--hero:first-child > .photo-band__text { padding-top: calc(var
    Six mises en scène de studio. L'IA écrit seulement la structure et les vrais textes ; tout le rendu est ici.
    Toutes coupent leurs mouvements si l'appareil demande moins d'animations. */
 .nav.nav--sur-photo { background: transparent; border-color: transparent; color: #fff; transition: background-color .3s, color .3s, border-color .3s; }
-.nav.nav--sur-photo .nav__link, .nav.nav--sur-photo .nav__logo { color: #fff; }
+.nav.nav--sur-photo .nav__link, .nav.nav--sur-photo .nav__logo, .nav.nav--sur-photo .nav__toggle { color: #fff !important; opacity: 1; text-shadow: 0 1px 10px rgb(0 0 0 / .25); }
 .nav.nav--sur-photo .btn--primary { background: rgb(255 255 255 / .94); color: #121212; border-color: transparent; }
 .nav.nav--sur-photo .btn--secondary { color: #fff; border-color: rgb(255 255 255 / .5); background: transparent; }
 .btn.btn--clair { background: #F4F0E8; color: #15130F; border: 1px solid transparent; border-radius: 14px; font-weight: 600; box-shadow: 0 10px 30px -12px rgb(0 0 0 / .45); }
