@@ -106,7 +106,7 @@ export function jouerMusique(ac, sortie, ambiance, duree, debut = ac.currentTime
 /** Bruitages calés sur l'image (allure « film ») : frappes de clavier, clic de souris, souffles, coups, cloches.
  * `sons` : [{ t, son, f, g, d, monte }] ; tout est fabriqué ici, sans aucun enregistrement. */
 export function jouerBruitages(ac, sortie, sons, debut) {
-  const bus = ac.createGain(); bus.gain.value = 0.85; bus.connect(sortie); const blanc = bruit(ac);
+  const bus = ac.createGain(); bus.gain.value = 0.62; bus.connect(sortie); const blanc = bruit(ac);
   const env = (t, pic, att, dec) => { const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, pic), t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + att + dec); g.connect(bus); return g; };
   const souffleBruit = (t, d, pic, type, f0, f1, Q = 0.8, att = 0.002) => { const src = ac.createBufferSource(); src.buffer = blanc; src.loop = true; const fl = ac.createBiquadFilter(); fl.type = type; fl.Q.value = Q; fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1, t + d); src.connect(fl); fl.connect(env(t, pic, att, d)); src.start(t, Math.random() * 0.8); src.stop(t + att + d + 0.05); };
   const sinus = (t, f0, f1, d, pic, att = 0.002, type = "sine") => { const o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + Math.min(d, 0.08)); o.connect(env(t, pic, att, d)); o.start(t); o.stop(t + att + d + 0.05); };
@@ -119,7 +119,7 @@ export function jouerBruitages(ac, sortie, sons, debut) {
     else if (x.son === "pop") sinus(t, (x.f ?? 600) * 1.5, x.f ?? 600, 0.06, 0.5 * g);
     else if (x.son === "tic") sinus(t, x.f ?? 2400, x.f ?? 2400, 0.012, 0.5 * g);
     else if (x.son === "note") sinus(t, x.f ?? 880, x.f ?? 880, 0.3, 0.6 * g, 0.005, "triangle");
-    else if (x.son === "coup") { sinus(t, (x.f ?? 50) * 2.6, x.f ?? 50, 0.42, 0.9 * g); souffleBruit(t, 0.03, 0.12 * g, "lowpass", 1800, 400); }
+    else if (x.son === "coup") { sinus(t, (x.f ?? 50) * 2.6, x.f ?? 50, 0.42, 0.7 * g); souffleBruit(t, 0.03, 0.12 * g, "lowpass", 1800, 400); }
     else if (x.son === "bois") { sinus(t, 820, 820, 0.035, 0.5 * g); souffleBruit(t, 0.01, 0.18 * g, "bandpass", 2500, 2200, 1.2); }
     else if (x.son === "cloche") [[1, 1, 0.35], [2.01, 0.5, 0.22], [3.02, 0.25, 0.14], [4.2, 0.12, 0.08]].forEach(([r, a, dd]) => sinus(t, (x.f ?? 880) * r, (x.f ?? 880) * r, (x.d ?? 1.4) * dd * 2.2, 0.9 * g * a, 0.004));
     else if (x.son === "sifflet") { const o = ac.createOscillator(); o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(380, t + (x.d ?? 0.4)); const e = ac.createGain(); e.gain.setValueAtTime(0.0001, t); e.gain.linearRampToValueAtTime(0.5 * g, t + (x.d ?? 0.4)); e.gain.linearRampToValueAtTime(0.0001, t + (x.d ?? 0.4) + 0.02); o.connect(e); e.connect(bus); o.start(t); o.stop(t + (x.d ?? 0.4) + 0.05); }
