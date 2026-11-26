@@ -126,7 +126,10 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
   // Mot géant : le sujet détouré (IMG_6) se pose au-dessus du mot ; sans détourage, le mot reste simplement devant la photo
   if (compo?.detourage) {
     const source = images[nbPhotos ? "PHOTO_1" : "IMG_1"]?.url;
-    if (source) { try { const d = await detourer(source); if (d) { images.IMG_6 = { url: d.url, prompt: "la photo d'en-tête détourée (le sujet sans le ciel)" }; imagesEur += d.cout; journal.push("Détourage : sujet découpé"); } } catch (x) { journal.push(`Détourage : ${String(x).slice(0, 120)}`); } }
+    if (source) { try { const d = await detourer(source); if (d) { imagesEur += d.cout;
+        // Sujet qui monte trop haut (au-dessus du tiers de l'image) : il cacherait tout le mot ; le mot reste alors devant la photo
+        if (d.haut != null && d.haut < 0.3) journal.push(`Détourage : sujet trop haut (${Math.round(d.haut * 100)} %), mot devant la photo`);
+        else { images.IMG_6 = { url: d.url, prompt: "la photo d'en-tête détourée (le sujet sans le ciel)" }; journal.push(`Détourage : sujet découpé${d.haut != null ? ` (commence à ${Math.round(d.haut * 100)} %)` : ""}`); } } } catch (x) { journal.push(`Détourage : ${String(x).slice(0, 120)}`); } }
   }
   const jetons = new Set(Object.keys(images));
   imagesVues = images; await signaler();

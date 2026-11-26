@@ -49,7 +49,16 @@ export async function imagesPage(demandes: { id: string; pour: string; prompt: s
 // Détourage (26/11) : le sujet d'une photo sans son fond (PNG transparent), pour poser un mot géant DERRIÈRE lui
 export const MODELE_DETOURAGE = () => Deno.env.get("FAL_MODELE_DETOURAGE") ?? "fal-ai/birefnet/v2";
 const PRIX_DETOURAGE_EUR = () => (Number(Deno.env.get("FAL_PRIX_DETOURAGE_USD") ?? "0.005") || 0.005) * (Number(Deno.env.get("USD_EUR") ?? "0.92") || 0.92);
-export async function detourer(image: string): Promise<{ url: string; cout: number } | null> {
+/** Hauteur (0 à 1) où commence le sujet détouré : le haut du premier rang de pixels opaques assez large */
+async function hautDuSujet(bin: Uint8Array): Promise<number | null> {
+  try {
+    const { PNG } = await import("npm:pngjs@7.0.0");
+    const png = PNG.sync.read(bin as any); const { width: w, height: h, data } = png;
+    for (let y = 0; y < h; y += 4) { let n = 0; for (let x = 0; x < w; x += 4) if (data[(y * w + x) * 4 + 3] > 128) n++; if (n > (w / 4) * 0.06) return y / h; }
+    return 1;
+  } catch (x) { console.error("hautDuSujet", x); return null; }
+}
+export async function detourer(image: string): Promise<{ url: string; cout: number; haut: number | null } | null> {
   const cle = Deno.env.get("FAL_KEY"); if (!cle || !/^https:\/\//.test(image)) return null;
   const r = await fetch(`https://fal.run/${MODELE_DETOURAGE()}`, {
     method: "POST", headers: { authorization: `Key ${cle}`, "content-type": "application/json" },
@@ -64,7 +73,7 @@ export async function detourer(image: string): Promise<{ url: string; cout: numb
   if (error) throw new Error(`Stockage : ${error.message}`);
   const ctx = aiCtx.getStore() ?? {};
   await admin.from("ai_usage").insert({ workspace_id: ctx.ws ?? null, feature: "construire/detourage", model: MODELE_DETOURAGE(), input_tokens: 0, output_tokens: 0, searches: 0, cost_eur: PRIX_DETOURAGE_EUR() }).then(() => null, () => null);
-  return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl, cout: PRIX_DETOURAGE_EUR() };
+  return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl, cout: PRIX_DETOURAGE_EUR(), haut: await hautDuSujet(bin) };
 }
 
 // Clips animés (essai du 25/11) : une image de départ devient un clip de 5 s où l'objet bouge vraiment (un verre qui se remplit).

@@ -211,8 +211,9 @@ export const SECTIONS: Record<MiseSection, { nom: string; photo: boolean; struct
 
 /** Une mise en page par section du milieu (ni premier écran, ni fin, ni FAQ, ni formulaire) ; jamais deux voisines identiques ;
  *  les photos vont aux sections « récit » et « duo » tant qu'il en reste. */
-export function choisirSections(sections: { id: string; role?: string; marqueurs?: string[] }[], photosLibres: string[], aleatoire: () => number = Math.random): Record<string, { mise: MiseSection; image?: string }> {
-  const out: Record<string, { mise: MiseSection; image?: string }> = {};
+export function choisirSections(sections: { id: string; role?: string; marqueurs?: string[] }[], photosLibres: string[], aleatoire: () => number = Math.random): Record<string, { mise: MiseSection; image?: string; inverse?: boolean }> {
+  const out: Record<string, { mise: MiseSection; image?: string; inverse?: boolean }> = {};
+  let duos = 0;
   const libres = [...photosLibres];
   let prec: MiseSection | null = null;
   const deja = new Set<MiseSection>();
@@ -231,14 +232,14 @@ export function choisirSections(sections: { id: string; role?: string; marqueurs
     const mise = choix[Math.floor(aleatoire() * choix.length)];
     const image = SECTIONS[mise].photo ? libres.shift() : undefined;
     if (SECTIONS[mise].photo && !image) { prec = null; continue; }
-    out[s.id] = { mise, ...(image ? { image } : {}) };
+    out[s.id] = { mise, ...(image ? { image } : {}), ...(mise === "duo" && duos++ % 2 === 1 ? { inverse: true } : {}) };
     deja.add(mise); prec = mise;
   }
   return out;
 }
 
-export function consigneSections(choix: Record<string, { mise: MiseSection; image?: string }>, ids: string[]): string {
-  const lignes = ids.filter((id) => choix[id]).map((id) => `### Section « ${id} » : mise en page « ${SECTIONS[choix[id].mise].nom} »${choix[id].image ? ` (photo ${choix[id].image})` : ""}\n${SECTIONS[choix[id].mise].structure.replace(/\bID\b/g, id).replace(/IMG_n/g, choix[id].image ?? "IMG_n")}`);
+export function consigneSections(choix: Record<string, { mise: MiseSection; image?: string; inverse?: boolean }>, ids: string[]): string {
+  const lignes = ids.filter((id) => choix[id]).map((id) => `### Section « ${id} » : mise en page « ${SECTIONS[choix[id].mise].nom} »${choix[id].image ? ` (photo ${choix[id].image})` : ""}\n${SECTIONS[choix[id].mise].structure.replace(/\bID\b/g, id).replace(/IMG_n/g, choix[id].image ?? "IMG_n").replace('class="s-duo"', choix[id].inverse ? 'class="s-duo s-duo--inverse"' : 'class="s-duo"')}`);
   return lignes.length ? `\nMISES EN PAGE IMPOSÉES (garde exactement ces balises et ces classes, remplace les parenthèses par les vrais textes, n'ajoute AUCUNE balise <style> ni attribut style dans ces sections ; tu peux ajouter un marqueur data-bingoo à l'endroit indiqué) :\n${lignes.join("\n\n")}\n` : "";
 }
 
