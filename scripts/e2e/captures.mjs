@@ -98,6 +98,80 @@ if (CONSTRUIRE === "audit") {
     await ctx.close();
   }
 }
+// CONSTRUIRE=premier-client : un vrai premier client, de bout en bout, par l'interface (aucun raccourci) :
+// visiteur → idée → aperçu → « Construire » → création de compte (vraie adresse qui reçoit, domaine maisonravita.fr)
+// → confirmation → connexion → retour à l'idée → « Construire » → page de paiement Stripe (photographiée, JAMAIS payée).
+// Le compte créé est supprimé à la fin.
+if (CONSTRUIRE === "premier-client") {
+  const t = Date.now(), mel = `robot+premier${t}@maisonravita.fr`, mdp = crypto.randomBytes(14).toString("base64url") + "9a";
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await ctx.newPage();
+  const err = []; p.on("pageerror", (e) => err.push(e.message.slice(0, 140))); p.on("response", (r) => { if (r.status() >= 500) err.push(r.status() + " " + new URL(r.url()).pathname); });
+  const etape = async (n, txt) => { await p.waitForTimeout(800); await p.screenshot({ path: `${DOSSIER}/pc-${n}.png` }).catch(() => null); console.log(`ÉTAPE ${n} ${txt}`); };
+  let uidPc = null;
+  try {
+    await p.goto(`${SITE}/?c=${t}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await etape("1-accueil", `accueil chargé (${Math.round((Date.now() - t) / 1000)} s)`);
+    await p.locator("#idee").fill("Le site de mon salon de coiffure à Lyon : coupe femme 45 €, coupe homme 25 €, ouvert du mardi au samedi");
+    await p.getByRole("button", { name: "Mon site web" }).first().click().catch(() => console.log("✗ bouton « Mon site web » introuvable"));
+    await p.getByRole("button", { name: /Construire mon idée/ }).click().catch(() => console.log("✗ bouton « Construire mon idée » introuvable"));
+    const t1 = Date.now(); const bc = p.getByRole("button", { name: /^Construire / }).first();
+    const okAp = await bc.waitFor({ timeout: 120000 }).then(() => true).catch(() => false);
+    await p.waitForTimeout(6000); await etape("2-apercu", okAp ? `✓ aperçu en ${Math.round((Date.now() - t1) / 1000)} s` : "✗ pas d'aperçu");
+    if (!okAp) { const txt = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 400)); console.log("   page :", txt); throw new Error("arrêt : pas d'aperçu"); }
+    await p.screenshot({ path: `${DOSSIER}/pc-2-apercu-page.png`, fullPage: true }).catch(() => null);
+    await bc.click(); await p.waitForTimeout(2500);
+    const demande = await p.getByText(/Crée ton compte/).first().isVisible().catch(() => false);
+    await etape("3-compte-demande", demande ? "✓ le compte est demandé à « Construire »" : "✗ pas de demande de compte");
+    // Formulaire d'inscription (fenêtre ou page)
+    const champMel = p.locator('input[type="email"]:visible').first(), champMdp = p.locator('input[type="password"]:visible').first();
+    await champMel.fill(mel).catch(() => console.log("✗ champ e-mail introuvable")); await champMdp.fill(mdp).catch(() => console.log("✗ champ mot de passe introuvable"));
+    const caseCgu = p.locator('input[type="checkbox"]:visible'); if (await caseCgu.count()) await caseCgu.first().check().catch(() => null);
+    await p.locator('button[type="submit"]:visible').first().click().catch(() => console.log("✗ bouton d'inscription introuvable"));
+    await p.waitForTimeout(5000);
+    const msg = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").match(/(Compte créé[^.]*\.|Confirme[^.]*\.|existe déjà[^.]*\.|erreur[^.]*\.|Password[^.]*\.|mot de passe[^.]{0,80}\.)/i)?.[0] ?? "");
+    await etape("4-inscription", `message : « ${msg || "aucun message"} » ; URL ${new URL(p.url()).hash}`);
+    const [uu] = await q(`select id, email_confirmed_at is not null conf, created_at from auth.users where email = ${lit(mel)}`);
+    uidPc = uu?.id ?? null;
+    console.log(uu ? `✓ compte créé dans la base (confirmé : ${uu.conf})` : "✗ aucun compte dans la base");
+    if (!uu) throw new Error("arrêt : pas de compte");
+    const [mm] = await q(`select w.id, w.plan, w.plan_status from members m join workspaces w on w.id = m.workspace_id where m.user_id = ${lit(uu.id)} limit 1`);
+    console.log(mm ? `   espace : formule ${mm.plan} (${mm.plan_status})` : "   pas encore d'espace (créé à la première connexion)");
+    // L'e-mail de confirmation part-il ? (Supabase → boîte de réception maisonravita.fr) : vérifié depuis Resend après le passage
+    console.log("E-MAIL ATTENDU :", mel);
+    // Si la session n'est pas ouverte (confirmation exigée), on confirme comme le ferait le clic sur le lien, puis on se connecte par l'interface
+    const connecte = await p.evaluate((ref) => !!localStorage.getItem(`sb-${ref}-auth-token`), REF);
+    if (!connecte) {
+      if (!uu.conf) await adminAuth(`users/${uu.id}`, "PUT", { email_confirm: true });
+      await p.goto(`${SITE}/?c=${Date.now()}#/auth?mode=login`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(2000);
+      await p.locator('input[type="email"]:visible').first().fill(mel).catch(() => null); await p.locator('input[type="password"]:visible').first().fill(mdp).catch(() => null);
+      await p.locator('button[type="submit"]:visible').first().click().catch(() => null); await p.waitForTimeout(6000);
+      await etape("5-connexion", `connexion par l'interface : ${await p.evaluate((ref) => !!localStorage.getItem(`sb-${ref}-auth-token`), REF) ? "✓" : "✗"} (${new URL(p.url()).hash})`);
+    } else await etape("5-connexion", "✓ connecté directement après l'inscription");
+    const [mm2] = await q(`select w.id, w.plan, w.plan_status from members m join workspaces w on w.id = m.workspace_id where m.user_id = ${lit(uu.id)} limit 1`);
+    console.log(mm2 ? `✓ espace créé : formule ${mm2.plan} (${mm2.plan_status})` : "✗ toujours pas d'espace après connexion");
+    // Retour à l'idée : l'aperçu doit être encore là, puis « Construire » mène au paiement
+    await p.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(8000);
+    await etape("6-retour-idee", "retour à l'idée une fois connecté");
+    const prix = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").match(/(Formule Site[^.]*\.|Compris dans ta formule[^.]*\.|Offert[^.]*\.)/)?.[0] ?? "");
+    console.log("   prix affiché :", prix || "aucun");
+    const b2 = p.getByRole("button", { name: /^Construire / }).first();
+    if (await b2.count()) {
+      const nav = p.waitForURL(/stripe\.com|#\/abonnement|revelation/, { timeout: 45000 }).catch(() => null);
+      await b2.click(); await nav; await p.waitForTimeout(6000);
+      const u = p.url();
+      await etape("7-paiement", `après « Construire » : ${/stripe\.com/.test(u) ? `page Stripe ${/cs_live_/.test(u) ? "EN RÉEL (cs_live)" : /cs_test_/.test(u) ? "EN MODE TEST (cs_test)" : "(mode inconnu)"}` : u.replace(/\?.*$/, "")}`);
+      if (/stripe\.com/.test(u)) { const t2 = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 300)); console.log("   Stripe affiche :", t2); }
+      else { const t2 = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 300)); console.log("   page :", t2); }
+    } else console.log("✗ bouton « Construire » absent au retour");
+    // Mobile : l'accueil et l'aperçu au téléphone
+    const cm = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: "fr-FR" }); const pm = await cm.newPage();
+    await pm.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await pm.waitForTimeout(2500); await pm.screenshot({ path: `${DOSSIER}/pc-8-mobile-accueil.png` });
+    const larg = await pm.evaluate(() => document.documentElement.scrollWidth); console.log(`ÉTAPE 8-mobile accueil au téléphone, largeur de page ${larg} px (écran 390)`); await cm.close();
+  } catch (e) { console.log("✗", e.message); }
+  console.log("ERREURS :", JSON.stringify(err.slice(0, 10)));
+  await ctx.close();
+  if (uidPc) { await q(`delete from workspaces where id in (select workspace_id from members where user_id = ${lit(uidPc)}) and stripe_subscription = ''`).catch((e) => console.log("nettoyage espace", e.message)); await adminAuth(`users/${uidPc}`, "DELETE").then(() => console.log("compte de test supprimé")).catch((e) => console.log("suppression", e.message)); }
+}
 // CONSTRUIRE=gratuit : l'Explorer vu par un compte gratuit (un autre compte de test, sans abonnement)
 if (CONSTRUIRE === "gratuit") {
   // La page publique « Découvre les SaaS qui marchent », vue par un visiteur sans compte, puis le clic sur un SaaS
@@ -1135,7 +1209,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
