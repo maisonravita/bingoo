@@ -1,0 +1,21 @@
+{
+  "gen": {
+    "at": "2026-11-26T18:41:27.723Z",
+    "cout": 0.3009,
+    "appels": 5,
+    "entree": 127799,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 5573,
+    "duree_s": 39,
+    "journal": [
+      "Premier écran : composition Galerie courbe",
+      "Plan : hero, venir, offre, saison, abonnement, faq, contact",
+      "Images : 3 générée(s), 0.083 €",
+      "Sections : offre=liste, saison=manifeste, abonnement=etapes",
+      "Essai 1 : saison (Cette section reprend le sujet de la section « offre » (« bo)"
+    ],
+    "images_eur": 0.0828,
+    "corrections": 1
+  },
+  "sections": 8
+}

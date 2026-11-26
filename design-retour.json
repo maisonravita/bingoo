@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "e0": {
+    "p": "#2563EB",
+    "c": "#2563EB",
+    "g": "editorial",
+    "n": 0,
+    "cta": "Nous rendre visite"
+  },
+  "e1": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Nous rendre visite"
+  },
+  "e2": {
+    "p": "#2563EB",
+    "c": "#2563EB",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Nous rendre visite"
+  },
+  "e3": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Nous rendre visite"
+  }
+}

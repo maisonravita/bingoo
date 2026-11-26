@@ -1,0 +1,16 @@
+<title>Pétale · Fleuriste de saison à Rennes</title>
+<meta name="description" content="Pétale, fleuriste à Rennes : bouquets de saison, mariages, deuil et abonnement mensuel de fleurs, au 3 rue Saint-Malo.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Pétale">
+<meta property="og:title" content="Pétale · Fleuriste de saison à Rennes">
+<meta property="og:description" content="Pétale, fleuriste à Rennes : bouquets de saison, mariages, deuil et abonnement mensuel de fleurs, au 3 rue Saint-Malo.">
+<meta property="og:url" content="https://www.bingoo.fr/s/petale-2h2r">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=petale-2h2r&amp;v=6-2563EB">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=petale-2h2r&amp;v=6-2563EB">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pétale · Fleuriste de saison à Rennes">
+<meta name="twitter:description" content="Pétale, fleuriste à Rennes : bouquets de saison, mariages, deuil et abonnement mensuel de fleurs, au 3 rue Saint-Malo.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Pétale","description":"Pétale, fleuriste à Rennes : bouquets de saison, mariages, deuil et abonnement mensuel de fleurs, au 3 rue Saint-Malo.","url":"https://www.bingoo.fr/s/petale-2h2r","image":"https://www.bingoo.fr/api/og?slug=petale-2h2r&v=6-2563EB","telephone":"02 99 00 00 00","address":"3 rue Saint-Malo, 35000 Rennes","areaServed":"Rennes","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"09:30","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"09:30","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"09:30","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"09:30","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Saturday","opens":"09:30","closes":"19:00"}],"makesOffer":[{"@type":"Offer","name":"Bouquet de saison","description":"Un bouquet composé avec les fleurs disponibles au moment de votre passage.","price":25,"priceCurrency":"EUR"},{"@type":"Offer","name":"Fleurs de mariage","description":"Bouquets de mariée, composition de table et décoration florale selon votre projet."},{"@type":"Offer","name":"Composition de deuil","description":"Gerbes et compositions funéraires réalisées avec soin pour accompagner vos proches."},{"@type":"Offer","name":"Abonnement fleurs","description":"Une composition de fleurs livrée ou retirée chaque mois.","price":35,"priceCurrency":"EUR"}]}</script>
