@@ -10,8 +10,8 @@ import { aiCtx } from "./ai-ctx.ts";
 
 const MODELE_BASE = () => Deno.env.get("FAL_MODELE") ?? "fal-ai/flux-2-pro";
 const PRIX_BASE_EUR = () => (Number(Deno.env.get("FAL_PRIX_USD") ?? "0.03") || 0.03) * (Number(Deno.env.get("USD_EUR") ?? "0.92") || 0.92);
-const GARDE_FOU = ", editorial photograph, natural light, no people, no faces, no text, no letters, no logo, no watermark";
-const GARDE_FOU_APERCU = ", realistic photograph, natural light, no text, no letters, no logo, no watermark";
+const GARDE_FOU = ", one single continuous photograph taken in one place (never a collage, a split screen, a diptych or two scenes side by side), editorial photograph, natural light, no people, no faces, no text, no letters, no writing anywhere (blank book spines, blank labels, blank signs and screens), no logo, no watermark";
+const GARDE_FOU_APERCU = ", one single continuous realistic photograph (never a collage or split screen), natural light, no text, no letters, no writing on any object, no logo, no watermark";
 
 // Aperçus d'idée : modèle rapide et bon marché (une image par élément montré), prix noté à part
 export const MODELE_APERCU = () => Deno.env.get("FAL_MODELE_APERCU") ?? "fal-ai/flux/schnell";

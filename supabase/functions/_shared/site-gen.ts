@@ -181,7 +181,7 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
   let corrections = 0;
   const ids = ["nav", ...plan.sections.map((s) => s.id)];
   for (let essai = 1; essai <= 3; essai++) {
-    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h))), ...imageDejaVue(id), ...(essai < 3 ? sujetDejaTraite(id, ecrites.get(id)!, ids.slice(0, ids.indexOf(id)).filter((k) => ecrites.has(k)).map((k) => ({ id: k, html: ecrites.get(k)! })), `${e.nom} ${e.ville ?? ""} ${e.metier ?? ""}`) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
+    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...(id === "hero" ? [] : doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h)))), ...imageDejaVue(id), ...(essai < 3 ? sujetDejaTraite(id, ecrites.get(id)!, ids.slice(0, ids.indexOf(id)).filter((k) => ecrites.has(k)).map((k) => ({ id: k, html: ecrites.get(k)! })), `${e.nom} ${e.ville ?? ""} ${e.metier ?? ""}`) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
     if (!fautives.length) break;
     journal.push(`Essai ${essai} : ${fautives.map((f) => `${f.id} (${f.pbs[0].slice(0, 60)})`).join(" ; ")}`);
     // Temps : une fonction a une durée limitée ; passé 110 s, plus de réécriture (retrait des sections fautives ou secours)
@@ -204,9 +204,12 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
   }
 
   // Un marqueur de données (prestations, horaires, adresse, réalisations) n'apparaît qu'une fois : les suivants sont retirés
-  { const vus = new Set<string>();
+  // La section qui le garde est celle dont c'est le sujet (la carte, les tarifs, venir…), sinon la première
+  { const SUJET: Record<string, RegExp> = { services: /carte|menu|tarif|prix|prestation|service|offre|soin|formule/, horaires: /horaire|venir|acces|adresse|ouvert/, adresse: /venir|acces|adresse|plan|trouver/, realisations: /realisation|projet|travau|galerie/ };
+    const garde: Record<string, string> = {};
+    for (const k of Object.keys(SUJET)) { const avec = ids.filter((id) => new RegExp(`data-bingoo="${k}"`).test(ecrites.get(id) ?? "")); if (avec.length > 1) garde[k] = avec.find((id) => SUJET[k].test(id + " " + (ecrites.get(id)!.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1] ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())) ?? avec[0]; }
     for (const id of ids) { const h = ecrites.get(id); if (!h) continue;
-      ecrites.set(id, h.replace(/<div\b[^>]*data-bingoo="(services|horaires|adresse|realisations)"[^>]*>\s*<\/div>/gi, (m, k) => { if (vus.has(k)) { journal.push(`Marqueur ${k} en double retiré (${id})`); return ""; } vus.add(k); return m; })); } }
+      ecrites.set(id, h.replace(/<div\b[^>]*data-bingoo="(services|horaires|adresse|realisations)"[^>]*>\s*<\/div>/gi, (m, k) => { if (garde[k] && garde[k] !== id) { journal.push(`Marqueur ${k} en double retiré (${id}, gardé dans ${garde[k]})`); return ""; } return m; })); } }
   // 5. Assemblage (marqueurs connus seulement)
   const sections = ids.filter((id) => ecrites.has(id)).map((id) => ({ id, html: ecrites.get(id)!.replace(/data-bingoo="([a-z]+)"/g, (m, k) => (k in MARQUEURS_DONNEES ? m : "")) }));
   const mesure: MesurePage = { modele: Object.keys(compteur.modeles).join(", "), cout: Math.round((compteur.cout + imagesEur) * 1e4) / 1e4, images_eur: imagesEur,

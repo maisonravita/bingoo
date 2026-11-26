@@ -42,6 +42,9 @@ export function controlerSection(id: string, html: string, brief: string): strin
   // Zone ou portée inventée (« partout en France ») : seulement si le brief le dit
   const zone = texte.match(/(partout en France|toute la France|France enti[èe]re|dans toute la r[ée]gion|toute l'Europe|dans le monde entier|\d+\s*km (autour|à la ronde))/i)?.[0];
   if (zone && !brief.toLowerCase().includes(zone.toLowerCase())) pbs.push(`Zone inventée : « ${zone} » n'est pas dans le brief. Retire-la.`);
+  // Section maigre (un titre et une ligne) : sans données ni image, elle doit porter au moins deux phrases ou une liste
+  const mots = texte.split(" ").filter((m) => /[A-Za-zÀ-ÿ]{2,}/.test(m)).length;
+  if (!/^(nav|hero)$/.test(id) && !/<footer\b/i.test(html) && !/data-bingoo=|<img\b|<form\b|<iframe\b/i.test(html) && mots < 22) pbs.push(`Section trop maigre (${mots} mots) : développe-la avec des faits du brief (deux phrases au moins, ou une liste de 3 éléments réels), ou fusionne-la avec une autre.`);
   return pbs;
 }
 
@@ -78,17 +81,40 @@ const racine = (m: string) => m.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 /** Mots forts d'un titre h2 (6 lettres ou plus, hors mots vides et hors nom, ville et métier du membre) */
 export function motsDuTitre(html: string, exclus: string): Set<string> {
   const h2 = (html.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1] ?? "").replace(/<[^>]+>/g, " ");
-  const ex = new Set((exclus.match(/[A-Za-zÀ-ÿ]{6,}/g) ?? []).map(racine));
-  return new Set((h2.match(/[A-Za-zÀ-ÿ'’]{6,}/g) ?? []).map((m) => racine(m.replace(/^[a-z]['’]/i, ""))).filter((m) => m.length >= 6 && !MOTS_VIDES.has(m) && !ex.has(m)));
+  const ex = new Set((exclus.match(/[A-Za-zÀ-ÿ]{5,}/g) ?? []).map(racine));
+  return new Set((h2.match(/[A-Za-zÀ-ÿ'’]{5,}/g) ?? []).map((m) => racine(m.replace(/^[a-z]['’]/i, ""))).filter((m) => m.length >= 5 && !MOTS_VIDES.has(m) && !ex.has(m)));
 }
 /** Le titre de cette section reprend le sujet d'une section précédente */
 export function sujetDejaTraite(id: string, html: string, precedentes: { id: string; html: string }[], exclus: string): string[] {
   if (/<footer\b/i.test(html) || /faq|question/.test(id)) return [];
   const ici = motsDuTitre(html, exclus);
+  const h2 = titreDe(html), corps = motsDuCorps(html);
   for (const p of precedentes) {
-    if (/<footer\b/i.test(p.html) || /faq|question|hero|nav/.test(p.id)) continue;
+    if (/<footer\b/i.test(p.html) || /nav/.test(p.id)) continue;
+    // Une même formule dans deux titres (« devis gratuit sous 48 h » en bandeau puis en contact) : répétition
+    const formule = quatreMots(h2).find((q) => quatreMots(titreDe(p.html, true)).includes(q));
+    if (formule) return [`Ce titre répète une formule déjà utilisée en haut de la page (section « ${p.id} » : « ${formule} ») : dis autre chose, ou une autre information du brief.`];
+    if (/faq|question|hero/.test(p.id)) continue;
     const commun = [...motsDuTitre(p.html, exclus)].find((m) => ici.has(m));
     if (commun) return [`Cette section reprend le sujet de la section « ${p.id} » (« ${commun} ») : traite un autre aspect du brief, avec un titre différent.`];
+    // Même début de titre (« Un salon mixte, rue… » puis « Un salon mixte, au… ») ou même contenu : la même section deux fois
+    const debut = (t: string) => t.split(" ").filter((m) => m.length > 2).slice(0, 2).join(" ");
+    const autre = titreDe(p.html);
+    if (h2 && autre && debut(h2).split(" ").length === 2 && debut(h2) === debut(autre)) return [`Ce titre commence comme celui de la section « ${p.id} » (« ${debut(h2)} ») : c'est le même sujet. Traite un autre aspect du brief, avec un autre titre.`];
+    const pc = motsDuCorps(p.html), communs = [...corps].filter((m) => pc.has(m)).length;
+    if (corps.size >= 12 && pc.size >= 12 && communs / Math.min(corps.size, pc.size) >= 0.55) return [`Cette section dit presque la même chose que la section « ${p.id} » : traite un autre aspect du brief.`];
   }
   return [];
+}
+const sansAccent = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+/** Le titre h2 (ou, avec h1, celui du premier écran et ses phrases), en mots simples */
+function titreDe(html: string, avecHero = false): string {
+  const bouts = [...html.matchAll(avecHero ? /<(h1|h2|h3)\b[^>]*>([\s\S]*?)<\/\1>/gi : /<(h2)\b[^>]*>([\s\S]*?)<\/\1>/gi)].map((m) => m[2]).join(" ");
+  return sansAccent(bouts.replace(/<[^>]+>/g, " ")).replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+const quatreMots = (t: string) => { const m = t.split(" ").filter(Boolean); const out: string[] = []; for (let i = 0; i + 4 <= m.length; i++) out.push(m.slice(i, i + 4).join(" ")); return out; };
+/** Les mots porteurs du texte d'une section (5 lettres ou plus) */
+function motsDuCorps(html: string): Set<string> {
+  const t = sansAccent(html.replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " "));
+  return new Set((t.match(/[a-z]{5,}/g) ?? []).filter((m) => !MOTS_VIDES.has(m)).map((m) => m.replace(/(aux|s|x)$/, "")));
 }
