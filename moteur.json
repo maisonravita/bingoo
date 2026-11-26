@@ -1,0 +1,22 @@
+{
+  "gen": {
+    "at": "2026-11-26T19:11:18.593Z",
+    "cout": 0.2893,
+    "appels": 6,
+    "entree": 151182,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 5888,
+    "duree_s": 46,
+    "journal": [
+      "Premier écran : composition Cinéma",
+      "Plan : hero, salon, prestations, ambiance, venir, faq, contact",
+      "Images : 2 générée(s), 0.055 €",
+      "Sections : salon=recit, prestations=liste",
+      "Essai 1 : salon (Les prestations (coupe femme, coupe homme, couleur) sont déj) ; ambiance (Il manque le h2 de la section.) ; venir (L'adresse est déjà affichée par le marqueur : ne la réécris )",
+      "Essai 2 : salon (Texte : « au cœur de » (« Le salon Un salon mixte au cœur de)"
+    ],
+    "images_eur": 0.0552,
+    "corrections": 4
+  },
+  "sections": 8
+}

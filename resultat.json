@@ -1,0 +1,112 @@
+{
+  "duree_s": 180,
+  "app": {
+    "slug": "atelier-meche-6i09",
+    "statut": "pret",
+    "version": 4,
+    "verif": {
+      "at": "2026-11-26T19:12:45.506Z",
+      "ok": true,
+      "phase": "fini",
+      "reste": [],
+      "essais": {
+        "__page": 2
+      },
+      "mesure": {
+        "ok": true,
+        "fin": "2026-11-26T19:12:45.325Z",
+        "cout": 0.091,
+        "debut": "2026-11-26T19:11:22.746Z",
+        "ecrans": 4,
+        "entree": "site",
+        "essais": 2,
+        "modele": "site",
+        "famille": "gestion",
+        "premier": {
+          "ko": 0,
+          "ok": true,
+          "testes": 4
+        }
+      },
+      "repare": [],
+      "journal": [
+        {
+          "t": "Les 4 écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.",
+          "at": "2026-11-26T19:11:22.746Z",
+          "type": "info"
+        },
+        {
+          "t": "Test n° 1 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T19:11:45.573Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 1/2) : Contraste trop faible (minimum 4,5:1) : « Atelier Mèche (1.1:1) », « Prestations (1.1:1) ».",
+          "at": "2026-11-26T19:11:45.573Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T19:11:50.384345+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 2 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T19:12:15.371Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 2/2) : Contraste trop faible (minimum 4,5:1) : « Atelier Mèche (1.1:1) », « Prestations (1.1:1) ».",
+          "at": "2026-11-26T19:12:15.372Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T19:12:21.17277+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 3 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T19:12:45.324Z",
+          "type": "ok"
+        },
+        {
+          "t": "Petit défaut d'affichage sur ta page, à revoir dans l'atelier : Contraste trop faible (minimum 4,5:1) : « Atelier Mèche (1.1:1) », « Prestations (1.1:1) ».",
+          "at": "2026-11-26T19:12:45.324Z",
+          "type": "info"
+        },
+        {
+          "t": "Tout est propre : ton espace gérant (4 écrans) a été testé et fonctionne. Ton site est prêt.",
+          "at": "2026-11-26T19:12:45.324Z",
+          "type": "ok"
+        }
+      ],
+      "version": 4,
+      "passages": 3,
+      "dernieres": {},
+      "resultats": [
+        {
+          "id": "accueil",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "demandes",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "services",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "infos",
+          "ok": true,
+          "erreur": null
+        }
+      ],
+      "en_reparation": []
+    }
+  }
+}
