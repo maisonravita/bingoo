@@ -219,8 +219,8 @@ export const VITRINE = [
 // Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
 // [fichier, nom, légende, forme] ; deux bandes qui défilent en sens inverse, comme la vitrine des SaaS
 const VIDEOS_RANGS = [
-  [["trame", "Trame", "Logiciel pour artisans · style clair"], ["fournil", "Boulangerie artisanale", "Rennes · style éditorial, avec images"], ["pointa", "Pointa", "Logiciel pour cabinets · vidéo produit, vrais écrans"], ["petale", "Pétale", "Fleuriste · avec images"], ["foulee", "Foulée", "Chaussures · style pop"], ["terrecuite", "Terre Cuite", "Céramique · style nuit, avec images"], ["encre", "Encre Noire", "Tatouage · style nuit"], ["lameule", "La Meule", "Fromagerie · avec images"], ["vintage", "Vintage Atelier", "Boutique vintage · format carré", "1/1"], ["lame", "Lame", "Barbier · style éditorial"]],
-  [["kilo", "Kilo", "Appli de course · style interface"], ["trame-film", "Trame", "Logiciel pour artisans · style film, avec bruitages"], ["relais", "Relais", "Marketing · style aura, plans animés"], ["givre", "Givré", "Glacier · style éditorial, avec images"], ["calme", "Calme", "Appli de méditation · style minimal"], ["brulerie", "Brûlerie Nord", "Torréfacteur · style deux tons, avec images"], ["factur", "Factur'Artisan", "Logiciel de facturation · format paysage", "16/9"], ["maisonlune", "Maison Lune", "Bijoux · style minimal, avec images"], ["boxe", "Marseille Boxing Club", "Salle de boxe · style nuit"], ["avocate", "Cabinet d'avocate", "Ouverture · style éditorial"]],
+  [["trame-film", "Trame", "Logiciel pour artisans · style film"], ["fournil", "Boulangerie artisanale", "Rennes · style éditorial, avec images"], ["kilo", "Kilo", "Appli de course · style interface"], ["petale", "Pétale", "Fleuriste · avec images"], ["terrecuite", "Terre Cuite", "Céramique · style nuit, avec images"], ["lameule", "La Meule", "Fromagerie · avec images"]],
+  [["relais", "Relais", "Marketing · style aura, plans animés"], ["givre", "Givré", "Glacier · style éditorial, avec images"], ["trame", "Trame", "Logiciel pour artisans · style clair"], ["brulerie", "Brûlerie Nord", "Torréfacteur · style deux tons"], ["maisonlune", "Maison Lune", "Bijoux · style minimal, avec images"], ["pointa", "Pointa", "Logiciel pour cabinets · vrais écrans"]],
 ];
 // Une vidéo ne tourne que quand elle est à l'écran (les bandes en contiennent une trentaine)
 function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
@@ -240,7 +240,7 @@ function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
 }
 function VideosVitrine({ nav }) {
   const rangee = (l, sens) => (
-    <div className="videos-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 130 : 115}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
+    <div className="videos-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 80 : 72}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
       {[...l, ...l].map(([f, nom, quoi, forme], i) => <VideoCarte key={f + i} f={f} nom={nom} quoi={quoi} forme={forme} cachee={i >= l.length} />)}
     </div>
   );
