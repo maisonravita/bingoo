@@ -1,0 +1,23 @@
+{
+  "gen": {
+    "at": "2026-11-26T18:55:57.691Z",
+    "cout": 0.3307,
+    "appels": 6,
+    "entree": 150394,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 6961,
+    "duree_s": 54,
+    "journal": [
+      "Premier écran : composition Bandeau",
+      "Plan : hero, promesse, prestations, atelier, venir, questions, contact",
+      "Images : 3 générée(s), 0.083 €",
+      "Sections : promesse=liste, atelier=duo",
+      "Essai 1 : prestations (Les prestations (révision complète, préparation au contrôle ) ; atelier (Les prestations (révision complète, préparation au contrôle )",
+      "Essai 2 : prestations (Cette section dit presque la même chose que la section « pro)",
+      "Essai 3 : prestations (Les prestations (révision complète, préparation au contrôle )"
+    ],
+    "images_eur": 0.0828,
+    "corrections": 3
+  },
+  "sections": 8
+}

@@ -1,0 +1,16 @@
+<title>Garage du Port · Entretien et réparation automobile à Marseille</title>
+<meta name="description" content="Entretien et réparation toutes marques pour les automobilistes de Marseille, de la révision aux freins, pneus, climatisation et contrôle technique.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Garage du Port">
+<meta property="og:title" content="Garage du Port · Entretien et réparation automobile à Marseille">
+<meta property="og:description" content="Entretien et réparation toutes marques pour les automobilistes de Marseille, de la révision aux freins, pneus, climatisation et contrôle technique.">
+<meta property="og:url" content="https://www.bingoo.fr/s/garage-du-port-1h39">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=garage-du-port-1h39&amp;v=14-B64509">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=garage-du-port-1h39&amp;v=14-B64509">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Garage du Port · Entretien et réparation automobile à Marseille">
+<meta name="twitter:description" content="Entretien et réparation toutes marques pour les automobilistes de Marseille, de la révision aux freins, pneus, climatisation et contrôle technique.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Garage du Port","description":"Entretien et réparation toutes marques pour les automobilistes de Marseille, de la révision aux freins, pneus, climatisation et contrôle technique.","url":"https://www.bingoo.fr/s/garage-du-port-1h39","image":"https://www.bingoo.fr/api/og?slug=garage-du-port-1h39&v=14-B64509","telephone":"04 91 00 00 00","address":"8 boulevard de Paris, 13003 Marseille","areaServed":"Marseille","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":"Monday","opens":"08:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"08:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"08:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"08:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"08:00","closes":"18:00"}],"makesOffer":[{"@type":"Offer","name":"Révision complète","description":"Entretien périodique de votre véhicule selon les préconisations du constructeur.","price":129,"priceCurrency":"EUR"},{"@type":"Offer","name":"Remplacement des freins","description":"Contrôle et remplacement des plaquettes et disques de frein."},{"@type":"Offer","name":"Pneumatiques","description":"Montage, équilibrage et remplacement de vos pneus."},{"@type":"Offer","name":"Entretien de climatisation","description":"Contrôle et recharge du circuit de climatisation de votre véhicule."},{"@type":"Offer","name":"Préparation au contrôle technique","description":"Vérification des points contrôlés avant le passage au contrôle technique."}]}</script>
