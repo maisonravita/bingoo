@@ -99,6 +99,7 @@ export const LOOKS_VIDEO: Record<string, string> = {
   editorial: "éditorial : papier crème, titres élégants à empattements en casse normale, calme et chic (artisan, mode, beauté, conseil)",
   minimal: "minimal : blanc pur, peu de mots, beaucoup d'air, la couleur seulement pour l'accent (tech, santé, services)",
   clair: "clair : gris très clair et doux, petites phrases noires nettes avec un mot en couleur, tuile blanche, cartes pastel, un passage au noir pour le problème (« rature »), sobre comme une pub de logiciel (appli, logiciel, service, conseil, formation)",
+  aura: "aura : blanc pur, texte noir, et un dégradé irisé (la couleur de la marque qui glisse vers l'orangé, le violet, le bleu) dans les grands mots, les boutons et les halos ; moderne et lumineux (startup, IA, marketing, e-commerce, créateurs)",
   verre: "verre : interface sombre faite de capsules de verre et de lumière, chiffres qui montent, très soigné (appli, logiciel, tech, finance, objets connectés)",
 };
 const STRUCTURES: [string, string][] = [
