@@ -1,0 +1,16 @@
+<title>Maison Farine · Boulangerie artisanale à Lille</title>
+<meta name="description" content="Maison Farine prépare pains au levain, viennoiseries pur beurre et pâtisseries du week-end, avec des farines bio du Pas-de-Calais, dans le Vieux-Lille.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Maison Farine">
+<meta property="og:title" content="Maison Farine · Boulangerie artisanale à Lille">
+<meta property="og:description" content="Maison Farine prépare pains au levain, viennoiseries pur beurre et pâtisseries du week-end, avec des farines bio du Pas-de-Calais, dans le Vieux-Lille.">
+<meta property="og:url" content="https://www.bingoo.fr/s/maison-farine-2n44">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=maison-farine-2n44&amp;v=13-92400E">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=maison-farine-2n44&amp;v=13-92400E">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Maison Farine · Boulangerie artisanale à Lille">
+<meta name="twitter:description" content="Maison Farine prépare pains au levain, viennoiseries pur beurre et pâtisseries du week-end, avec des farines bio du Pas-de-Calais, dans le Vieux-Lille.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Maison Farine","description":"Maison Farine prépare pains au levain, viennoiseries pur beurre et pâtisseries du week-end, avec des farines bio du Pas-de-Calais, dans le Vieux-Lille.","url":"https://www.bingoo.fr/s/maison-farine-2n44","image":"https://www.bingoo.fr/api/og?slug=maison-farine-2n44&v=13-92400E","telephone":"03 20 00 00 00","address":"14 rue de Gand, 59000 Lille","areaServed":"Lille","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"07:00","closes":"19:30"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"07:00","closes":"19:30"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"07:00","closes":"19:30"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"07:00","closes":"19:30"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Saturday","opens":"07:00","closes":"19:30"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Sunday","opens":"07:00","closes":"19:30"}],"makesOffer":[{"@type":"Offer","name":"Pain au levain","description":"Pains façonnés chaque jour au levain entretenu depuis plus de 15 ans, avec des farines bio."},{"@type":"Offer","name":"Viennoiseries pur beurre","description":"Croissants, pains au chocolat et autres viennoiseries préparés au beurre pur."},{"@type":"Offer","name":"Pâtisseries du week-end","description":"Gâteaux et pâtisseries préparés pour les week-ends, à réserver la veille."},{"@type":"Offer","name":"Grosses commandes","description":"Commandes pour les fêtes ou les entreprises, à passer au moins 48 h à l'avance."}]}</script>
