@@ -1,0 +1,16 @@
+<title>Nocta · Application de bien-être au quotidien</title>
+<meta name="description" content="Nocta suit votre sommeil, votre rythme cardiaque au repos, vos pas et votre humeur, pour les adultes qui veulent mieux dormir.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Nocta">
+<meta property="og:title" content="Nocta · Application de bien-être au quotidien">
+<meta property="og:description" content="Nocta suit votre sommeil, votre rythme cardiaque au repos, vos pas et votre humeur, pour les adultes qui veulent mieux dormir.">
+<meta property="og:url" content="https://www.bingoo.fr/s/nocta-2v0n">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=nocta-2v0n&amp;v=5-B73737">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=nocta-2v0n&amp;v=5-B73737">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Nocta · Application de bien-être au quotidien">
+<meta name="twitter:description" content="Nocta suit votre sommeil, votre rythme cardiaque au repos, vos pas et votre humeur, pour les adultes qui veulent mieux dormir.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Nocta","description":"Nocta suit votre sommeil, votre rythme cardiaque au repos, vos pas et votre humeur, pour les adultes qui veulent mieux dormir.","url":"https://www.bingoo.fr/s/nocta-2v0n","image":"https://www.bingoo.fr/api/og?slug=nocta-2v0n&v=5-B73737"}</script>

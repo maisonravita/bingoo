@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "e0": {
+    "p": "#B73737",
+    "c": "#B73737",
+    "g": null,
+    "n": 0,
+    "cta": "Être prévenu"
+  },
+  "e1": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": null,
+    "n": 1,
+    "cta": "Être prévenu"
+  },
+  "e2": {
+    "p": "#B73737",
+    "c": "#B73737",
+    "g": null,
+    "n": 1,
+    "cta": "Être prévenu"
+  },
+  "e3": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": null,
+    "n": 1,
+    "cta": "Être prévenu"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "gen": {
+    "at": "2026-11-26T13:27:06.274Z",
+    "cout": 0.2417,
+    "appels": 5,
+    "entree": 123263,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 8196,
+    "duree_s": 48,
+    "journal": [
+      "Premier écran : composition Lueur",
+      "Plan : hero, conseil, suivi, prix, faq, essai",
+      "Essai 1 : hero (Texte : reste de conversation (« Cœur Pas Humeur Bonjour, vo)",
+      "Essai 2 : hero (Texte : reste de conversation (« Cœur Pas Humeur Bonjour, vo)"
+    ],
+    "images_eur": 0,
+    "corrections": 2
+  },
+  "sections": 7
+}
