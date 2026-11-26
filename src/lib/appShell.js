@@ -247,7 +247,7 @@ const lisible = (() => {
       // Jamais dans un bouton à état (onglet, segment choisi) : sa couleur change avec son état et ne doit pas être figée
       if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, select, input, textarea, [role=tab], [aria-pressed], [aria-selected], [aria-current]")) continue;
       // Premier écran de composition et en-tête posé dessus : couleurs réglées par le kit sur la photo (que ce contrôle ne voit pas)
-      if (el.closest(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .s-recit") || (window.__bingooNavHaut && el.closest(".nav"))) continue;
+      if (el.closest(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .hero-affiche, .hero-carte, .hero-ruban, .hero-moitie, .hero-arche, .hero-bandeau, .hero-mosaique, .s-recit") || (window.__bingooNavHaut && el.closest(".nav"))) continue;
       // Un bouton plein (fond de couleur, dégradé) garde ses couleurs : seuls les liens et boutons sans fond sont corrigés
       const btn = el.closest("a, button, [role=button]");
       if (btn) { const cb = getComputedStyle(btn), bg = num(cb.backgroundColor); if ((bg && bg[3] > 0.1) || (cb.backgroundImage && cb.backgroundImage !== "none") || /\bbtn\b/.test(btn.className)) continue; }
@@ -949,7 +949,7 @@ const MOD = SITE.modele ?? "vitrine";
 // le temps de la page publique, puis on monte les données vivantes dans les marqueurs data-bingoo (prestations, horaires,
 // formulaires, adresse, réalisations). Les mentions légales et l'accès gérant sont toujours ajoutés par Bingoo!.
 // Version dans l'adresse : une correction de la feuille arrive tout de suite, sans attendre la fin du cache
-const TASTE_CSS = "https://bingoo.fr/taste-system.css?v=20261126m";
+const TASTE_CSS = "https://bingoo.fr/taste-system.css?v=20261126n";
 function nettoyerDom(racine) {
   racine.querySelectorAll("script,iframe,object,embed,form,link,meta,base").forEach((x) => x.remove());
   racine.querySelectorAll("*").forEach((el) => { for (const a of [...el.attributes]) if (/^on/i.test(a.name) || (/^(href|src)$/i.test(a.name) && /^\\s*(javascript|vbscript|data:text)/i.test(a.value))) el.removeAttribute(a.name); });
@@ -1068,7 +1068,7 @@ function SitePageGeneree({ onAuth, saas }) {
       const couvre = (n) => getComputedStyle(n).position === "absolute" && n.offsetWidth >= sec.offsetWidth * 0.8 && n.offsetHeight >= sec.offsetHeight * 0.6;
       const img = [...sec.querySelectorAll("img")].find(couvre);
       // Les premiers écrans de composition (cinéma, mot géant…) ont déjà leur voile et leurs couleurs dans le kit
-      if (!img || sec.matches(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .s-recit, .s-duo")) return;
+      if (!img || sec.matches(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .hero-affiche, .hero-carte, .hero-ruban, .hero-moitie, .hero-arche, .hero-bandeau, .hero-mosaique, .s-recit, .s-duo")) return;
       sec.classList.remove("ground-brand", "ground-surface", "ground-inverse");
       [...sec.querySelectorAll("div, span")].filter((n) => n !== img && !n.textContent.trim() && !n.querySelector("img") && couvre(n)).forEach((n) => { n.style.display = "none"; });
       for (const [k, v] of [["--ink", "#ffffff"], ["--muted", "rgba(255,255,255,.84)"], ["--accent", "#ffffff"], ["--accent-ink", "#111111"], ["--action", "#ffffff"], ["--action-ink", "#111111"], ["--line", "rgba(255,255,255,.3)"], ["--line-strong", "rgba(255,255,255,.5)"]]) sec.style.setProperty(k, v);
@@ -1112,7 +1112,7 @@ function SitePageGeneree({ onAuth, saas }) {
     const hv = () => { try { const h = Math.min(innerHeight, parent !== window && parent.innerHeight ? parent.innerHeight : innerHeight); document.documentElement.style.setProperty("--hv", h + "px"); } catch (x) { document.documentElement.style.setProperty("--hv", innerHeight + "px"); } };
     hv(); if (!window.__bingooHv) { window.__bingooHv = 1; try { (parent !== window ? parent : window).addEventListener("resize", hv); } catch (x) { addEventListener("resize", hv); } }
     if (window.__bingooNavHaut) removeEventListener("scroll", window.__bingooNavHaut);
-    const immersif = nav && el.querySelector("main section.hero-cine, main section.hero-mot, main section.hero-hublot, main section.hero-lueur");
+    const immersif = nav && el.querySelector("main section.hero-cine, main section.hero-mot, main section.hero-hublot, main section.hero-lueur, main section.hero-ruban");
     if (immersif) { const maj = () => nav.classList.toggle("nav--sur-photo", scrollY < 40 && !nav.classList.contains("is-open")); window.__bingooNavHaut = maj; addEventListener("scroll", maj, { passive: true }); if (t) t.addEventListener("click", maj); maj(); } else nav?.classList.remove("nav--sur-photo");
     // Effets (défilement doux, mots qui montent, compteurs, ondulation des grandes photos) : bibliothèques servies par Bingoo!,
     // jamais pendant la vérification, les captures ni dans l'atelier

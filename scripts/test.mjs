@@ -339,7 +339,14 @@ await test("compositions : le métier décide, « premier » n'est pas « mer »
   assert.ok(ids("service", "Studio de design graphique. Premier rendez-vous offert.").has("galerie"));
   assert.ok(!ids("service", "Studio de design graphique. Premier rendez-vous offert.").has("cinema"));
   assert.ok(ids("service", "agence immobilière à Biarritz").has("mot-geant"));
-  assert.equal(T.choisirComposition({ type: "place", texte: "restaurant", images: false }), null);
+  // Sans photo : un restaurant a toujours une mise en scène sans photo (carte, affiche ou rubans), jamais une photo
+  const sans = ids("place", "restaurant");
+  const sansPhoto = new Set(Array.from({ length: 40 }, () => T.choisirComposition({ type: "place", texte: "restaurant", images: false })?.id));
+  assert.ok([...sansPhoto].every((x) => ["carte", "affiche", "ruban"].includes(x)) && sansPhoto.has("carte"));
+  assert.ok(!sans.has("cinema"));
+  assert.ok(ids("service", "plombier chauffagiste").has("bandeau"));
+  assert.ok(ids("service", "salon de coiffure").has("arche"));
+  assert.ok(ids("service", "cabinet d'avocat").has("moitie"));
 });
 await test("sections du bas de page : jamais deux voisines identiques, adresse jamais dans un récit", () => {
   const plan = ["hero", "domaine", "vins", "degustation", "visite", "faq", "contact"].map((id) => ({ id, role: id === "contact" ? "closing" : id, marqueurs: id === "vins" ? ["services"] : id === "visite" ? ["adresse"] : [] }));

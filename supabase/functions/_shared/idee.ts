@@ -241,7 +241,9 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
   if (images && avecPhoto) {
     try { const im = await imagesPage([{ id: "A1", pour: "hero", prompt: `${COMPOSITIONS[avecPhoto].image} Activity: ${apercu.metier}, ${String(r?.secteur_en ?? "")}. ${apercu.pitch}` }], 0.01, { apercu: true, taille: "landscape_16_9" }); photo = im.images.A1?.url ?? null; } catch (x) { console.error("photo d'aperçu", x); }
   }
-  return { apercu: { ...apercu, design: ds[0], designs: ds, compositions: photo ? compositions : compositions.filter((c) => !COMPOSITIONS[c].photo), photo }, proches: [] };
+  // Sans photo (restauration, image indisponible) : les mises en scène sans photo de la bibliothèque, choisies pour ce métier
+  const sansPhoto = compositionsPour({ type: typeDeProjet({ site: true, modele: apercu.modele, metier: apercu.metier, idee }), texte, images: false });
+  return { apercu: { ...apercu, design: ds[0], designs: ds, compositions: photo ? compositions : sansPhoto.filter((c) => !COMPOSITIONS[c].photo), photo }, proches: [] };
 }
 
 

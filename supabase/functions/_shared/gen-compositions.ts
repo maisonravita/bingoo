@@ -5,10 +5,12 @@
 import type { TypeProjet } from "./design-fiches.ts";
 
 export type Composition = {
-  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento";
+  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento" | "affiche" | "carte" | "ruban" | "moitie" | "arche" | "bandeau" | "mosaique";
   nom: string;
   /** Il faut une photo d'en-tête (générée ou du membre) */
   photo: boolean;
+  /** Nombre de photos du premier écran (1 par défaut, 3 pour la galerie et la mosaïque) */
+  nbImages?: number;
   /** La photo d'en-tête doit être détourée (sujet au premier plan, mot géant derrière) */
   detourage?: boolean;
   /** Consigne pour le prompt de la photo d'en-tête */
@@ -92,7 +94,7 @@ La ligne hero-hublot__infos n'a que des faits du brief (ville, horaires, télép
 L'écran montre le VRAI usage du produit décrit (ses rubriques, ses objets : rendez-vous, recettes, dossiers…) avec des exemples plausibles, jamais des résultats présentés comme ceux du membre. Les boutons href="#essai" ouvrent l'inscription.`,
   },
   galerie: {
-    id: "galerie", nom: "Galerie courbe", photo: true,
+    id: "galerie", nom: "Galerie courbe", photo: true, nbImages: 3,
     image: "IMG_1, IMG_2 and IMG_3 are three different art-directed still lifes or details tied to the activity (materials, textures, tools, a corner of a space), each with ONE dominant colour, studio light, minimal composition, vertical framing, high detail.",
     structure: `<section id="hero" class="hero hero-galerie">
   <div class="hero-galerie__tete">
@@ -130,7 +132,141 @@ Les mots des tuiles : un mot court et réel du métier, 7 lettres au plus (jamai
 </section>
 Chaque widget correspond à une fonction décrite dans le brief ; les valeurs sont des exemples d'usage, jamais des résultats du membre. widget__valeur ne contient qu'un nombre, une heure ou un mot court (8 lettres au plus), jamais une phrase ; une phrase va dans widget__note. Remplis exactement les 6 colonnes : par exemple 1 grand (3×2) + 2 larges (3×1), puis 3 petits (2×1).`,
   },
+  // ---- Sans photo : restauration et métiers où l'on n'invente pas d'image, ou quand le membre n'en a pas encore
+  affiche: {
+    id: "affiche", nom: "Affiche", photo: false,
+    structure: `<section id="hero" class="hero hero-affiche">
+  <div class="hero-affiche__formes" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="hero-affiche__haut"><span class="t-label">(métier · ville)</span><span class="t-label">(un fait réel du brief : horaires, quartier, spécialité ; sinon retire ce span)</span></div>
+  <h1 class="hero-affiche__titre"><span>(2 à 3 mots)</span><span>(2 à 3 mots)</span></h1>
+  <div class="hero-affiche__bas">
+    <p>(une phrase concrète du brief, 15 à 25 mots)</p>
+    <div class="btn-row"><a class="btn btn--clair" href="#contact">(bouton principal)</a><a class="link" href="#(ancre de la section suivante)">(lien court)</a></div>
+  </div>
+</section>
+Une affiche typographique sur la couleur de la marque : le titre est énorme et court (6 mots au plus en tout). Aucune image.`,
+  },
+  carte: {
+    id: "carte", nom: "Carte", photo: false,
+    structure: `<section id="hero" class="hero hero-carte">
+  <div class="hero-carte__texte">
+    <span class="t-label">(métier · ville)</span>
+    <h1>(la promesse, 3 à 7 mots)</h1>
+    <p>(une phrase concrète du brief)</p>
+    <div class="btn-row"><a class="btn btn--primary" href="#contact">(bouton principal)</a><a class="link" href="#(ancre)">(lien secondaire)</a></div>
+  </div>
+  <div class="hero-carte__papier">
+    <p class="hero-carte__entete">(« La carte », « Nos prestations », « Nos tarifs »… selon le métier)</p>
+    <ul>
+      <li><span>(un plat, un produit ou une prestation RÉELLE du brief)</span><i></i><b>(son prix s'il est dans le brief, sinon rien)</b></li>
+      (3 à 6 lignes en tout, uniquement ce que le brief cite)
+    </ul>
+    <p class="hero-carte__pied">(un fait réel : horaires, adresse ou « sur réservation » si le brief le dit ; sinon retire ce paragraphe)</p>
+  </div>
+</section>
+La carte ne liste QUE des éléments du brief, avec leur prix seulement s'il est donné (sinon la balise <b> reste vide). S'il y a moins de 3 éléments, écris à la place les grandes familles de l'offre citées par le brief. Aucune image.`,
+  },
+  ruban: {
+    id: "ruban", nom: "Ruban", photo: false,
+    structure: `<section id="hero" class="hero hero-ruban">
+  <div class="hero-ruban__tete">
+    <span class="t-label">(métier · ville)</span>
+    <h1>(le nom du membre)</h1>
+    <p>(ce qu'il fait et pour qui, une phrase)</p>
+    <div class="btn-row"><a class="btn btn--clair" href="#contact">(bouton principal)</a></div>
+  </div>
+  <div class="hero-ruban__bandes" aria-hidden="true">
+    <div class="hero-ruban__bande"><div class="hero-ruban__piste"><span>(mot du métier)</span><span>(mot)</span><span>(mot)</span><span>(mot)</span><span>(mot)</span><span>(mot)</span></div></div>
+    <div class="hero-ruban__bande hero-ruban__bande--b"><div class="hero-ruban__piste"><span>(mot)</span><span>(mot)</span><span>(mot)</span><span>(mot)</span><span>(mot)</span><span>(mot)</span></div></div>
+  </div>
+</section>
+Les mots des rubans : 12 mots courts et réels de l'activité (spécialités, gestes, produits, quartiers cités), 14 lettres au plus chacun, jamais de chiffre inventé. Aucune image.`,
+  },
+  // ---- Avec photo : de nouvelles familles de métiers
+  moitie: {
+    id: "moitie", nom: "Moitié", photo: true,
+    image: "IMG_1 is a vertical editorial photograph for the right half of a website: the place, the workspace, the tools or the materials of the activity, natural window light, calm composition with one clear subject, shallow depth of field, warm and honest colours, full-frame camera, 50mm lens, no people facing the camera, no text.",
+    structure: `<section id="hero" class="hero hero-moitie">
+  <div class="hero-moitie__texte">
+    <span class="t-label">(métier · ville)</span>
+    <h1>(la promesse, 4 à 9 mots)</h1>
+    <p>(une phrase concrète du brief)</p>
+    <div class="btn-row"><a class="btn btn--primary" href="#contact">(bouton principal)</a><a class="link" href="#(ancre)">(lien secondaire)</a></div>
+    <ul class="hero-moitie__faits"><li><b>(fait réel 1, ex. la ville)</b>(précision)</li><li><b>(fait réel 2)</b>(précision)</li></ul>
+  </div>
+  <figure class="hero-moitie__photo"><img src="IMG_1" alt="(la scène en une phrase)"></figure>
+</section>
+hero-moitie__faits n'a que des faits du brief (ville, horaires, téléphone, spécialité) ; s'il y en a moins de deux, retire la liste.`,
+  },
+  arche: {
+    id: "arche", nom: "Arche", photo: true,
+    image: "IMG_1 is a vertical photograph framed for an arch-shaped window: a serene interior, a treatment room, a garden, a pool, a terrace or a natural texture tied to the activity, soft diffused light, pastel and natural tones, one clear subject in the centre, calm and luxurious, full-frame camera, 35mm lens, no text.",
+    structure: `<section id="hero" class="hero hero-arche">
+  <span class="t-label hero-arche__label">(métier · ville)</span>
+  <h1 class="hero-arche__titre"><span>(2 à 3 mots)</span><span>(2 à 3 mots)</span></h1>
+  <figure class="hero-arche__cadre"><img src="IMG_1" alt="(la scène en une phrase)"></figure>
+  <div class="hero-arche__bas">
+    <p>(une phrase concrète du brief)</p>
+    <a class="btn btn--primary" href="#contact">(bouton principal)</a>
+  </div>
+</section>
+Le titre se lit comme une seule phrase coupée en deux ; la photo passe sous la deuxième ligne. Rien d'autre dans ce premier écran.`,
+  },
+  bandeau: {
+    id: "bandeau", nom: "Bandeau", photo: true,
+    image: "IMG_1 is a very wide panoramic photograph of the activity's world: a workshop, a work site, a vehicle bay, a sports hall, a storefront street or a landscape, strong horizontal composition, clean and well lit, realistic, no people facing the camera, no text, no logo, full-frame camera, 24mm lens.",
+    structure: `<section id="hero" class="hero hero-bandeau">
+  <div class="hero-bandeau__haut">
+    <div><span class="t-label">(métier · ville)</span><h1>(la promesse, 4 à 9 mots)</h1></div>
+    <div class="hero-bandeau__action"><p>(une phrase concrète du brief)</p><div class="btn-row"><a class="btn btn--primary" href="#contact">(bouton principal)</a></div></div>
+  </div>
+  <figure class="hero-bandeau__photo"><img src="IMG_1" alt="(la scène en une phrase)"><figcaption><b>(fait réel, ex. la ville ou le téléphone du brief)</b><span>(précision courte)</span></figcaption></figure>
+</section>
+Le figcaption n'a qu'un fait réel du brief ; sans fait, retire le figcaption.`,
+  },
+  mosaique: {
+    id: "mosaique", nom: "Mosaïque", photo: true, nbImages: 3,
+    image: "IMG_1, IMG_2 and IMG_3 are three different photographs of the activity's world (the place, a detail of materials, an atmosphere), consistent colour grading between them, natural light, one clear subject each, no people facing the camera, no text, full-frame camera.",
+    structure: `<section id="hero" class="hero hero-mosaique">
+  <div class="hero-mosaique__texte">
+    <span class="t-label">(métier · ville)</span>
+    <h1>(la promesse, 3 à 7 mots)</h1>
+    <p>(une phrase concrète du brief)</p>
+    <div class="btn-row"><a class="btn btn--primary" href="#contact">(bouton principal)</a><a class="link" href="#(ancre)">(lien secondaire)</a></div>
+  </div>
+  <div class="hero-mosaique__grille">
+    <figure><img src="IMG_1" alt="(une phrase)"></figure>
+    <figure><img src="IMG_2" alt="(une phrase)"></figure>
+    <figure><img src="IMG_3" alt="(une phrase)"></figure>
+    <p class="hero-mosaique__mot">(un mot du métier, 10 lettres au plus)</p>
+  </div>
+</section>
+Trois photos différentes, dans cet ordre. Rien d'autre dans ce premier écran.`,
+  },
 };
+
+/** Les mises en scène qui vont à une activité, de la plus adaptée à la moins (une valeur répétée pèse plus au tirage). */
+function listePour(type: TypeProjet, a: (...m: string[]) => boolean, images: boolean): Composition["id"][] | null {
+  const bouche = a("restaura", "bistro", "brasser", "caf[ée]", "bar\\b", "traiteur", "boulang", "p[âa]tiss", "[ée]picer", "fromag", "boucher", "chocolat", "glac", "pizz", "burger", "sushi", "cr[êe]pe", "food", "cuisin", "chef\\b", "cave\\b", "caviste", "bi[èe]re", "brunch", "salon de th[ée]");
+  if (type === "software") return a("widget", "suivi", "sant[ée]", "sport", "m[ée]t[ée]o", "finance", "budget", "habitude", "tableau de bord", "dashboard", "statisti", "sommeil") ? ["bento", "bento", "lueur"] : a("communaut", "[ée]v[ée]nement", "festival", "billet", "musique", "jeu", "[ée]tudiant", "association") ? ["affiche", "lueur", "bento"] : ["lueur", "lueur", "bento"];
+  // Sans photo possible (restauration sans photos du membre, image indisponible) : affiche, carte ou rubans
+  if (!images) {
+    if (bouche) return ["carte", "carte", "affiche", "ruban"];
+    if (a("coiff", "barbier", "esth[ée]t", "institut", "onglerie", "massage", "spa\\b", "tarif")) return ["carte", "affiche", "ruban"];
+    return ["affiche", "affiche", "ruban", "ruban"];
+  }
+  // Avec photo : chaque famille de métier a ses mises en scène
+  if (bouche) return ["mosaique", "mosaique", "moitie", "bandeau"];
+  if (a("design", "graphi", "studio de (design|cr[ée]a)", "agence (de )?(cr[ée]a|com|design)", "photograph", "illustrat", "c[ée]ramiq", "typograph", "identit[ée]s? visuel", "bijou", "mode\\b", "cr[ée]atri", "cr[ée]ateur")) return ["galerie", "galerie", "mosaique", "hublot"];
+  if (a("coiff", "barbier", "esth[ée]t", "institut", "onglerie", "massage", "spa\\b", "bien-[êe]tre", "yoga", "pilates", "sophro", "naturo", "beaut[ée]", "maquill", "soin")) return ["arche", "arche", "moitie", "cinema"];
+  if (a("avocat", "notaire", "juris", "cabinet", "comptab", "expert", "conseil", "consult", "m[ée]decin", "docteur", "kin[ée]", "ost[ée]o", "dentist", "psych", "th[ée]rap", "infirmi", "pharmac", "v[ée]t[ée]rin", "coach", "formation", "assurance", "banque", "patrimoine", "recrut")) return ["moitie", "moitie", "bandeau", "arche"];
+  if (a("plomb", "[ée]lectric", "chauffag", "garage", "m[ée]canique", "carross", "menuis", "charpent", "peintre", "peinture", "couvr", "toiture", "ma[çc]on", "serrur", "vitri", "nettoyage", "m[ée]nage", "d[ée]m[ée]nag", "jardinier", "[ée]lagu", "artisan", "r[ée]novation", "travaux", "btp", "auto[- ]?[ée]cole", "taxi", "vtc", "transport", "livraison", "salle de sport", "fitness", "musculation", "club", "conciergerie")) return ["bandeau", "bandeau", "moitie", "cinema"];
+  if (a("immobili", "architect", "villa", "chalet", "h[ôo]tel", "g[îi]te", "r[ée]sidence", "domaine", "ch[âa]teau", "construct", "b[âa]tisseur", "vign", "ferme", "maison d'h[ôo]tes", "chambre d'h[ôo]tes")) return ["mot-geant", "mot-geant", "cinema", "arche"];
+  if (a("voyage", "exp[ée]dition", "croisi", "observatoire", "astronom", "plong", "navig", "voile\\b", "aventure", "aurore", "fjord", "safari")) return ["hublot", "hublot", "cinema"];
+  if (a("vins?\\b", "campagne\\b", "nature", "montagne", "randonn", "mer\\b", "plage", "s[ée]jour", "retraite", "jardin", "paysag", "camping")) return ["cinema", "cinema", "hublot", "bandeau"];
+  if (a("boutique", "magasin", "fleur", "d[ée]co", "mariage", "[ée]v[ée]nement", "traiteur", "cadeau", "librair", "galerie d'art", "artisanat", "cr[ée]ation")) return ["mosaique", "mosaique", "galerie", "arche"];
+  return type === "product" ? ["galerie", "mosaique", "cinema"] : ["cinema", "moitie", "bandeau", "hublot", "arche", "mosaique"];
+}
 
 /** Le choix se fait dans le code (jamais deux fois la même chose de suite) selon le genre d'activité et les images possibles. */
 export function choisirComposition(o: { type: TypeProjet; texte: string; images: boolean; aleatoire?: () => number }): Composition | null {
@@ -138,14 +274,8 @@ export function choisirComposition(o: { type: TypeProjet; texte: string; images:
   const r = o.aleatoire ?? Math.random;
   // Début de mot obligatoire (« mer » ne doit pas se trouver dans « premier », ni « vin » dans « province »)
   const a = (...mots: string[]) => new RegExp(`(?:^|[^a-zà-ÿ])(?:${mots.join("|")})`).test(t);
-  let liste: Composition["id"][];
-  if (o.type === "software") liste = a("widget", "suivi", "sant[ée]", "sport", "m[ée]t[ée]o", "finance", "budget", "habitude", "tableau de bord", "dashboard", "statisti", "sommeil") ? ["bento", "bento", "lueur"] : ["lueur", "lueur", "bento"];
-  else if (!o.images) return null;
-  else if (a("design", "graphi", "studio de (design|cr[ée]a)", "agence (de )?(cr[ée]a|com|design)", "photograph", "illustrat", "c[ée]ramiq", "typograph", "identit[ée]s? visuel", "bijou", "mode\\b", "cr[ée]atri", "cr[ée]ateur")) liste = ["galerie", "galerie", "hublot"];
-  else if (a("immobili", "architect", "maison", "villa", "chalet", "h[ôo]tel", "g[îi]te", "r[ée]sidence", "domaine", "ch[âa]teau", "construct", "b[âa]tisseur", "vign", "ferme")) liste = ["mot-geant", "mot-geant", "cinema"];
-  else if (a("voyage", "exp[ée]dition", "croisi", "observatoire", "astronom", "plong", "navig", "voile\\b", "aventure", "aurore", "fjord")) liste = ["hublot", "hublot", "cinema"];
-  else if (a("vins?\\b", "campagne\\b", "nature", "montagne", "randonn", "mer\\b", "plage", "s[ée]jour", "retraite", "yoga", "spa\\b", "bien-[êe]tre", "jardin", "paysag")) liste = ["cinema", "cinema", "hublot"];
-  else liste = o.type === "product" ? ["galerie", "cinema"] : ["cinema", "hublot", "galerie"];
+  const liste = listePour(o.type, a, o.images);
+  if (!liste) return null;
   return COMPOSITIONS[liste[Math.floor(r() * liste.length)]];
 }
 
@@ -173,10 +303,19 @@ const CLES: Record<Composition["id"], string[]> = {
   lueur: ["hero-lueur__tete", "hero-lueur__arc", "hero-lueur__ecran"],
   galerie: ["hero-galerie__tete", "hero-galerie__piste", "tuile"],
   bento: ["hero-bento__texte", "hero-bento__widgets", "widget"],
+  affiche: ["hero-affiche__titre", "hero-affiche__bas"],
+  carte: ["hero-carte__texte", "hero-carte__papier"],
+  ruban: ["hero-ruban__tete", "hero-ruban__bande", "hero-ruban__piste"],
+  moitie: ["hero-moitie__texte", "hero-moitie__photo"],
+  arche: ["hero-arche__titre", "hero-arche__cadre", "hero-arche__bas"],
+  bandeau: ["hero-bandeau__haut", "hero-bandeau__photo"],
+  mosaique: ["hero-mosaique__texte", "hero-mosaique__grille"],
 };
+/** La classe principale de chaque mise en scène (hero-cine pour Cinéma…) */
+export const CLASSE_COMPO: Record<Composition["id"], string> = { cinema: "hero-cine", "mot-geant": "hero-mot", hublot: "hero-hublot", lueur: "hero-lueur", galerie: "hero-galerie", bento: "hero-bento", affiche: "hero-affiche", carte: "hero-carte", ruban: "hero-ruban", moitie: "hero-moitie", arche: "hero-arche", bandeau: "hero-bandeau", mosaique: "hero-mosaique" };
 /** Ce qui manque à la structure imposée (vide si tout y est) */
 export function controlerCompo(c: Composition, html: string): string[] {
-  const manque = [`hero-${{ cinema: "cine", "mot-geant": "mot", hublot: "hublot", lueur: "lueur", galerie: "galerie", bento: "bento" }[c.id]}`, ...CLES[c.id]].filter((k) => !new RegExp(`class="[^"]*\\b${k}\\b`).test(html));
+  const manque = [CLASSE_COMPO[c.id], ...CLES[c.id]].filter((k) => !new RegExp(`class="[^"]*\\b${k}\\b`).test(html));
   return manque.length ? [`Composition « ${c.nom} » non respectée : il manque ${manque.join(", ")}. Reprends EXACTEMENT la structure imposée, sans <style>.`] : [];
 }
 
@@ -251,7 +390,7 @@ export function compositionsPour(o: { type: TypeProjet; texte: string; images: b
   const vus: Composition["id"][] = [];
   // Le tirage pondéré, répété, donne l'ordre d'adéquation ; puis on complète avec les autres mises en scène du même genre
   for (let i = 0; i < 60 && vus.length < 3; i++) { const c = choisirComposition({ ...o, aleatoire: () => (i % 7) / 7 }); if (c && !vus.includes(c.id)) vus.push(c.id); }
-  const autres: Composition["id"][] = o.type === "software" ? ["lueur", "bento"] : o.images ? ["cinema", "hublot", "galerie", "mot-geant"] : [];
+  const autres: Composition["id"][] = o.type === "software" ? ["lueur", "bento", "affiche"] : o.images ? ["moitie", "cinema", "bandeau", "arche", "hublot", "mosaique"] : ["affiche", "ruban", "carte"];
   for (const a of autres) if (vus.length < 3 && !vus.includes(a)) vus.push(a);
   return vus;
 }
