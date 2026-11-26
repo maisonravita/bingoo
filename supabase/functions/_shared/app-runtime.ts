@@ -65,10 +65,10 @@ const propre = (d: unknown) => {
   return o;
 };
 // _exemple : ligne semée à la création du compte (donnée d'exemple), jamais montrée telle quelle à l'application
-const ligne = (r: any) => { const { _exemple, ...d } = r.data ?? {}; return { ...d, id: r.id, created_at: r.at, updated_at: r.maj }; };
+const ligne = (r: any) => { const { _exemple, _pour, ...d } = r.data ?? {}; return { ...d, id: r.id, created_at: r.at, updated_at: r.maj }; };
 // Champs calculés par le serveur (auteur d'un élément partagé) : jamais enregistrés tels quels
 // (et _exemple : une donnée d'exemple modifiée par le membre devient la sienne)
-const sansCalcul = (d: any) => { const { _auteur, _auteur_id, _moi, _exemple, ...x } = d ?? {}; return x; };
+const sansCalcul = (d: any) => { const { _auteur, _auteur_id, _moi, _exemple, _pour, _recu, ...x } = d ?? {}; return x; };
 
 async function session(admin: SupabaseClient, user: any) {
   const jeton = hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -167,8 +167,10 @@ export function recalerDemo(demo: Record<string, unknown[]>, ancre?: string | nu
 
 // Données d'exemple : chaque nouvel espace démarre avec une application vivante
 async function semer(admin: SupabaseClient, app: any, userId: string) {
-  // Collections « communauté » : jamais d'exemples (ils apparaîtraient chez tous les membres comme de faux membres)
-  const partage = new Set(((app.spec?.collections ?? []) as any[]).filter((c) => c?.partage === true).map((c) => c.nom));
+  // Collections « communauté » : leurs exemples ne sont vus QUE par le membre qui les reçoit (filtrés à la lecture),
+  // sinon une place de marché neuve serait vide ; sur un site, jamais d'exemple partagé
+  const partage = new Set(((app.spec?.collections ?? []) as any[]).filter((c) => c?.partage === true && Array.isArray(app.spec?.semer)).map((c) => c.nom));
+  const parties = new Set(((app.spec?.collections ?? []) as any[]).filter((c) => c?.partage === "parties").map((c) => c.nom));
   // Site : seulement son vrai contenu de départ (services, horaires, coordonnées), jamais de fausses demandes de clients
   const semees = Array.isArray(app.spec?.semer) ? new Set(app.spec.semer as string[]) : null;
   const demo = Object.fromEntries(Object.entries(recalerDemo((app.spec?.demo ?? {}) as Record<string, unknown[]>, app.spec?.demo_ancre)).filter(([k]) => !partage.has(k) && (!semees || semees.has(k))));
@@ -181,6 +183,8 @@ async function semer(admin: SupabaseClient, app: any, userId: string) {
     for (const [k, v] of Object.entries(x)) if (k !== "ref" && k !== "id" && k !== "cree_le") data[k] = typeof v === "string" && refs.has(v) && /_id$/.test(k) ? refs.get(v) : v;
     // Marquée comme exemple (SaaS seulement : le contenu de départ d'un site est le vrai contenu du gérant) ; une modification par le membre la rend réelle
     if (!semees) data._exemple = true;
+    // Transaction d'exemple (réservation, commande…) : elle vise un élément d'exemple du membre, il la voit comme reçue
+    if (parties.has(col)) data._pour = userId;
     // cree_le (date d'exemple) : la ligne paraît créée ce jour-là (historique crédible dans les graphiques)
     const cree = typeof x.cree_le === "string" && !isNaN(Date.parse(x.cree_le)) ? new Date(Date.parse(x.cree_le.length === 10 ? x.cree_le + "T10:00:00Z" : x.cree_le) + (i % 9) * 3600e3).toISOString() : null;
     return { id, app_id: app.id, user_id: userId, espace_id: userId, col, data, at: cree ?? new Date(Date.now() - i * 3600e3 * 7).toISOString() };
@@ -873,8 +877,26 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
     }
 
     // ---- Données de l'espace
+    // Transactions entre deux membres (partage: "parties") : réservation, commande, demande, message ou avis qui vise un élément
+    // d'une collection partagée. Visible par son auteur ET par le propriétaire de l'élément visé (champ serveur _pour), par personne d'autre.
+    const regleCol = (col: string) => ((app.spec as any)?.collections ?? []).find((c: any) => c.nom === col);
+    const parties = (col: string) => regleCol(col)?.partage === "parties";
+    const lesParties = (q: any) => q.or(`espace_id.eq.${espace},data->>_pour.eq.${espace}`);
+    const avecRecu = async (xs: any[]) => (await auteurs(xs)).map((x: any, i: number) => ({ ...x, _recu: (xs[i]?.data as any)?._pour === espace && (xs[i]?.espace_id !== espace || (xs[i]?.data as any)?._exemple === true) }));
+    if (action === "list" && parties(colOk(b.col))) {
+      let q = lesParties(rowsPartage().eq("col", colOk(b.col)));
+      for (const [k, v] of Object.entries(b.where ?? {}).slice(0, 5)) if (/^[a-z][a-z0-9_]{0,39}$/.test(k) && ["string", "number", "boolean"].includes(typeof v)) q = q.eq(`data->>${k}`, String(v));
+      const { data } = await q.order("at", { ascending: false }).limit(Math.min(1000, Number(b.limit) || 500));
+      return { status: 200, body: await avecRecu(data ?? []) };
+    }
+    if (action === "get" && parties(colOk(b.col))) {
+      const { data } = await lesParties(rowsPartage().eq("col", colOk(b.col)).eq("id", String(b.id))).maybeSingle();
+      if (!data) throw new Err(404, "Élément introuvable");
+      return { status: 200, body: (await avecRecu([data]))[0] };
+    }
     if (action === "list" && partagee(colOk(b.col))) {
-      let q = rowsPartage().eq("col", colOk(b.col));
+      // Les exemples d'une collection partagée ne sont vus que par le membre qui les a reçus
+      let q = rowsPartage().eq("col", colOk(b.col)).or(`espace_id.eq.${espace},data->>_exemple.is.null`);
       for (const [k, v] of Object.entries(b.where ?? {}).slice(0, 5)) if (/^[a-z][a-z0-9_]{0,39}$/.test(k) && ["string", "number", "boolean"].includes(typeof v)) q = q.eq(`data->>${k}`, String(v));
       const { data } = await q.order("at", { ascending: false }).limit(Math.min(1000, Number(b.limit) || 500));
       return { status: 200, body: await auteurs(data ?? []) };
@@ -906,16 +928,27 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const { count } = await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace);
       if ((count ?? 0) >= LIM.rows) throw new Err(403, "Limite de données atteinte pour cet espace");
       await verifierQuota(admin, app, titulaire, espace, col);
-      const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: sansCalcul(propre(b.data)) }).select("id, data, at, maj, espace_id, user_id").single();
+      let donnees: Record<string, unknown> = sansCalcul(propre(b.data));
+      if (parties(col)) {
+        // L'élément visé doit exister dans la collection partagée : son propriétaire devient l'autre partie
+        const vers = String(regleCol(col)?.vers ?? ""), ref = String((donnees as any)[`${vers}_id`] ?? "");
+        if (!vers || !ref) throw new Err(400, "Il manque l'élément concerné");
+        const { data: cible } = await rowsPartage().eq("col", vers).eq("id", ref).maybeSingle();
+        if (!cible) throw new Err(404, "L'élément concerné n'existe plus");
+        donnees = { ...donnees, _pour: (cible as any).espace_id };
+      }
+      const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: donnees }).select("id, data, at, maj, espace_id, user_id").single();
       if (data && ((app.spec as any)?.automatisations ?? []).length) (data as any).data = await autos("fiche_creee", col, data as any);
       if ((app as any).connexions?.liste?.length) { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "fiche_creee", { id: data?.id, ...((data?.data as object) ?? {}) }, col); }
-      return { status: 200, body: partagee(col) ? (await auteurs([data]))[0] : ligne(data) };
+      return { status: 200, body: partagee(col) ? (await auteurs([data]))[0] : parties(col) ? (await avecRecu([data]))[0] : ligne(data) };
     }
     if (action === "update") {
       const col = colOk(b.col);
-      const { data: cur } = await rows().eq("col", col).eq("id", String(b.id)).maybeSingle();
+      // Transaction : son auteur ET le propriétaire de l'élément visé peuvent la faire avancer (accepter, refuser, terminer…)
+      const { data: cur } = parties(col) ? await lesParties(rowsPartage().eq("col", col).eq("id", String(b.id))).maybeSingle() : await rows().eq("col", col).eq("id", String(b.id)).maybeSingle();
       if (!cur) throw new Err(404, "Élément introuvable");
-      const { data } = await admin.from("saas_app_rows").update({ data: sansCalcul(propre({ ...(cur.data as object), ...propre(b.data) })), maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
+      const garde = parties(col) ? { _pour: (cur.data as any)?._pour } : {};
+      const { data } = await admin.from("saas_app_rows").update({ data: { ...sansCalcul(propre({ ...(cur.data as object), ...propre(b.data) })), ...garde }, maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
       if (data && ((app.spec as any)?.automatisations ?? []).length) (data as any).data = await autos("fiche_modifiee", col, data as any, cur.data as any);
       if ((app as any).connexions?.liste?.length) { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "fiche_modifiee", { id: data?.id, ...((data?.data as object) ?? {}) }, col); }
       return { status: 200, body: ligne(data) };

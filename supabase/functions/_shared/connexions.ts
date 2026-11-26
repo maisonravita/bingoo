@@ -29,7 +29,11 @@ async function signer(secret: string, corps: string) {
 export async function envoyer(w: { url: string; secret: string }, corps: Record<string, unknown>): Promise<number> {
   const url = urlConnexion(w.url);
   if (!url) return 0;
-  const texte = JSON.stringify(corps);
+  // Messageries (Slack, Discord, Google Chat, Teams) : un message lisible au lieu des données brutes, reconnu à l'adresse
+  const h = new URL(url).hostname;
+  const message = () => { const d = (corps as any).donnees ?? {}; const lignes = Object.entries(d).filter(([, v]) => v !== null && v !== "" && typeof v !== "object").slice(0, 8).map(([k, v]) => `• ${k.replace(/_/g, " ")} : ${String(v).slice(0, 140)}`); return `${(EVENEMENTS as any)[(corps as any).evenement] ?? "Nouvel événement"} — ${(corps as any).nom || (corps as any).projet}${lignes.length ? "\n" + lignes.join("\n") : ""}`.slice(0, 1900); };
+  const texte = /(^|\.)hooks\.slack\.com$|(^|\.)chat\.googleapis\.com$|\.webhook\.office\.com$/.test(h) ? JSON.stringify({ text: message() })
+    : /(^|\.)discord(app)?\.com$/.test(h) ? JSON.stringify({ content: message() }) : JSON.stringify(corps);
   const fin = new AbortController(), t = setTimeout(() => fin.abort(), 6000);
   try {
     const r = await fetch(url, { method: "POST", redirect: "manual", signal: fin.signal, headers: { "content-type": "application/json", "user-agent": "Bingoo-Connexions/1", "x-bingoo-signature": await signer(w.secret, texte) }, body: texte });

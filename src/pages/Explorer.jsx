@@ -2559,7 +2559,7 @@ function OngletConnecteurs({ app, appel, agir, busy }) {
     </div>
   );
 }
-// Connexions sortantes : à chaque demande ou fiche, Bingoo! prévient l'adresse donnée par Zapier, Make ou n8n
+// Connexions sortantes : à chaque demande ou fiche, Bingoo! prévient l'adresse donnée par Zapier, Make, n8n, ou un salon Slack, Discord, Google Chat ou Teams (message lisible)
 const EVENEMENTS_CX = [["demande", "Une demande arrive depuis le site"], ["fiche_creee", "Une fiche est créée dans le logiciel"], ["fiche_modifiee", "Une fiche est modifiée dans le logiciel"]];
 function ConnexionsSortantes({ app, appel }) {
   const toast = useToast();
@@ -2573,7 +2573,7 @@ function ConnexionsSortantes({ app, appel }) {
     <div className="mt-8 border-t border-white/10 pt-6">
       <p className="text-[15px] font-bold">Relier tes autres outils</p>
       <p className="mt-1 text-[13.5px] text-white/65">À chaque {site ? "demande reçue sur ton site" : "fiche créée ou modifiée"}, Bingoo! prévient l'outil de ton choix. Avec Zapier, Make ou n8n, tu ajoutes alors un rendez-vous dans Google Agenda, tu envoies un message WhatsApp ou tu crées une ligne dans ta comptabilité, sans donner aucune clé à Bingoo!.</p>
-      <p className="mt-2 text-[12.5px] text-white/45">Dans Zapier : crée un Zap qui commence par « Webhooks by Zapier · Catch Hook », et colle ici l'adresse qu'il te donne. Dans Make : module « Webhooks · Custom webhook ».</p>
+      <p className="mt-2 text-[12.5px] text-white/45">Dans Zapier : crée un Zap qui commence par « Webhooks by Zapier · Catch Hook », et colle ici l'adresse qu'il te donne. Dans Make : module « Webhooks · Custom webhook ». Pour être prévenu dans Slack, Discord, Google Chat ou Teams, colle l'adresse « webhook entrant » du salon : Bingoo! y écrit un message lisible.</p>
       {liste.length > 0 && <ul className="mt-4 space-y-2">{liste.map((w) => (
         <li key={w.id} className="rounded-xl border border-white/10 bg-white/[.04] p-3.5">
           <p className="break-all text-[13.5px] font-semibold">{w.url}</p>

@@ -26,6 +26,7 @@ export const FAMILLES: Record<string, Famille> = {
     label: "Réservation et calendrier", quand: "prise de rendez-vous, réservation de créneaux, d'activités ou de ressources",
     interface: "gestion", disposition: "barre", accueil: "« Agenda » ou « Mes rendez-vous » : la semaine à venir et les demandes à traiter",
     guide: `FAMILLE : RÉSERVATION ET CALENDRIER.
+- Le calendrier (ui.Calendrier) n'apparaît que sur UN SEUL écran, celui de l'agenda ou des réservations : les autres écrans (annonces, profil, avis, calcul, réglages…) n'en ont jamais.
 - Le cœur : un vrai calendrier (ui.Calendrier) des réservations, des types de rendez-vous avec durée et prix, des disponibilités par jour de la semaine, et la page publique de réservation avec ui.Creneaux (vrais créneaux libres).
 - Accueil : les prochains rendez-vous en grand, les demandes à confirmer avec boutons Confirmer et Refuser, puis un lien « Copier mon lien de réservation ».
 - Confirmation et rappel par e-mail à chaque réservation (email avec quand, rappel_id gardé et annulé si le rendez-vous change).`,

@@ -188,6 +188,9 @@ export default function Idee() {
   // Idée de site trop courte : 3 questions facultatives avant la construction, pour que la page ait de vraies choses à dire
   // (sinon l'IA redit la même offre dans plusieurs sections). Les réponses partent dans les précisions de l'idée.
   const [plus, setPlus] = useState({ diff: "", deroule: "", infos: "" });
+  // Le plan d'un logiciel, vérifié avant de construire : écrans gardés ou retirés, fonctions en plus, rôles, règles et calculs
+  const [retires, setRetires] = useState([]), [plan, setPlan] = useState({ ajouts: "", roles: "", regles: "" });
+  const reponsesPlan = () => [["Écrans à ne pas construire", retires.join(", ")], ["Fonctions à ajouter", plan.ajouts], ["Qui utilise le logiciel et ce que chacun peut faire", plan.roles], ["Règles, calculs et étapes à respecter exactement", plan.regles]].filter(([, v]) => String(v).trim().length >= 3).map(([q, v]) => ({ q, r: String(v).trim().slice(0, 600) }));
   const ideeCourte = idee?.type === "site" && (String(idee?.texte ?? "") + (idee?.reponses ?? []).map((x) => x?.r ?? "").join(" ")).trim().length < 260;
   const reponsesPlus = () => [["Ce qui te rend différent", plus.diff], ["Comment ça se passe pour un client", plus.deroule], ["Adresse, horaires et prix à afficher", plus.infos]].filter(([, v]) => v.trim().length >= 3).map(([q, v]) => ({ q, r: v.trim().slice(0, 400) }));
   const offert = useOutilOffert(ws, idee?.type);
@@ -210,7 +213,7 @@ export default function Idee() {
     if (quoi === "idee") {
       garderNom(idee.texte, nom.trim() || ap.nom);
       ecrire(`bingoo-reponses-${DOMAINE_IDEE}`, { nom: nom.trim() || ap.nom, clients: ap.cible, mieux: "", angle: null });
-      ecrire(CLE_CHANTIER, { idee: true, domaine: DOMAINE_IDEE, nom: nom.trim() || ap.nom, categorie: "", ws: ws.id, ideeTexte: idee.texte, type: idee.type, reponses: [...(idee.reponses ?? []), ...reponsesPlus()], apercu: { ...ap, nom: nom.trim() || ap.nom }, source: idee.source ?? null });
+      ecrire(CLE_CHANTIER, { idee: true, domaine: DOMAINE_IDEE, nom: nom.trim() || ap.nom, categorie: "", ws: ws.id, ideeTexte: idee.texte, type: idee.type, reponses: [...(idee.reponses ?? []), ...reponsesPlus(), ...(idee.type !== "site" ? reponsesPlan() : [])], apercu: { ...ap, nom: nom.trim() || ap.nom, ...(idee.type !== "site" && retires.length ? { ecrans: ap.ecrans.filter((e) => !retires.includes(e.titre)) } : {}) }, source: idee.source ?? null });
     } else {
       ecrire(`bingoo-reponses-${proche.domaine}`, { nom: "", clients: ap?.cible ?? "", mieux: idee.texte, angle: `Ce que je veux faire mieux : ${idee.texte}` });
       ecrire(CLE_CHANTIER, { domaine: proche.domaine, nom: proche.nom, categorie: "", ws: ws.id });
@@ -265,7 +268,18 @@ export default function Idee() {
                 <p className="mt-3 text-[15px]">{ap.pitch}</p>
                 <p className="mt-1 text-[13.5px] text-ink-soft">Pour : {ap.cible}</p>
                 <p className="mt-5 text-[13px] font-bold">{outil ? "Ce qu'on verra et ce qu'on pourra faire dans la page" : site ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} parties)` : idee.type === "app" ? `Ce que Bingoo! construit maintenant (${ap.ecrans.length} onglets)` : `Ce que Bingoo! construit maintenant (${ap.ecrans.length} écrans)`}</p>
-                <ol className="mt-2 space-y-1.5">{ap.ecrans.map((e, i) => <li key={e.titre} className="flex gap-2.5 text-[14px]"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper text-[11px] font-bold">{i + 1}</span><span><b>{e.titre}</b> <span className="text-ink-soft">— {e.role}</span></span></li>)}</ol>
+                <ol className="mt-2 space-y-1.5">{ap.ecrans.map((e, i) => { const off = retires.includes(e.titre); return <li key={e.titre} className={cx("flex items-start gap-2.5 text-[14px]", off && "opacity-45")}><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-paper text-[11px] font-bold">{i + 1}</span><span className={cx("flex-1", off && "line-through")}><b>{e.titre}</b> <span className="text-ink-soft">— {e.role}</span></span>{!site && i > 0 && <button type="button" onClick={() => setRetires((l) => (off ? l.filter((x) => x !== e.titre) : [...l, e.titre]))} className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[11.5px] font-semibold text-ink-soft hover:text-ink">{off ? "Remettre" : "Retirer"}</button>}</li>; })}</ol>
+                {!site && <div className="mt-4 rounded-2xl border border-line bg-[#FBFAF7] p-4">
+                  <p className="text-[14.5px] font-bold">Vérifie le plan avant de construire <span className="font-normal text-ink-faint">· facultatif</span></p>
+                  <p className="mt-1 text-[13px] text-ink-soft">Ce que tu écris ici est suivi à la lettre : les rôles, les règles et les calculs deviennent la logique du logiciel, testée avant la livraison.</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    {[["roles", "Qui l'utilise, et que peut faire chacun ?", "Ex. les propriétaires publient leurs outils ; les locataires réservent ; l'administrateur voit tout"], ["regles", "Une règle ou un calcul à respecter ?", "Ex. total = prix par jour × nombre de jours + 10 % de commission ; une réservation passe de « demandée » à « acceptée » ou « refusée »"], ["ajouts", "Une fonction en plus ?", "Ex. une note sur 5 après chaque location, un export des réservations"]].map(([k, q, ph]) => (
+                      <label key={k} className="block text-[13px] font-semibold">{q}
+                        <textarea value={plan[k]} onChange={(e) => setPlan((x) => ({ ...x, [k]: e.target.value }))} placeholder={ph} rows={3} maxLength={600} className="mt-1.5 w-full resize-none rounded-xl border border-line bg-white px-3 py-2 text-[13.5px] font-normal outline-none focus:border-ink/40" />
+                      </label>
+                    ))}
+                  </div>
+                </div>}
                 {ap.plus_tard?.length > 0 && <><p className="mt-5 text-[13px] font-bold">Ensuite, dans l'atelier</p><p className="mt-1 text-[13.5px] text-ink-soft">{ap.plus_tard.join(" · ")}</p></>}
                 {!site && !outil && idee.type !== "app" && ap.plutot_outil && <div className="mt-5 rounded-xl border border-[#E8571C]/30 bg-[#FFF7F0] p-3.5">
                   <p className="text-[14px] font-bold text-ink">Ton idée ressemble plutôt à un outil ou à un jeu</p>
