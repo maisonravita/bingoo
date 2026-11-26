@@ -84,35 +84,10 @@ function FilmAuto() {
   useLectureAuto(ref);
   // Le film de 32 s (sans son) : l'idée, la construction en direct, un site qui te plaît, les SaaS qui marchent
   return (
-    <div id="film" className="hero-in fx-halo mx-auto mt-10 sm:mt-12 max-w-[1100px] scroll-mt-24" style={{ animationDelay: ".3s" }}>
-      <video ref={ref} src="/film-lancement.mp4?v=8" poster="/film-lancement.jpg?v=6" muted loop playsInline preload="metadata" controls aria-label="Film de présentation de Bingoo! : tu écris ton idée, Bingoo! la construit sous tes yeux (vraie construction accélérée), puis ses SaaS, sites et vidéos" className="w-full block aspect-video rounded-2xl bg-white" />
+    <div className="overflow-hidden rounded-2xl border border-line bg-paper">
+      <video ref={ref} src="/film-lancement.mp4?v=8" poster="/film-lancement.jpg?v=6" muted loop playsInline preload="metadata" controls aria-label="Film de présentation de Bingoo! : tu écris ton idée, Bingoo! la construit sous tes yeux (vraie construction accélérée), puis ses SaaS, sites et vidéos" className="w-full block aspect-video bg-white" />
     </div>
   );
-}
-
-// Effets de la page : lumière qui suit la souris sur les écrans, menu qui s'affirme au défilement,
-// écran du haut qui se redresse en descendant, rail lumineux qui se remplit le long des 4 étapes
-function useEffetsPage() {
-  useEffect(() => {
-    const doux = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const souris = (e) => { const el = e.target.closest?.(".fx-spot"); if (!el) return; const r = el.getBoundingClientRect(); el.style.setProperty("--mx", `${e.clientX - r.left}px`); el.style.setProperty("--my", `${e.clientY - r.top}px`); };
-    let raf = 0;
-    const maj = () => {
-      raf = 0;
-      document.querySelector(".fx-entete")?.classList.toggle("defile", window.scrollY > 12);
-      const h = window.innerHeight;
-      const t = document.getElementById("fx-incline");
-      if (t && !doux) { const r = t.getBoundingClientRect(); const p = Math.min(1, Math.max(0, (h - r.top) / (h * 0.75))); t.style.transform = `perspective(1400px) rotateX(${(1 - p) * 16}deg) scale(${0.94 + p * 0.06})`; }
-      const rail = document.getElementById("fx-rail");
-      if (rail) { const r = rail.parentElement.getBoundingClientRect(); const p = Math.min(1, Math.max(0, (h * 0.6 - r.top) / r.height)); rail.style.transform = `scaleY(${p})`; }
-    };
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(maj); };
-    window.addEventListener("pointermove", souris, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    maj();
-    return () => { window.removeEventListener("pointermove", souris); window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", onScroll); if (raf) cancelAnimationFrame(raf); };
-  }, []);
 }
 
 // Le point d'entrée (façon Foundable) : un seul encadré pour l'idée OU l'adresse d'un site qui plaît.
@@ -234,67 +209,67 @@ function VideoCarte({ f, nom, quoi, style: look = "", cachee, partir }) {
     o.observe(v); return () => o.disconnect();
   }, []);
   return (
-    <figure aria-hidden={cachee || undefined} className="group relative shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_14px_34px_-24px_rgba(20,20,40,.6)]">
+    <figure aria-hidden={cachee || undefined} className="group relative shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-black">
       {/* Toute la carte est un bouton : on part de ce modèle (son style est retenu pour la vidéo qu'on va décrire) */}
       <button type="button" tabIndex={cachee ? -1 : 0} onClick={() => partir?.(nom, look)} aria-label={`Partir du modèle ${nom}`} className="absolute inset-0 z-10 flex items-end justify-center bg-gradient-to-t from-black/55 via-black/0 to-black/0 pb-[74px] opacity-0 transition-opacity duration-200 focus-visible:opacity-100 group-hover:opacity-100">
-        <span className="rounded-full bg-white px-4 py-2 text-[13.5px] font-bold text-[#1E2030] shadow-lg">Partir de ce modèle →</span>
+        <span className="rounded-full bg-white px-4 py-2 text-[13.5px] font-semibold text-ink">Partir de ce style →</span>
       </button>
-      <video ref={ref} poster={`/videos/${f}.jpg?v=5`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[300px] sm:h-[400px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4?v=5`} type="video/mp4" /><source src={`/videos/${f}.webm?v=5`} type="video/webm" /></video>
+      <video ref={ref} poster={`/videos/${f}.jpg?v=5`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[380px] sm:h-[440px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4?v=5`} type="video/mp4" /><source src={`/videos/${f}.webm?v=5`} type="video/webm" /></video>
       {/* La légende ne doit jamais élargir la carte : sinon la vidéo laisse une bande noire à droite */}
-      <figcaption className="flex w-0 min-w-full flex-col gap-0.5 bg-white px-3 py-2"><b className="truncate text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
+      <figcaption className="flex w-0 min-w-full flex-col gap-0.5 bg-white px-3.5 py-2.5"><b className="truncate text-[14px] text-ink">{nom}</b><span className="truncate text-[12.5px] text-ink-soft">{quoi}</span></figcaption>
     </figure>
   );
 }
-function VideosVitrine({ nav }) {
-  // Partir d'un modèle : son style est gardé de côté (l'écran Vidéos le reprendra), et le champ d'idée s'ouvre sur une vidéo
-  const partir = (nom, look) => {
-    try { if (look) localStorage.setItem("bingoo-style-video", JSON.stringify({ look, nom, at: Date.now() })); else localStorage.removeItem("bingoo-style-video"); } catch { /* stockage indisponible */ }
-    window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte: "", genre: "video", modele: look ? { nom, look } : null } }));
-  };
-  const rangee = (l, sens) => (
-    <div className="videos-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 110 : 100}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
-      {[...l, ...l, ...l, ...l].map(([f, nom, quoi, style], i) => <VideoCarte key={f + i} f={f} nom={nom} quoi={quoi} style={style} cachee={i >= l.length} partir={partir} />)}
+// Ce que Bingoo! a construit, rangé par genre : une liste à gauche, la vraie capture en grand à droite.
+// Chaque projet sert de point de départ ; les vidéos se lisent en place et donnent leur style.
+const GENRES_REAL = [["site", "Sites web"], ["saas", "Logiciels"], ["outil", "Outils et jeux"], ["video", "Vidéos"]];
+function Realisations({ choisir, partirVideo }) {
+  const [genre, setGenre] = useState("site"), [i, setI] = useState(0);
+  const liste = VITRINE.filter(([, , , , g]) => (g ?? "saas") === genre), cur = liste[Math.min(i, liste.length - 1)];
+  return (
+    <div className="mt-10">
+      <div role="tablist" aria-label="Genre de projet" className="flex gap-1 overflow-x-auto border-b border-line">
+        {GENRES_REAL.map(([k, l]) => (
+          <button key={k} role="tab" aria-selected={genre === k} onClick={() => { setGenre(k); setI(0); }} className={cx("-mb-px shrink-0 border-b-2 px-4 py-3 text-[15px] font-semibold transition", genre === k ? "border-ink text-ink" : "border-transparent text-ink-soft hover:text-ink")}>
+            {l}<span className="ml-2 tnum text-[13px] font-medium text-ink-faint">{k === "video" ? VIDEOS_RANGS[0].length : VITRINE.filter(([, , , , g]) => (g ?? "saas") === k).length}</span>
+          </button>
+        ))}
+      </div>
+      {genre === "video" ? (
+        <div className="mt-8">
+          <div className="-mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-4 sm:-mx-10 sm:px-10">
+            {VIDEOS_RANGS[0].map(([f, nom, quoi, style]) => <VideoCarte key={f} f={f} nom={nom} quoi={quoi} style={style} partir={partirVideo} />)}
+          </div>
+          <p className="mt-3 text-[14px] text-ink-soft">Clique sur une vidéo pour partir de son style. Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant.</p>
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-10">
+          <ul className="-mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:block lg:space-y-0.5 lg:overflow-visible lg:px-0" aria-label="Projets">
+            {liste.map(([img, nom, quoi], k) => (
+              <li key={img} className="shrink-0">
+                <button type="button" onClick={() => setI(k)} aria-current={cur?.[0] === img || undefined} className={cx("w-full rounded-xl px-3.5 py-2.5 text-left transition lg:py-3", cur?.[0] === img ? "bg-paper" : "hover:bg-paper/70")}>
+                  <span className="block whitespace-nowrap text-[15px] font-semibold text-ink">{nom}</span>
+                  <span className="block whitespace-nowrap text-[13px] text-ink-soft">{quoi}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {cur && (
+            <figure key={cur[0]} className="land-in min-w-0">
+              <button type="button" onClick={() => choisir?.(cur[3], cur[4] ?? "saas")} className="group block w-full overflow-hidden rounded-2xl border border-line bg-paper text-left">
+                <img src={`/vitrine/${cur[0]}.jpg`} alt={`${cur[1]}, construit avec Bingoo!`} className="aspect-[16/10] w-full object-cover object-top transition duration-500 group-hover:scale-[1.01]" />
+              </button>
+              <figcaption className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-[14px] text-ink-soft">Premier écran réel, construit par Bingoo! à partir de : <span className="text-ink">« {cur[3]} »</span></span>
+                <button type="button" onClick={() => choisir?.(cur[3], cur[4] ?? "saas")} className="inline-flex items-center gap-1.5 text-[14.5px] font-semibold text-accent-dark hover:text-ink">Partir de celui-ci <Arrow className="h-4 w-4" /></button>
+              </figcaption>
+            </figure>
+          )}
+        </div>
+      )}
     </div>
   );
-  return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-10 pb-6 text-left" aria-label="Vidéos créées avec Bingoo!">
-      <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.videos-rang{animation:none!important}}.videos-bande:hover .videos-rang{animation-play-state:paused}"}</style>
-      <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Et des vidéos aussi</p>
-      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>Des pubs en motion design, faites par Bingoo!</h2>
-      <p className="mx-auto mt-2 max-w-[680px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur une vidéo pour partir de son modèle. Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant. Pub de marque ou vidéo de ton SaaS avec ses vrais écrans, en vertical, carré ou paysage.</p>
-      <div className="videos-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-        {rangee(VIDEOS_RANGS[0], 1)}
-      </div>
-      <div className="mt-6 text-center"><button type="button" onClick={() => nav?.()} className="rounded-full bg-[#1E2030] px-5 py-2.5 text-[14px] font-semibold text-white hover:brightness-125" style={JK}>Créer ma vidéo →</button></div>
-    </section>
-  );
 }
-
-function Vitrine({ choisir }) {
-  const rangee = (l, sens) => (
-    <div className="vitrine-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 70 : 80}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
-      {[...l, ...l].map(([img, nom, quoi, idee, genre], i) => (
-        <button type="button" key={img + i} tabIndex={i >= l.length ? -1 : 0} aria-hidden={i >= l.length} onClick={() => choisir?.(idee, genre ?? "saas")} title={`Partir de ${nom}`} className="group w-[300px] sm:w-[380px] shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-white text-left shadow-[0_14px_34px_-24px_rgba(20,20,40,.55)] transition hover:-translate-y-1 hover:shadow-[0_22px_44px_-24px_rgba(20,20,40,.6)]">
-          <img src={`/vitrine/${img}.jpg`} alt={`${nom}, construit avec Bingoo!`} loading="lazy" className="aspect-[16/10] w-full object-cover object-top" />
-          <span className="flex items-center justify-between gap-2 px-3.5 py-2.5"><b className="text-[14px] text-[#1E2030]">{nom}</b><span className="truncate text-[12.5px] text-[#5B6075] group-hover:hidden">{quoi}</span><span className="hidden text-[12.5px] font-semibold text-[#E8571C] group-hover:inline">Partir de celui-ci →</span></span>
-        </button>
-      ))}
-    </div>
-  );
-  return (
-    <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-12 pb-4 text-left" aria-label="SaaS construits avec Bingoo!">
-      <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.vitrine-rang{animation:none!important}}.vitrine-bande:hover .vitrine-rang{animation-play-state:paused}"}</style>
-      <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Construits avec Bingoo!</p>
-      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, sites, outils et jeux, déjà en ligne</h2>
-      <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
-      <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-        {rangee(VITRINE.slice(0, 10), 1)}
-        {rangee(VITRINE.slice(10), -1)}
-      </div>
-    </section>
-  );
-}
-
 
 // Les cartes de la vitrine (SaaS, vidéos) remplissent le champ d'idée du haut de page
 const remplirIdee = (texte, genre) => window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte, genre } }));
@@ -330,26 +305,36 @@ function IdeeHero({ nav, nb }) {
     nav(vers);
   };
   if (compte) return <ChantierFlou texte={texte.trim()} genre={url ? "url" : type}><CompteAvant quoi={url ? `Bingoo! va lire ${texte.trim().replace(/^https?:\/\//, "").replace(/\/$/, "")} point par point et construire ta version, à ton nom et avec ton logo.` : `Bingoo! va construire « ${texte.trim().slice(0, 80)}${texte.trim().length > 80 ? "…" : ""} » écran par écran, sous tes yeux.`} onRetour={() => setCompte(null)} onFini={() => nav(compte)} /></ChantierFlou>;
+  // Amorces de phrase (« Crée-moi un site pour… ») : le genre se déduit de la phrase, le curseur se place au bout
+  const amorcer = (t) => { setChoix(null); setTexte(t); setTimeout(() => { const z = zone.current; if (!z) return; z.focus(); z.setSelectionRange(t.length, t.length); }, 30); };
   return (<>
-    <form onSubmit={lancer} className="hero-in mx-auto mt-8 w-full max-w-[680px] rounded-[28px] border border-black/[.09] bg-white p-3 text-left shadow-[0_24px_60px_-28px_rgba(20,20,40,.35)]" style={{ ...JK, animationDelay: ".18s" }}>
+    <form onSubmit={lancer} className="hero-in mx-auto mt-10 w-full max-w-[720px] rounded-[20px] border border-ink/15 bg-white text-left transition focus-within:border-ink/40 focus-within:shadow-[0_0_0_4px_rgba(21,22,26,.06)]" style={{ animationDelay: ".16s" }}>
       <label htmlFor="idee" className="sr-only">Ton idée, ou l'adresse d'un site qui te plaît</label>
-      {modele && type === "video" && <p className="mb-2 flex items-center gap-2 rounded-2xl bg-[#FFF3EC] px-3 py-2 text-[13px] text-[#1E2030]"><span><b>Modèle choisi : {modele.nom}</b> · style {NOMS_STYLES[modele.look] ?? modele.look}. Décris ton activité, ta vidéo reprendra ce style.</span><button type="button" aria-label="Retirer le modèle" onClick={() => { setModele(null); try { localStorage.removeItem("bingoo-style-video"); } catch { /* rien */ } }} className="ml-auto grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-black/10">×</button></p>}
-      <textarea id="idee" ref={zone} value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) lancer(e); }} rows={2} maxLength={300} placeholder="Décris ton idée, ou colle l'adresse d'un site qui te plaît…" className="block w-full resize-none bg-transparent px-3 pt-2 text-[16px] sm:text-[17px] sm:min-h-[84px] leading-relaxed outline-none placeholder:text-[#9A9EAE]" />
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      {modele && type === "video" && <p className="m-2 mb-0 flex items-center gap-2 rounded-xl bg-accent-soft px-3 py-2 text-[13px] text-ink"><span><b>Style choisi : {modele.nom}</b> · {NOMS_STYLES[modele.look] ?? modele.look}. Décris ton activité, ta vidéo reprendra ce style.</span><button type="button" aria-label="Retirer le style" onClick={() => { setModele(null); try { localStorage.removeItem("bingoo-style-video"); } catch { /* rien */ } }} className="ml-auto grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-black/10">×</button></p>}
+      <textarea id="idee" ref={zone} value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) lancer(e); }} rows={3} maxLength={300} placeholder={`Décris ce que tu imagines. Ex. : ${EXEMPLES_IDEE[type][0].toLowerCase()}`} className="block w-full resize-none bg-transparent px-5 pt-4 text-[17px] leading-relaxed text-ink outline-none placeholder:text-ink-faint" />
+      <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2.5">
         {url ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F1EEFF] px-3.5 py-2 text-[13.5px] font-semibold text-[#4B2FB8]"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></svg>Adresse d'un site : Bingoo! va le lire et faire ta version</span>
-        ) : TYPES_IDEE.map(([k, l, d]) => (
-          <button key={k} type="button" aria-pressed={type === k} onClick={() => setType(k)} className={cx("inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 sm:py-2 text-[13px] sm:text-[14px] font-semibold transition", type === k ? "border-[#1E2030] bg-[#1E2030] text-white" : "border-black/[.1] bg-white text-[#3A3F55] hover:border-black/25")}>
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>{l}
-          </button>
-        ))}
-        <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-accent px-5 sm:px-3.5 py-3 sm:py-2.5 text-[15px] font-bold text-white shadow-[0_10px_30px_-12px_rgba(226,85,35,.8)] transition hover:brightness-110 disabled:opacity-60">{busy ? "Un instant…" : <>{url ? "Faire ma version" : "Construire mon idée"} <Arrow /></>}</button>
+          <span className="inline-flex items-center gap-1.5 px-2 text-[13.5px] font-semibold text-ink"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></svg>Une adresse : Bingoo! va lire ce site et faire ta version</span>
+        ) : (
+          <div role="radiogroup" aria-label="Ce que tu veux créer" className="flex flex-wrap gap-1">
+            {TYPES_IDEE.map(([k, l, d]) => (
+              <button key={k} type="button" role="radio" aria-checked={type === k} onClick={() => setType(k)} className={cx("inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13.5px] font-semibold transition", type === k ? "bg-ink text-white" : "text-ink-soft hover:bg-paper hover:text-ink")}>
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>{l}
+              </button>
+            ))}
+          </div>
+        )}
+        <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-accent px-4 py-2.5 text-[15px] font-semibold text-white transition hover:bg-accent-dark disabled:opacity-60">{busy ? "Un instant…" : <>{url ? "Faire ma version" : "Créer"} <Arrow /></>}</button>
       </div>
-      {url && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">Bingoo! relève ses couleurs, ses polices et son organisation, puis construit ta version avec ton nom et ton logo. Jamais leurs textes, leurs images ni leur logo.</p>}
-      {!url && type !== "saas" && <p className="mt-2 px-1 text-[12.5px] text-[#5B6075]">{type === "video" ? "20 secondes en motion design, à tes couleurs, avec une musique libre de droits : tu la retouches en discutant et tu la télécharges en vertical, carré ou paysage." : type === "app" ? "Ton app pensée pour le téléphone, à essayer tout de suite dans Expo Go. La publication sur l'App Store et Google Play arrive bientôt." : type === "outil" ? "Ton premier outil ou jeu est offert, sans carte bancaire : une page qu'on ouvre et qu'on utilise tout de suite, avec un design fait pour ton idée." : "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire de demande."}</p>}
-      {!texte && <div className="mt-3 flex flex-wrap gap-1.5 border-t border-black/[.06] px-1 pt-3">{EXEMPLES_IDEE[type].map((x) => <button key={x} type="button" onClick={() => { setTexte(x); zone.current?.focus(); }} className="rounded-full bg-[#F4F4F1] px-3 py-1.5 text-[13px] text-[#5B6075] hover:bg-[#ECECE7]">{x}</button>)}</div>}
     </form>
-    <p className="hero-in mt-4 text-[14.5px] text-[#5B6075]" style={{ ...JK, animationDelay: ".24s" }}>Pas d'idée ? <button type="button" onClick={() => nav("/decouvrir")} className="font-semibold text-[#1E2030] underline decoration-black/25 underline-offset-4 hover:decoration-black">Pars des {nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "milliers de"} SaaS et applis suivis par Bingoo!</button></p>
+    <p className="hero-in mx-auto mt-3 max-w-[720px] px-1 text-left text-[13px] text-ink-soft" style={{ animationDelay: ".2s" }}>{url ? "Bingoo! relève ses couleurs, ses polices et son organisation. Jamais ses textes, ses images ni son logo." : type === "video" ? "20 secondes en motion design, à tes couleurs, avec une musique libre de droits." : type === "outil" ? "Ton premier outil ou jeu est offert, sans carte bancaire." : type === "site" ? "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire." : "Écrans, comptes clients et abonnements sur ton Stripe. Tu vois l'aperçu avant de payer."}</p>
+    <div className="hero-in mx-auto mt-8 flex max-w-[1080px] flex-wrap justify-center gap-2" style={{ animationDelay: ".24s" }}>
+      {[["Créer un site web", "Crée-moi un site pour "], ["Créer un SaaS", "Crée-moi un logiciel pour "], ["Créer une application", "Crée-moi une application pour "], ["Créer un jeu", "Crée-moi un jeu de "], ["Créer une vidéo", "Crée-moi une vidéo pour "]].map(([l, t]) => (
+        <button key={l} type="button" onClick={() => amorcer(t)} className="rounded-full border border-line bg-white px-4 py-2 text-[14px] font-medium text-ink transition hover:border-ink/30">{l}</button>
+      ))}
+      <button type="button" onClick={() => nav("/decouvrir")} className="inline-flex items-center gap-1.5 rounded-full border border-ink bg-ink px-4 py-2 text-[14px] font-medium text-white transition hover:bg-black">Trouver une idée rentable <Arrow className="h-3.5 w-3.5" /></button>
+    </div>
+    <p className="sr-only">{nb ? `${nb} SaaS et applis suivis par Bingoo!` : ""}</p>
   </>);
 }
 
@@ -367,227 +352,216 @@ export default function Landing() {
   const nav = useNavigate();
   useVisiteComptee();
   useReveal();
-  useEffetsPage();
   const go = () => commencer(nav);
   const nb = useNbSaas();
+  const [defile, setDefile] = useState(false);
+  useEffect(() => { const f = () => setDefile(window.scrollY > 8); f(); window.addEventListener("scroll", f, { passive: true }); return () => window.removeEventListener("scroll", f); }, []);
+  const versIdee = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => document.getElementById("idee")?.focus(), 500); };
+  const partirVideo = (nom, look) => {
+    try { if (look) localStorage.setItem("bingoo-style-video", JSON.stringify({ look, nom, at: Date.now() })); else localStorage.removeItem("bingoo-style-video"); } catch { /* stockage indisponible */ }
+    window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte: "", genre: "video", modele: look ? { nom, look } : null } }));
+  };
+  // Un titre de section : numéro, rubrique, grand titre, chapeau. Toujours aligné à gauche, même rythme partout.
+  const Tete = ({ n, rub, titre, children }) => (
+    <header className="max-w-[860px]">
+      <p className="flex items-center gap-3 text-[13px] font-semibold text-ink-soft"><span className="tnum text-accent">{n}</span><span className="h-px w-8 bg-line" aria-hidden />{rub}</p>
+      <h2 className="mt-4 text-[34px] sm:text-[52px] font-bold leading-[1.04] tracking-[-.035em] text-ink">{titre}</h2>
+      {children && <p className="mt-5 max-w-[640px] text-[17px] leading-relaxed text-ink-soft">{children}</p>}
+    </header>
+  );
+  const Capture = ({ src, tel, alt, legende }) => (
+    <figure className="min-w-0">
+      <div className="overflow-hidden rounded-2xl border border-line bg-paper"><picture>{tel && <source media="(max-width: 640px)" srcSet={tel} />}<img src={src} alt={alt} loading="lazy" className="block w-full" /></picture></div>
+      {legende && <figcaption className="mt-3 text-[13px] text-ink-faint">{legende}</figcaption>}
+    </figure>
+  );
+  const SECTION = "reveal scroll-mt-24 border-t border-line px-5 sm:px-10 py-20 sm:py-28";
   return (
-    <div className="min-h-full bg-white text-ink">
-      <style>{`@keyframes kspin{to{transform:rotate(360deg)}}@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@keyframes marquee{to{transform:translateX(-50%)}}.marquee-track{animation:marquee 32s linear infinite}.marquee:hover .marquee-track{animation-play-state:paused}@media (prefers-reduced-motion: reduce){.marquee-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center}}`}</style>
+    <div className="min-h-full bg-white text-ink" style={JK}>
+      <style>{`@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@media (prefers-reduced-motion: reduce){.land-in{animation:none}}`}</style>
 
-      {/* Menu flottant sombre, en pilule */}
-      <header className="fx-entete sticky top-0 z-30 px-3 sm:px-6 pt-3" style={JK}>
-        <div className="mx-auto flex h-[60px] max-w-[1180px] items-center justify-between gap-3 rounded-full bg-[#15171F]/95 pl-5 pr-2 text-white shadow-[0_18px_40px_-22px_rgba(0,0,0,.7)] backdrop-blur border border-white/[.06]">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!" className="shrink-0"><Logo height={28} inverse /></button>
-          <nav className="hidden lg:flex items-center gap-1 text-[14.5px] font-medium whitespace-nowrap">
-            {MENU.slice(0, 3).map(([t, href]) => <a key={t} href={href} onClick={scrollTo(href.slice(1))} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">{t}</a>)}
+      {/* En-tête : blanc, net ; un filet apparaît dès qu'on descend */}
+      <header className={cx("sticky top-0 z-30 transition-colors", defile ? "border-b border-line bg-white/90 backdrop-blur" : "border-b border-transparent bg-white")}>
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-4 px-5 sm:px-10">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!, haut de page" className="shrink-0"><Logo height={26} /></button>
+          <nav aria-label="Navigation principale" className="hidden lg:flex items-center gap-1 text-[14.5px] font-medium">
+            {[["Réalisations", "realisations"], ["Comment ça marche", "comment"], ["Explorer", "explorer"], ["Tarifs", "prix"]].map(([t, id]) => <a key={id} href={`#${id}`} onClick={scrollTo(id)} className="rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">{t}</a>)}
             <div className="group relative">
-              <button type="button" aria-haspopup="true" className="flex items-center gap-1 rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">Comparer<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg></button>
+              <button type="button" aria-haspopup="true" className="flex items-center gap-1 rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">Comparer<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg></button>
               <div className="invisible absolute left-0 top-full pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                <div className="w-56 rounded-2xl border border-white/10 bg-[#15171F] p-1.5 shadow-2xl">{COMPARER.map(([t, href]) => <a key={href} href={href} className="block rounded-xl px-3 py-2.5 text-[14px] text-white/80 hover:bg-white/10 hover:text-white">{t}</a>)}</div>
+                <div className="w-56 rounded-xl border border-line bg-white p-1.5 shadow-[0_16px_40px_-20px_rgba(21,22,26,.35)]">{COMPARER.map(([t, href]) => <a key={href} href={href} className="block rounded-lg px-3 py-2.5 text-[14px] text-ink-soft hover:bg-paper hover:text-ink">{t}</a>)}</div>
               </div>
             </div>
-            {MENU.slice(3).map(([t, href]) => <a key={t} href={href} onClick={scrollTo(href.slice(1))} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">{t}</a>)}
+            <a href="#faq" onClick={scrollTo("faq")} className="rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">FAQ</a>
           </nav>
-          <div className="flex items-center gap-1.5 sm:gap-2 text-[14px] sm:text-[15px] font-semibold whitespace-nowrap">
-            <button onClick={() => nav("/connexion?mode=login")} className="rounded-full px-3 sm:px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/10 transition">Se connecter</button>
-            <button onClick={go} className="rounded-full bg-white text-[#15171F] px-4 sm:px-5 py-2.5 hover:bg-white/90 transition">Commencer</button>
+          <div className="flex items-center gap-1 text-[14.5px] font-semibold whitespace-nowrap">
+            <button onClick={() => nav("/connexion?mode=login")} className="rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">Se connecter</button>
+            <button onClick={go} className="rounded-lg bg-ink px-4 py-2 text-white hover:bg-black transition">Commencer</button>
           </div>
         </div>
       </header>
-      <div className="bg-white">
 
-        <div className="px-0 sm:px-8">
-          <section className="relative overflow-hidden mx-auto max-w-[1440px] bg-white px-5 sm:px-10 pt-8 sm:pt-24 pb-16 sm:pb-20 text-center">
-            <div className="fx-grille" aria-hidden />
-            <span className="fx-aurore h-[360px] w-[360px] bg-[#F6A06B] left-[8%] top-[60px]" aria-hidden />
-            <span className="fx-aurore h-[320px] w-[320px] bg-[#9B6BFF] right-[8%] top-[140px]" style={{ animationDelay: "-6s" }} aria-hidden />
-            <div className="relative z-[1]">
-            <h1 className="hero-in relative mx-auto max-w-[1180px]" style={JK}>
-              <span className="block text-[32px] sm:text-[50px] lg:text-[66px] leading-[1.1] text-[#3A3F55]" style={{ fontWeight: 500, letterSpacing: "-.01em" }}>Donne ton idée.</span>
-              <span className="mt-1 block text-[38px] sm:text-[60px] lg:text-[80px] leading-[1.1] text-[#1E2030]" style={{ fontWeight: 700, letterSpacing: "-.01em" }}>Bingoo! <span className="fx-texte">la construit.</span></span>
-            </h1>
-            <p className="hero-in mx-auto mt-4 sm:mt-7 max-w-[720px] text-[16px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ ...JK, animationDelay: ".1s" }}>Ton site, ton logiciel, ton outil ou ton jeu en ligne en quelques minutes, à ton nom. Bingoo! le crée sous tes yeux, le teste, puis t'aide à trouver tes premiers clients.</p>
-            <IdeeHero nav={nav} nb={nb} />
+      <main>
+        {/* 1. Tout commence par une idée : le champ de création, au centre */}
+        <section className="px-5 sm:px-10 pt-16 sm:pt-28 pb-16 sm:pb-24 text-center">
+          <p className="hero-in inline-flex items-center gap-2 text-[14px] font-semibold text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />Imagine. Crée. Lance.</p>
+          <h1 className="hero-in mx-auto mt-6 max-w-[1000px] text-[46px] sm:text-[76px] lg:text-[96px] font-bold leading-[.98] tracking-[-.045em] text-ink" style={{ animationDelay: ".05s" }}>Tout commence par une <span className="text-accent">idée.</span></h1>
+          <p className="hero-in mx-auto mt-7 max-w-[640px] text-[18px] sm:text-[21px] leading-[1.45] text-ink-soft" style={{ animationDelay: ".1s" }}>Crée des sites web, des applications, des logiciels et des jeux simplement en décrivant ce que tu imagines.</p>
+          <IdeeHero nav={nav} nb={nb} />
+          <div id="film" className="hero-in mx-auto mt-16 sm:mt-20 max-w-[1120px] scroll-mt-24 text-left" style={{ animationDelay: ".3s" }}>
             <FilmAuto />
+            <p className="mt-3 text-[13px] text-ink-faint">Film réel, accéléré : une idée tapée, Bingoo! qui construit, le résultat en ligne.</p>
           </div>
+        </section>
+
+        <div className="mx-auto max-w-[1200px]">
+          {/* 2. Ce que Bingoo! a vraiment construit */}
+          <section id="realisations" className={SECTION}>
+            <Tete n="01" rub="Réalisations" titre="Ce que Bingoo! a déjà construit.">De vrais projets, construits par Bingoo! et en ligne. Choisis celui qui ressemble au tien : Bingoo! part de là et l'adapte à toi.</Tete>
+            <Realisations choisir={(t, g) => remplirIdee(t, g)} partirVideo={partirVideo} />
           </section>
-        </div>
-      </div>
 
-      <main className="bg-white">
-        <div className="mx-auto max-w-[1440px] bg-white">
-
-        {/* Ce que Bingoo! a vraiment construit : les SaaS, puis les vidéos */}
-        <div id="realisations" className="scroll-mt-24 border-t border-black/[.07] px-5 sm:px-10">
-          <Vitrine choisir={(t, ty) => remplirIdee(t, ty)} />
-          <VideosVitrine nav={() => remplirIdee("Une vidéo pour présenter mon activité", "video")} />
-        </div>
-
-        {/* Comment ça marche : 3 étapes, montrées sur une vraie construction (Agendo, construit par le robot de Bingoo!) */}
-        <section id="comment" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px]">
-            <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Comment ça marche</p>
-            <h2 className="mt-3 max-w-[860px] text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Une phrase. Tu regardes Bingoo! construire. Tu mets en ligne.</h2>
-            <ol className="relative mt-12 space-y-16 lg:pl-16">
-              <span className="fx-rail hidden lg:block" aria-hidden><span id="fx-rail" style={{ transform: "scaleY(0)" }} /></span>
+          {/* 3. Comment ça marche : Imagine. Crée. Lance. */}
+          <section id="comment" className={SECTION}>
+            <Tete n="02" rub="Comment ça marche" titre="Trois temps. Aucune ligne de code." />
+            <ol className="mt-14 space-y-20 sm:space-y-28">
               {[
-                ["Décris ton idée", "Un logiciel, un site, un outil ou un jeu, en une phrase : « un logiciel de réservation pour les coiffeurs ». Bingoo! te montre tout de suite son nom, ses écrans et un vrai rendu. Si une partie ne peut pas marcher telle quelle, il te le dit avant de construire.", null],
-                ["Bingoo! le construit sous tes yeux", "Écran par écran, en direct : il écrit chaque écran, le teste comme un vrai client, corrige ce qui ne marche pas. Une à deux minutes pour un outil ou un jeu, quelques minutes pour un site ou un SaaS simple.", ["/accueil/construit-en-cours.jpg", "Une vraie construction en cours : la page du site « Coupe Chez Vous » s'affiche pendant que Bingoo! l'écrit."]],
-                ["Il est en ligne, à ton nom", "Un logiciel arrive avec sa page de présentation, les comptes de tes clients et l'abonnement branché à ton Stripe ; un site, avec ses pages et son formulaire ; un outil ou un jeu s'ouvre directement. Ensuite tu changes ce que tu veux dans l'atelier : une phrase, ou un double-clic sur un texte.", ["/accueil/construit-fini.jpg", "Le même logiciel, fini et en ligne : sa page de présentation et son intérieur, avec des données d'exemple."]],
-              ].map(([h, d, img], i) => (
-                <li key={h} className="relative grid lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.5fr)] gap-6 lg:gap-12 items-center">
-                  <div>
-                    <span className="grid place-items-center h-9 w-9 rounded-full fx-pastille text-white font-bold tnum lg:absolute lg:-left-16 lg:z-[1] lg:ring-[6px] lg:ring-white">{i + 1}</span>
-                    <p className="mt-4 text-[28px] sm:text-[34px] leading-tight text-ink" style={SERIF}>{h}</p>
-                    <p className="mt-3 text-[16.5px] leading-relaxed text-ink-soft">{d}</p>
-                    {i === 0 && <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => document.getElementById("idee")?.focus(), 500); }} className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow className="h-4 w-4" /></button>}
+                ["Imagine.", "Décris ton projet en une phrase, comme tu l'expliquerais à quelqu'un : « un logiciel de réservation pour les coiffeurs ». Bingoo! comprend s'il s'agit d'un site, d'un logiciel, d'un outil, d'un jeu ou d'une vidéo, et te montre son nom, ses écrans et un vrai rendu. Si une partie ne peut pas marcher telle quelle, il te le dit avant de construire.", ["/accueil/idee-tapee.jpg", null, "Le champ de création de Bingoo!, avec une idée tapée.", null]],
+                ["Crée.", "Bingoo! construit sous tes yeux, écran par écran : il écrit, teste comme un vrai client et corrige ce qui ne marche pas. Une à deux minutes pour un outil ou un jeu, quelques minutes pour un site ou un logiciel simple. Ensuite, tu changes ce que tu veux en discutant, ou d'un double-clic sur un texte.", ["/accueil/construit-en-cours.jpg", "/accueil/construit-en-cours-tel.jpg", "Une vraie construction en cours : la page du site « Coupe Chez Vous » s'affiche pendant que Bingoo! l'écrit.", "Une vraie construction en cours, filmée sur un compte réel."]],
+                ["Lance.", "Ton projet est en ligne, à ton nom. Un logiciel arrive avec sa page de présentation, les comptes de tes clients et l'abonnement branché sur ton Stripe ; un site avec ses pages et son formulaire ; un outil ou un jeu s'ouvre directement. Puis Bingoo! t'aide à trouver tes premiers clients.", ["/accueil/construit-fini.jpg", "/accueil/construit-fini-tel.jpg", "Le même logiciel, fini et en ligne : sa page de présentation et son intérieur, avec des données d'exemple.", "Le même logiciel, fini et en ligne, avec des données d'exemple."]],
+              ].map(([h, d, [src, tel, alt, leg]], k) => (
+                <li key={h} className="grid items-start gap-8 lg:grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] lg:gap-16">
+                  <div className="lg:sticky lg:top-28">
+                    <p className="tnum text-[14px] font-semibold text-accent">0{k + 1}</p>
+                    <p className="mt-2 text-[44px] sm:text-[60px] font-bold leading-none tracking-[-.045em] text-ink">{h}</p>
+                    <p className="mt-6 text-[17px] leading-relaxed text-ink-soft">{d}</p>
+                    {k === 0 && <button onClick={versIdee} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-[15px] font-semibold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow /></button>}
                   </div>
-                  {img ? <figure><div className="fx-halo overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)]"><picture><source media="(max-width: 640px)" srcSet={img[0].replace(".jpg", "-tel.jpg")} /><img src={img[0]} alt={img[1]} loading="lazy" className="block w-full" /></picture></div><figcaption className="mt-2.5 text-[13px] text-ink-faint">{img[1]}</figcaption></figure>
-                    : <Fenetre titre="Ton idée"><div className="bg-[#FAF9F6] p-6 sm:p-8">
-                      <p className="rounded-2xl border border-line bg-white px-4 py-3 text-[16px] text-ink">Un logiciel de réservation pour les coiffeurs</p>
-                      <div className="mt-4 grid gap-2 sm:grid-cols-3">{["Planning", "Rendez-vous", "Clients", "Prestations", "Disponibilités", "Réserver en ligne"].map((e, k) => <span key={e} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[14px] font-semibold"><span className="grid h-5 w-5 place-items-center rounded-full bg-paper text-[11px]">{k + 1}</span>{e}</span>)}</div>
-                      <p className="mt-4 text-[13.5px] text-ink-soft">Son nom, ses écrans et un vrai rendu, avant de construire.</p>
-                    </div></Fenetre>}
+                  <Capture src={src} tel={tel} alt={alt} legende={leg} />
                 </li>
               ))}
             </ol>
-          </div>
-        </section>
+          </section>
 
-        {/* Un site qui te plaît */}
-        <section id="copie" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div className="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.2fr)]">
-            <div>
-              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Un site qui te plaît</p>
-              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Tu as vu un site qui te plaît ? Colle son adresse.</h2>
-              <ul className="mt-6 space-y-3 text-[16px] text-ink-soft">
-                {["Bingoo! le lit point par point : ses couleurs, ses polices, ses rubriques, ce que c'est", "Tu choisis ton nom et tu ajoutes ton logo", "Bingoo! construit ta version, dans la même ambiance, avec tes propres textes"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" />{x}</li>)}
-              </ul>
-              <p className="mt-5 text-[13.5px] text-ink-faint">Jamais leurs textes, leurs images, leur nom ni leur logo.</p>
+          {/* 4. Un site qui te plaît */}
+          <section id="copie" className={SECTION}>
+            <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] lg:gap-16">
+              <div>
+                <Tete n="03" rub="Un site qui te plaît" titre="Tu as vu un site qui te plaît ? Colle son adresse." />
+                <ul className="mt-8 divide-y divide-line border-y border-line">
+                  {["Bingoo! le lit point par point : couleurs, polices, rubriques, ce que c'est", "Tu choisis ton nom et tu ajoutes ton logo", "Bingoo! construit ta version, dans la même ambiance, avec tes propres textes"].map((x, k) => <li key={x} className="flex gap-4 py-4 text-[16px] text-ink"><span className="tnum text-[14px] font-semibold text-ink-faint">{k + 1}</span>{x}</li>)}
+                </ul>
+                <p className="mt-5 text-[14px] text-ink-faint">Jamais leurs textes, leurs images, leur nom ni leur logo.</p>
+              </div>
+              <Capture src="/accueil/site-lu.jpg" tel="/accueil/site-lu-tel.jpg" alt="Ce que Bingoo! relève sur cal.com : type, couleurs, ambiance, rubriques, puis le nom et le logo de ta version." legende="Bingoo! vient de lire cal.com. Il reste à choisir ton nom." />
             </div>
-            <figure><div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)]"><picture><source media="(max-width: 640px)" srcSet="/accueil/site-lu-tel.jpg" /><img src="/accueil/site-lu.jpg" alt="Ce que Bingoo! relève sur cal.com : type, couleurs, ambiance, rubriques, puis le nom et le logo de ta version." loading="lazy" className="block w-full" /></picture></div><figcaption className="mt-2.5 text-[13px] text-ink-faint">Bingoo! vient de lire cal.com. Il reste à choisir ton nom.</figcaption></figure>
-          </div>
-        </section>
+          </section>
 
-        {/* Pas d'idée : les SaaS qui marchent */}
-        <section id="idees" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div className="mx-auto grid max-w-[1180px] items-center gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,.9fr)]">
-            <figure className="order-2 lg:order-1"><button onClick={() => nav("/decouvrir")} className="block w-full overflow-hidden rounded-2xl border border-line bg-white text-left shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)] transition hover:-translate-y-0.5"><img src="/accueil/decouvrir.jpg" alt="La page des SaaS qui marchent : Salesforce, Stripe et d'autres, avec leur revenu." loading="lazy" className="block w-full" /></button></figure>
-            <div className="order-1 lg:order-2">
-              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Pas d'idée ?</p>
-              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Pars de ce qui marche déjà.</h2>
-              <p className="mt-5 text-[17px] leading-relaxed text-ink-soft">{nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "Des milliers de"} SaaS et applis mobiles, avec leurs revenus vérifiés, leurs prix et ce qu'il faut pour les refaire. Choisis celui qui te plaît : Bingoo! construit ta version, à ton nom.</p>
-              <button onClick={() => nav("/decouvrir")} className="mt-7 inline-flex items-center gap-2 rounded-full bg-ink px-7 py-3.5 text-[16px] font-bold text-white hover:bg-black transition">Voir les SaaS qui marchent <Arrow className="h-4 w-4" /></button>
+          {/* 5. Explorer : les opportunités avant de commencer */}
+          <section id="explorer" className={SECTION}>
+            <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)] lg:gap-16">
+              <div className="order-2 lg:order-1"><button onClick={() => nav("/decouvrir")} className="block w-full text-left"><Capture src="/accueil/decouvrir.jpg" alt="La page des SaaS qui marchent, avec leur revenu vérifié." legende="L'explorateur : de vrais SaaS, leurs revenus vérifiés, leurs prix." /></button></div>
+              <div className="order-1 lg:order-2">
+                <Tete n="04" rub="Explorer" titre="Pas d'idée ? Pars de ce qui marche déjà.">{nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "Des milliers de"} SaaS et applis suivis, avec leurs revenus vérifiés, leurs prix, leurs concurrents et ce qu'il faut pour faire ta version. Choisis une opportunité : Bingoo! construit la tienne, à ton nom, sans reprendre leur marque.</Tete>
+                <button onClick={() => nav("/decouvrir")} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-[15px] font-semibold text-white hover:bg-black transition">Explorer les opportunités <Arrow /></button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <ResultatsBingoo className="px-5 sm:px-10 lg:px-20 py-14 border-t border-black/[.07] mx-auto max-w-[1180px]" />
+          <ResultatsBingoo className="border-t border-line px-5 sm:px-10 py-16" />
 
-        {/* Ensuite : tes premiers clients */}
-        <section id="clients" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px] grid lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.4fr)] gap-10 items-center">
-            <div>
-              <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Ensuite</p>
-              <h2 className="mt-3 text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>En ligne, c'est bien. Avec des clients, c'est mieux.</h2>
-              <ul className="mt-6 space-y-3 text-[16px] text-ink-soft">
-                {["Les établissements à contacter, trouvés pour toi dans le registre public", "Le message prêt, adressé au dirigeant", "Une étape par jour, chaque matin dans ta boîte mail", "Ta vidéo de présentation et tes posts, faits par Bingoo!"].map((x) => <li key={x} className="flex gap-2.5"><Check className="h-5 w-5 mt-0.5 shrink-0 text-accent" />{x}</li>)}
-              </ul>
+          {/* 6. Ensuite : les premiers clients */}
+          <section id="clients" className={SECTION}>
+            <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] lg:gap-16">
+              <div>
+                <Tete n="05" rub="Après la mise en ligne" titre="En ligne, c'est bien. Avec des clients, c'est mieux." />
+                <ul className="mt-8 divide-y divide-line border-y border-line">
+                  {["Les établissements à contacter, trouvés dans le registre public", "Le message prêt, adressé au dirigeant", "Une étape par jour, chaque matin dans ta boîte mail", "Ta vidéo de présentation et tes posts, faits par Bingoo!"].map((x) => <li key={x} className="flex gap-3 py-4 text-[16px] text-ink"><Check className="mt-1 h-4 w-4 shrink-0 text-accent" />{x}</li>)}
+                </ul>
+              </div>
+              <Capture src="/accueil/premiers-clients.jpg" tel="/accueil/premiers-clients-tel.jpg" alt="Le plan « Premiers clients » d'un vrai site construit par Bingoo! : chaque étape avec son texte prêt à copier." legende="Le plan « Premiers clients » d'un vrai site construit par Bingoo!." />
             </div>
-            <figure><div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)]"><picture><source media="(max-width: 640px)" srcSet="/accueil/premiers-clients-tel.jpg" /><img src="/accueil/premiers-clients.jpg" alt="Le plan « Premiers clients » d'un vrai site construit par Bingoo! : chaque étape avec son texte prêt à copier." loading="lazy" className="block w-full" /></picture></div><figcaption className="mt-2.5 text-[13px] text-ink-faint">Le plan « Premiers clients » d'un vrai site construit par Bingoo!, avec ses textes prêts à copier.</figcaption></figure>
-          </div>
-        </section>
+          </section>
 
-        {/* Tout ce qui se branche sur un projet Bingoo! (logos de marque issus de SVGL et Simple Icons). Liste tenue à jour avec les réglages. */}
-        <section id="branchements" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-14 sm:py-20 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px]">
-            <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Branchements</p>
-            <h2 className="mt-3 max-w-[820px] text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Ton projet se branche sur tes outils.</h2>
-            <p className="mt-4 max-w-[640px] text-[16px] text-ink-soft">Tu colles un identifiant ou une adresse dans les réglages, Bingoo! fait le reste. Rien à coder.</p>
-            <style>{`@keyframes bingooIntegrations { from { transform: translateX(0); } to { transform: translateX(-50%); } } .bingoo-integrations-track { animation: bingooIntegrations 42s linear infinite; } .bingoo-integrations:hover .bingoo-integrations-track, .bingoo-integrations:focus-within .bingoo-integrations-track { animation-play-state: paused; } @media (prefers-reduced-motion: reduce) { .bingoo-integrations-track { animation: none; } .bingoo-integrations-copy { display: none !important; } }`}</style>
-            <div className="bingoo-integrations mt-8 overflow-x-auto rounded-2xl border border-black/[.07] bg-white py-5" tabIndex={0} aria-label="Intégrations disponibles">
+          {/* 7. Intégrations : logos officiels, défilé continu */}
+          <section id="branchements" className={SECTION}>
+            <Tete n="06" rub="Intégrations" titre="Ton projet se branche sur tes outils.">Tu colles un identifiant ou une adresse dans les réglages, Bingoo! fait le reste. Rien à coder.</Tete>
+            <style>{`@keyframes bingooIntegrations { from { transform: translateX(0); } to { transform: translateX(-50%); } } .bingoo-integrations-track { animation: bingooIntegrations 48s linear infinite; } .bingoo-integrations:hover .bingoo-integrations-track, .bingoo-integrations:focus-within .bingoo-integrations-track { animation-play-state: paused; } @media (prefers-reduced-motion: reduce) { .bingoo-integrations-track { animation: none; } .bingoo-integrations-copy { display: none !important; } }`}</style>
+            <div className="bingoo-integrations mt-12 overflow-x-auto border-y border-line py-8 [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]" tabIndex={0} aria-label="Intégrations disponibles">
               <div className="bingoo-integrations-track flex w-max">
                 {[0, 1].map((copy) => <div key={copy} aria-hidden={copy === 1 ? true : undefined} className={cx("flex shrink-0 items-center", copy === 1 && "bingoo-integrations-copy")}>
-                  {Object.entries(INTEGRATION_LOGOS).map(([name, src]) => <div key={name} className="flex w-[154px] shrink-0 flex-col items-center justify-center gap-3 px-4 sm:w-[176px]">
-                    <img src={src} alt="" className="h-10 w-[92px] object-contain" decoding="async" />
-                    <span className="whitespace-nowrap text-[13px] font-semibold text-ink">{name}</span>
+                  {Object.entries(INTEGRATION_LOGOS).map(([name, src]) => <div key={name} className="flex w-[160px] shrink-0 flex-col items-center justify-center gap-3 px-4 sm:w-[180px]">
+                    <img src={src} alt="" className="h-9 w-[88px] object-contain" decoding="async" />
+                    <span className="whitespace-nowrap text-[13px] font-medium text-ink-soft">{name}</span>
                   </div>)}
                 </div>)}
               </div>
             </div>
-            <p className="mt-6 max-w-[760px] text-[16px] text-ink-soft"><b className="text-ink">Rien n'est enfermé.</b> Ton projet vit sur ton nom de domaine, l'argent de tes clients arrive sur ton compte Stripe, et son code est à toi : téléchargeable à tout moment, ou envoyé sur ton dépôt GitHub.</p>
-          </div>
-        </section>
+            <p className="mt-8 max-w-[760px] text-[16px] leading-relaxed text-ink-soft"><b className="font-semibold text-ink">Rien n'est enfermé.</b> Ton projet vit sur ton nom de domaine, l'argent de tes clients arrive sur ton compte Stripe, et son code est à toi : téléchargeable à tout moment, ou envoyé sur ton dépôt GitHub.</p>
+          </section>
+        </div>
 
         <BingooIA go={go} />
 
-        {/* Prix */}
-        <section id="prix" className="reveal scroll-mt-24 px-5 sm:px-10 lg:px-20 py-16 sm:py-24 border-t border-black/[.07]">
-          <div className="mx-auto max-w-[1180px]">
-            <p className="text-[13px] font-semibold uppercase tracking-[.14em] text-accent">Prix</p>
-            <h2 className="mt-3 max-w-[820px] text-[34px] sm:text-[48px] leading-[1.06] tracking-[-.03em] text-ink" style={SERIF}>Ton premier outil est offert. Tu paies pour aller plus loin.</h2>
-            {/* Notre promesse face aux outils où chaque correction ratée coûte des crédits */}
-            <div className="mt-6 flex max-w-[820px] items-start gap-3 rounded-2xl border border-[#2F7A4D]/25 bg-[#EEF7F1] px-5 py-4">
-              <span aria-hidden="true" className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#2F7A4D] text-[13px] font-bold text-white">✓</span>
-              <p className="text-[15px] leading-relaxed text-[#1E3A2A]"><b>Tu ne paies jamais nos erreurs.</b> Bingoo! teste tout ce qu'il construit : un défaut trouvé par le test est corrigé gratuitement. Une modification qui ne te convient pas ? Tu l'annules dans les 48 h et elle t'est rendue. Et changer un texte, une photo, une police ou l'ordre de tes sections ne coûte jamais rien. Une question ? Réponse immédiate dans Bingoo!, et un humain en français sous 24 h.</p>
-            </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <div className="mx-auto max-w-[1200px]">
+          {/* 8. Tarifs */}
+          <section id="prix" className={SECTION}>
+            <Tete n="07" rub="Tarifs" titre="Ton premier outil est offert. Tu paies pour aller plus loin." />
+            <div className="mt-12 grid overflow-hidden rounded-2xl border border-line md:grid-cols-3">
               {[
                 ["Gratuit", "0 €", "Pour voir, et ton premier outil", ["Ton premier outil ou jeu, construit et en ligne", "L'aperçu de ton idée : nom, écrans, vrai rendu", "La lecture d'un site qui te plaît", "Les SaaS qui marchent, en aperçu"]],
                 ["Site", "9,99 €", "par mois, hébergement compris", ["Ton site, ton outil ou ton jeu, en ligne en quelques minutes", "Tes pages, ton blog, tes services et ton formulaire", "Ton espace pour gérer les demandes"]],
                 ["Lancer", "24,99 €", "par mois · 19 € à vie pour les 50 premiers", ["Ton SaaS, construit et testé", "Comptes clients et abonnements sur ton Stripe", "L'atelier, tes premiers clients, ta vidéo"]],
               ].map(([t, p, sous, l], k) => (
-                <div key={t} className={cx("rounded-3xl border p-6", k === 2 ? "border-ink bg-ink text-white" : "border-line bg-white")}>
-                  <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 2 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>
-                  <p className="mt-3 text-[40px] font-bold leading-none tnum" style={JK}>{p}</p>
-                  <p className={cx("mt-1.5 text-[13.5px]", k === 2 ? "text-white/70" : "text-ink-soft")}>{sous}</p>
-                  <ul className="mt-5 space-y-2.5 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2"><Check className={cx("h-4 w-4 mt-1 shrink-0", k === 2 ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
+                <div key={t} className={cx("p-7 sm:p-8", k > 0 && "border-t border-line md:border-l md:border-t-0", k === 2 && "bg-ink text-white")}>
+                  <p className={cx("text-[15px] font-semibold", k === 2 ? "text-white" : "text-ink")}>{t}</p>
+                  <p className="mt-5 text-[44px] font-bold leading-none tracking-[-.03em] tnum">{p}</p>
+                  <p className={cx("mt-2 text-[13.5px]", k === 2 ? "text-white/65" : "text-ink-soft")}>{sous}</p>
+                  <ul className="mt-7 space-y-3 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2.5"><Check className={cx("mt-1 h-4 w-4 shrink-0", k === 2 ? "text-white" : "text-accent")} />{x}</li>)}</ul>
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-[13.5px] text-ink-faint">Sans engagement. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes.</p>
-          </div>
-        </section>
-
-        {/* Questions */}
-        <section id="faq" className="bg-white border-y border-line scroll-mt-24">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20">
-            <h2 className="text-[36px] sm:text-[46px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Questions fréquentes</h2>
-            <div className="mt-8 divide-y divide-line border-y border-line">
-              {FAQ.map(([q, a]) => (
-                <details key={q} className="group py-5">
-                  <summary className="cursor-pointer list-none flex justify-between gap-4 font-semibold text-[17px]">{q}<span className="text-accent group-open:rotate-45 transition text-[24px] leading-none">+</span></summary>
-                  <p className="mt-3 text-[15.5px] leading-relaxed text-ink-soft">{a}</p>
-                </details>
-              ))}
+            <div className="mt-8 grid gap-6 border-t border-line pt-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <p className="text-[15px] leading-relaxed text-ink-soft"><b className="font-semibold text-ink">Tu ne paies jamais nos erreurs.</b> Bingoo! teste tout ce qu'il construit : un défaut trouvé par le test est corrigé gratuitement. Une modification qui ne te convient pas ? Tu l'annules dans les 48 h et elle t'est rendue. Changer un texte, une photo, une police ou l'ordre de tes sections ne coûte jamais rien.</p>
+              <p className="text-[15px] leading-relaxed text-ink-soft">Sans engagement. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes. Une question ? Réponse immédiate dans Bingoo!, et un humain en français sous 24 h.</p>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="relative overflow-hidden px-4 sm:px-6 py-24 text-center">
-          <div className="fx-grille" style={{ WebkitMaskImage: "radial-gradient(ellipse 60% 70% at 50% 50%, #000 25%, transparent 75%)", maskImage: "radial-gradient(ellipse 60% 70% at 50% 50%, #000 25%, transparent 75%)" }} aria-hidden />
-          <span className="fx-aurore h-[300px] w-[300px] bg-[#F6A06B] left-[18%] top-[40px]" aria-hidden />
-          <span className="fx-aurore h-[280px] w-[280px] bg-[#9B6BFF] right-[18%] top-[120px]" style={{ animationDelay: "-5s" }} aria-hidden />
-          <div className="relative z-[1] max-w-4xl mx-auto">
-          <p className="text-[38px] sm:text-[56px] leading-[1.05] tracking-[-.03em] text-ink" style={SERIF}>Ton idée mérite d'exister.</p>
-          <p className="mt-4 text-[18px] text-ink-soft">Écris-la en une phrase : Bingoo! te montre ce qu'il va construire, gratuitement.</p>
-          <button onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => document.getElementById("idee")?.focus(), 500); }} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-10 py-4 text-[18px] font-bold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow className="h-4 w-4" /></button>
-          </div>
-        </section>
+          {/* 9. Questions */}
+          <section id="faq" className={SECTION}>
+            <div className="grid gap-10 lg:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)] lg:gap-16">
+              <Tete n="08" rub="Questions" titre="Questions fréquentes." />
+              <div className="divide-y divide-line border-y border-line">
+                {FAQ.map(([q, a]) => (
+                  <details key={q} className="group py-5">
+                    <summary className="flex cursor-pointer list-none justify-between gap-4 text-[17px] font-semibold text-ink">{q}<span className="mt-1 text-ink-faint transition group-open:rotate-45" aria-hidden><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span></summary>
+                    <p className="mt-3 text-[15.5px] leading-relaxed text-ink-soft">{a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </section>
         </div>
+
+        {/* 10. Dernier appel */}
+        <section className="border-t border-line bg-paper px-5 sm:px-10 py-24 sm:py-32 text-center">
+          <p className="inline-flex items-center gap-2 text-[14px] font-semibold text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />Imagine. Crée. Lance.</p>
+          <p className="mx-auto mt-6 max-w-[820px] text-[40px] sm:text-[64px] font-bold leading-[1.02] tracking-[-.045em] text-ink">Ton idée mérite d'exister.</p>
+          <p className="mx-auto mt-5 max-w-[560px] text-[18px] text-ink-soft">Écris-la en une phrase : Bingoo! te montre ce qu'il va construire, gratuitement.</p>
+          <button onClick={versIdee} className="mt-9 inline-flex items-center gap-2 rounded-xl bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow /></button>
+        </section>
       </main>
 
-      <footer className="bg-white">
-        <div className="fx-filet" aria-hidden />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid grid-cols-2 md:grid-cols-3 gap-8 text-[15px]">
-          <div><p className="font-bold">Produit</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5">{[["realisations", "Réalisations"], ["comment", "Comment ça marche"], ["copie", "Un site qui te plaît"], ["idees", "Les SaaS qui marchent"], ["prix", "Prix"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
-          <div><p className="font-bold">Comparer et explorer</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5"><li><a href="/comparer/codunk/" className="hover:text-ink">Bingoo! ou Codunk</a></li><li><a href="/comparer/wix/" className="hover:text-ink">Bingoo! ou Wix</a></li><li><a href="/comparer/webflow/" className="hover:text-ink">Bingoo! ou Webflow</a></li><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis : prix et alternatives</a></li><li><a href="#faq" onClick={scrollTo("faq")} className="hover:text-ink">Questions fréquentes</a></li><li><a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Corriger ou retirer une fiche")}`} title="Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures." className="hover:text-ink">Corriger ou retirer une fiche</a></li></ul></div>
-          <div><p className="font-bold">Compte et légal</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
+      <footer className="border-t border-line bg-white">
+        <div className="mx-auto grid max-w-[1200px] grid-cols-2 gap-8 px-5 sm:px-10 py-14 text-[15px] md:grid-cols-4">
+          <div className="col-span-2 md:col-span-1"><Logo height={28} /><p className="mt-4 text-[14px] text-ink-soft">Imagine. Crée. Lance.</p></div>
+          <div><p className="font-semibold">Produit</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5">{[["realisations", "Réalisations"], ["comment", "Comment ça marche"], ["copie", "Un site qui te plaît"], ["explorer", "Explorer"], ["prix", "Tarifs"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
+          <div><p className="font-semibold">Comparer et explorer</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5"><li><a href="/comparer/codunk/" className="hover:text-ink">Bingoo! ou Codunk</a></li><li><a href="/comparer/wix/" className="hover:text-ink">Bingoo! ou Wix</a></li><li><a href="/comparer/webflow/" className="hover:text-ink">Bingoo! ou Webflow</a></li><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis</a></li><li><a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Corriger ou retirer une fiche")}`} title="Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures." className="hover:text-ink">Corriger ou retirer une fiche</a></li></ul></div>
+          <div><p className="font-semibold">Compte et légal</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>
         </div>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-10 flex flex-wrap items-center justify-between gap-4 border-t border-line pt-8">
-          <Logo height={34} />
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 border-t border-line px-5 sm:px-10 py-6">
+          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo!</p>
           <label className="flex items-center gap-2 text-[13.5px] text-ink-soft"><select aria-label="Langue du site" value={langueActuelle()} onChange={(e) => choisirLangue(e.target.value)} className="rounded-lg border border-line bg-white px-2 py-1">{LANGUES.map(([c, l]) => <option key={c} value={c}>{l}</option>)}</select></label>
-          <p className="text-[13.5px] text-ink-faint">© {new Date().getFullYear()} Bingoo! · Donne ton idée, Bingoo! la construit</p>
         </div>
       </footer>
     </div>

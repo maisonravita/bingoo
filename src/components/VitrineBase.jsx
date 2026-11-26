@@ -194,20 +194,18 @@ export function BingooIA({ go }) {
   const q = qs[qi % (qs.length || 1)];
 
   return (
-    <section id="ia" ref={ref} className="reveal scroll-mt-28 px-3 sm:px-8 py-10 sm:py-14">
-      <div className="relative mx-auto max-w-[1280px] overflow-hidden rounded-[36px] bg-[#15171F] px-5 sm:px-12 lg:px-16 py-14 sm:py-20 text-white" style={JK}>
-        <span className="fx-aurore h-[340px] w-[340px] bg-[#E0531F] -left-20 -top-24 opacity-40" aria-hidden />
-        <span className="fx-aurore h-[300px] w-[300px] bg-[#9B6BFF] -right-16 bottom-0 opacity-30" style={{ animationDelay: "-5s" }} aria-hidden />
-        <div className="relative z-[1] grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+    <section id="ia" ref={ref} className="reveal scroll-mt-24 bg-ink px-5 sm:px-10 py-20 sm:py-28 text-white" style={JK}>
+      <div className="mx-auto max-w-[1200px]">
+        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-16">
           <div>
             <div className="flex lg:justify-start"><Badge sombre>Bingoo! dans ton IA</Badge></div>
-            <h2 className="mt-6 text-[36px] sm:text-[52px] leading-[1.03] tracking-[-.035em]" style={{ fontWeight: 800 }}>Demande à ton IA.<br /><span className="fx-texte">Elle fouille dans Bingoo!</span></h2>
+            <h2 className="mt-6 text-[34px] sm:text-[52px] font-bold leading-[1.04] tracking-[-.035em]">Demande à ton IA.<br /><span className="text-[#F6A06B]">Elle fouille dans Bingoo!</span></h2>
             <p className="mt-5 max-w-[480px] text-[17px] leading-[1.55] text-white/70">Branche Bingoo! à ton IA : Claude, ChatGPT, Le Chat, Gemini, Perplexity… Pose ta question comme tu la penses : ton IA cherche dans les SaaS suivis et te répond avec leurs vrais chiffres.</p>
-            <button onClick={go} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-[16px] font-bold text-[#15171F] hover:bg-white/90 transition">Brancher Bingoo! à mon IA</button>
+            <button onClick={go} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-[15px] font-semibold text-ink hover:bg-white/90 transition">Brancher Bingoo! à mon IA</button>
             <p className="mt-3 text-[13px] text-white/50">Essai gratuit, sans carte. Les chiffres complets sont inclus dans la formule Lancer.</p>
           </div>
 
-          <div className="min-w-0 rounded-[26px] border border-white/10 bg-white/[.05] p-4 sm:p-5 backdrop-blur">
+          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[.04] p-4 sm:p-5">
             <div className="flex items-start gap-3 rounded-2xl bg-white px-4 py-3.5 text-[#15171F]">
               <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#15171F] text-[12px] font-bold text-white">Toi</span>
               <p className="min-h-[48px] text-[16px] sm:text-[17px] font-semibold leading-snug">{tape}<span className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[3px] bg-accent animate-pulse" aria-hidden /></p>
