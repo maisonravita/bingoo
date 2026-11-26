@@ -1114,6 +1114,9 @@ function SitePageGeneree({ onAuth, saas }) {
     if (window.__bingooNavHaut) removeEventListener("scroll", window.__bingooNavHaut);
     const immersif = nav && el.querySelector("main section.hero-cine, main section.hero-mot, main section.hero-hublot, main section.hero-lueur");
     if (immersif) { const maj = () => nav.classList.toggle("nav--sur-photo", scrollY < 40 && !nav.classList.contains("is-open")); window.__bingooNavHaut = maj; addEventListener("scroll", maj, { passive: true }); if (t) t.addEventListener("click", maj); maj(); } else nav?.classList.remove("nav--sur-photo");
+    // Effets (défilement doux, mots qui montent, compteurs, ondulation des grandes photos) : bibliothèques servies par Bingoo!,
+    // jamais pendant la vérification, les captures ni dans l'atelier
+    if (!B.verif && !B.capture && !B.apercu) { const go = () => { try { window.BingooEffets?.init(el); } catch (x) { console.error("effets", x); } }; if (window.BingooEffets) go(); else if (!document.getElementById("bingoo-effets")) { const sc = document.createElement("script"); sc.id = "bingoo-effets"; sc.src = "https://bingoo.fr/lib/bingoo-effets.js?v=20261126a"; sc.async = true; sc.onload = go; document.head.appendChild(sc); } }
     el.querySelectorAll('a[href="#essai"],a[href="#connexion"]').forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); e.stopImmediatePropagation(); onAuth(a.getAttribute("href") === "#essai" ? "signup" : "login"); }));
     // Pages supplémentaires : un lien par page dans le menu (la page en cours est soulignée)
     const liens = el.querySelector(".nav__links");
