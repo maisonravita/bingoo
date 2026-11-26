@@ -181,7 +181,7 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
   let corrections = 0;
   const ids = ["nav", ...plan.sections.map((s) => s.id)];
   for (let essai = 1; essai <= 3; essai++) {
-    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...(id === "hero" ? [] : doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h)))), ...imageDejaVue(id), ...(essai < 3 ? sujetDejaTraite(id, ecrites.get(id)!, ids.slice(0, ids.indexOf(id)).filter((k) => ecrites.has(k)).map((k) => ({ id: k, html: ecrites.get(k)! })), `${e.nom} ${e.ville ?? ""} ${e.metier ?? ""}`) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
+    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...(id === "hero" || /faq|question/.test(id) ? [] : doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h)))), ...imageDejaVue(id), ...(essai < 3 ? sujetDejaTraite(id, ecrites.get(id)!, ids.slice(0, ids.indexOf(id)).filter((k) => ecrites.has(k)).map((k) => ({ id: k, html: ecrites.get(k)! })), `${e.nom} ${e.ville ?? ""} ${e.metier ?? ""}`) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
     if (!fautives.length) break;
     journal.push(`Essai ${essai} : ${fautives.map((f) => `${f.id} (${f.pbs[0].slice(0, 60)})`).join(" ; ")}`);
     // Temps : une fonction a une durée limitée ; passé 110 s, plus de réécriture (retrait des sections fautives ou secours)
@@ -189,6 +189,17 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
       // Dernier recours : une section non conforme hors premier écran est retirée plutôt que livrée fausse
       // (une photo déjà vue, un sujet proche ou une information déjà affichée ne justifient pas de perdre la section)
       for (const f of fautives) if (!["nav", "hero"].includes(f.id) && plan.sections.length > 4 && !f.pbs.every((p) => /^La photo |^Cette section reprend|^Ce titre (répète|commence)|^Cette section dit presque|déjà affiché/.test(p))) { ecrites.delete(f.id); plan.sections = plan.sections.filter((s) => s.id !== f.id); }
+      // Deux sections sur le même sujet, ou la même photo deux fois : on garde celle qui porte des données (horaires,
+      // adresse, prestations) et on retire l'autre, si elle n'en porte pas (jamais le premier écran)
+      const retirer = (id: string) => { ecrites.delete(id); plan.sections = plan.sections.filter((s) => s.id !== id); journal.push(`Section ${id} retirée (doublon)`); };
+      const donnees = (id: string) => /data-bingoo="(services|horaires|adresse|realisations|contact|inscription)"|<form\b/.test(ecrites.get(id) ?? "");
+      for (const f of fautives) {
+        if (!ecrites.has(f.id) || plan.sections.length <= 4) continue;
+        const autre = f.pbs.map((p) => p.match(/^(?:Cette section reprend|Ce titre commence|Cette section dit presque)[^«]*section « ([a-z0-9_-]+) »/)?.[1]).find(Boolean);
+        const photo = f.pbs.some((p) => /^La photo /.test(p));
+        if (autre && ecrites.has(autre)) { if (!donnees(f.id)) retirer(f.id); else if (!donnees(autre) && !["nav", "hero"].includes(autre)) retirer(autre); }
+        else if (photo && !donnees(f.id)) retirer(f.id);
+      }
       // Premier écran : seule une information inventée, un prix hors brief ou une section vide empêchent la livraison ;
       // une remarque de style (typographie, h2) restée après 3 essais ne justifie pas de jeter toute la page
       const graves = fautives.filter((f) => ["nav", "hero"].includes(f.id) && f.pbs.some((p) => /inventée|Prix «|section est vide|manquante/.test(p)));
