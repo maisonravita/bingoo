@@ -15,7 +15,7 @@ const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const mix = (c, d, k) => c.map((v, i) => Math.round(v + (d[i] - v) * k));
 const lum = (c) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 
-export const DUREES = { personnage: 3.8, image: 3.2, ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
+export const DUREES = { telephone: 3.8, personnage: 3.8, image: 3.2, ecran_vitre: 3.2, ecran_zoom: 3.4, ecran_cascade: 3.2, ecran_defile: 3.4, ecran_split: 3, ecran_mur: 3, ecran_curseur: 3.4, ecran_telephone: 3.2, impact: 1.4, liste: 3.2, choix: 3, rature: 2.8, mots: 2.6, objet: 3.2, pilules: 3.2, compteur: 2.8, barres: 3, pastille: 1.8, cartes: 2.8, aplat: 2.2, logo: 3 };
 export const TYPES_SCENES = Object.keys(DUREES);
 export const dureeScene = (s) => clamp(Number(s?.duree) || DUREES[s?.type] || 2.6, 1.4, 5);
 export const dureeTotale = (script) => (script?.scenes ?? []).reduce((a, s) => a + dureeScene(s), 0) || 20;
@@ -544,6 +544,8 @@ const SCENES = {
     ctx.fillStyle = rgba(mix(C, [0, 0, 0], lum(C) > 0.6 ? 0.55 : 0), 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, ta * 0.04); ctx.restore();
   },
   personnage(ctx, s, e) { scenePersonnage(ctx, s, e); },
+  // Le téléphone entouré d'applis n'existe que dans l'allure « clair » ; ailleurs, ses items s'affichent comme des pastilles
+  telephone(ctx, s, e) { SCENES.pilules(ctx, s, { ...e, items: (e.items ?? []).slice(0, 3) }); },
   // L'image (ou le clip) de ce dont on parle, en plein écran : elle remplit tout le plan et avance doucement,
   // la phrase se pose dessus en bas, sur un voile sombre. Sans image chargée, la phrase seule.
   image(ctx, s, e) {
@@ -859,6 +861,17 @@ const VERRE = {
 const ENCRE = "#111114";
 const teinteDe = (c) => { const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 0.001) return 220; const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
 const tons = (i) => { const h = (teinteDe(C) + [0, 135, 250, 60][i % 4]) % 360; return { fond: `hsl(${h},85%,90%)`, encre: `hsl(${h},55%,30%)`, plein: `hsl(${h},62%,46%)` }; };
+// Une tuile d'appli : carré très arrondi, dégradé de couleur, reflet en haut, ombre douce, un pictogramme blanc au centre
+function tuile(ctx, cx, cy, taille, i, nomIcone, u, angle = 0) {
+  const h = (teinteDe(C) + [0, 135, 250, 60, 300][i % 5]) % 360, r = taille * 0.23;
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle);
+  ctx.save(); ctx.shadowColor = `hsla(${h},60%,30%,.3)`; ctx.shadowBlur = taille * 0.22; ctx.shadowOffsetY = taille * 0.1; rond(ctx, -taille / 2, -taille / 2, taille, taille, r); ctx.fillStyle = `hsl(${h},70%,52%)`; ctx.fill(); ctx.restore();
+  const g = ctx.createLinearGradient(0, -taille / 2, 0, taille / 2); g.addColorStop(0, `hsl(${h},88%,66%)`); g.addColorStop(1, `hsl(${h},74%,46%)`); rond(ctx, -taille / 2, -taille / 2, taille, taille, r); ctx.fillStyle = g; ctx.fill();
+  ctx.save(); rond(ctx, -taille / 2, -taille / 2, taille, taille, r); ctx.clip(); const gl = ctx.createLinearGradient(0, -taille / 2, 0, 0); gl.addColorStop(0, "rgba(255,255,255,.38)"); gl.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gl; ctx.beginPath(); ctx.ellipse(0, -taille * 0.52, taille * 0.8, taille * 0.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = Math.max(1, taille * 0.008); rond(ctx, -taille / 2, -taille / 2, taille, taille, r); ctx.stroke();
+  icone(ctx, ICONES[nomIcone] ? nomIcone : ["message", "agenda", "graphique", "feuille", "etoile"][i % 5], 0, 0, taille * 0.5, "#fff", 2);
+  ctx.restore();
+}
 const CLAIR = {
   // Une petite phrase noire qui sort du flou mot après mot ; dans la seconde moitié, la caméra plonge dedans
   mots(ctx, s, e) {
@@ -884,7 +897,7 @@ const CLAIR = {
   },
   // Passage au noir : une phrase blanche en italique, floue, qui devient nette puis se dissout (ce qui ne va pas)
   rature(ctx, s, e) {
-    const { W, H, u, t, d, vertical } = s, txt = e.texte || "", p = eo(prog(t, 0.05, 0.9)), q = prog(t, d - 0.45, d);
+    const { W, H, u, t, d, vertical } = s, txt = [e.texte_avant, e.barre].filter(Boolean).join(" ") || e.texte || "", p = eo(prog(t, 0.05, 0.9)), q = prog(t, d - 0.45, d);
     ctx.save(); ctx.globalAlpha = Math.min(1, prog(t, 0, 0.18)) * (1 - prog(t, d - 0.18, d)); ctx.fillStyle = "#050506"; ctx.fillRect(-W, -H, W * 3, H * 3);
     ctx.fillStyle = "rgba(255,255,255,.035)"; for (let y = 0; y < H; y += 7 * u) ctx.fillRect(0, y, W, 2 * u); ctx.restore();
     const taille = remplit(ctx, txt, (vertical ? 96 : 84) * u, W * 0.82, 3, 500); ctx.font = `italic 500 ${taille}px ${F}`;
@@ -892,22 +905,54 @@ const CLAIR = {
     const ls = coupe(ctx, txt, W * 0.82); ls.forEach((l, i) => ctx.fillText(l, W / 2, H / 2 + (i - (ls.length - 1) / 2) * taille * 1.2)); ctx.restore();
   },
   aplat(ctx, s, e) { CLAIR.impact(ctx, s, { ...e, texte: e.texte || s.nom }); },
-  // Une tuile blanche aux coins très ronds, posée avec son ombre : trois lignes, chacune avec sa pastille de couleur
+  // L'image plein écran, légèrement voilée de blanc, avec un grand mot noir posé dessus
+  image(ctx, s, e) {
+    const { W, H, u, t, d } = s, img = IMAGES[e.image], iw0 = img?.videoWidth || img?.width, ih0 = img?.videoHeight || img?.height;
+    if (!iw0) return CLAIR.impact(ctx, s, e);
+    const k = Math.max(W / iw0, H / ih0) * (1.2 - 0.12 * prog(t, 0, d));
+    ctx.save(); ctx.drawImage(img, (W - iw0 * k) / 2, (H - ih0 * k) / 2, iw0 * k, ih0 * k); ctx.fillStyle = "rgba(245,245,247,.38)"; ctx.fillRect(0, 0, W, H); ctx.restore();
+    CLAIR.impact(ctx, s, { ...e, texte: e.accent || e.texte });
+  },
+  // Un téléphone qui tourne doucement, des tuiles d'applis qui en sortent et flottent autour, puis y retournent
+  telephone(ctx, s, e) {
+    const { W, H, u, t, d, vertical } = s, items = (e.items ?? []).slice(0, 4).map((x) => ({ texte: texteDe(x), icone: typeof x === "object" ? x?.icone : null })), p = ressort(prog(t, 0, 0.8));
+    const ph = (vertical ? 760 : 560) * u, pw = ph * 0.49, ang = -0.42 + 0.7 * eio(prog(t, 0, d)), cs = Math.cos(ang), cx = W / 2, cy = H * 0.5;
+    const sortie = eo(prog(t, 0.5, 1.2)) * (1 - eio(prog(t, d - 0.9, d - 0.3)));
+    const pos = [[-1, -0.62], [1, -0.4], [-0.92, 0.38], [0.95, 0.52]], dessus = [];
+    items.forEach((x, i) => { const [dx, dy] = pos[i], tx = cx + dx * pw * (vertical ? 0.8 : 1.5) * sortie, ty = cy + dy * ph * 0.5 * sortie + Math.sin(t * 1.6 + i * 2) * 14 * u, f = () => { ctx.save(); ctx.globalAlpha *= Math.min(1, sortie * 2.2); tuile(ctx, tx, ty, pw * (vertical ? 0.4 : 0.5) * (0.3 + 0.7 * sortie), i + 1, x.icone, u, dx * 0.22 * (1 - sortie * 0.4) + Math.sin(t * 1.2 + i) * 0.05); ctx.restore(); }; (dx * Math.sin(ang) > 0 ? dessus : { push: (g) => g() }).push(f); });
+    ctx.save(); ctx.translate(cx, cy + (1 - p) * H * 0.3); ctx.transform(cs, Math.sin(ang) * 0.12, 0, 1, 0, 0); ctx.scale(0.7 + 0.3 * p, 0.7 + 0.3 * p); ctx.globalAlpha *= Math.min(1, prog(t, 0, 0.25) * 1.3);
+    ctx.save(); ctx.shadowColor = "rgba(20,20,40,.28)"; ctx.shadowBlur = 80 * u; ctx.shadowOffsetY = 40 * u; rond(ctx, -pw / 2, -ph / 2, pw, ph, pw * 0.17); ctx.fillStyle = "#0B0B0E"; ctx.fill(); ctx.restore();
+    const m = pw * 0.035, ew = pw - 2 * m, eh = ph - 2 * m; ctx.save(); rond(ctx, -pw / 2 + m, -ph / 2 + m, ew, eh, pw * 0.14); ctx.clip();
+    const g = ctx.createLinearGradient(0, -ph / 2, 0, ph / 2); g.addColorStop(0, "#1B2340"); g.addColorStop(1, "#0C1022"); ctx.fillStyle = g; ctx.fillRect(-pw / 2, -ph / 2, pw, ph);
+    const col = 4, c0 = ew / (col * 1.38 + 0.38), pas = c0 * 1.38; for (let r = 0; r < 6; r++) for (let c = 0; c < col; c++) { const h = (teinteDe(C) + ((r * 4 + c) * 47) % 360) % 360, a = eo(prog(t, 0.2 + (r * 4 + c) * 0.015, 0.6 + (r * 4 + c) * 0.015)); ctx.globalAlpha = a; ctx.fillStyle = (r * 4 + c) % 5 === 3 ? "#F2F2F4" : `hsl(${h},70%,${52 + ((r + c) % 3) * 6}%)`; rond(ctx, -ew / 2 + c0 * 0.38 + c * pas, -eh / 2 + c0 * 1.3 + r * pas, c0, c0, c0 * 0.26); ctx.fill(); }
+    ctx.globalAlpha = 1; ctx.fillStyle = "rgba(255,255,255,.14)"; rond(ctx, -ew / 2 + c0 * 0.25, eh / 2 - c0 * 1.75, ew - c0 * 0.5, c0 * 1.45, c0 * 0.5); ctx.fill();
+    ctx.fillStyle = "#0B0B0E"; rond(ctx, -pw * 0.16, -ph / 2 + m + pw * 0.035, pw * 0.32, pw * 0.085, pw * 0.045); ctx.fill(); ctx.restore(); ctx.restore();
+    dessus.forEach((f) => f());
+    if (e.texte) { let tg = (vertical ? 60 : 52) * u; ctx.font = `500 ${tg}px ${F}`; const wt = ctx.measureText(e.texte).width; if (wt > W * 0.84) tg *= (W * 0.84) / wt; ecrit(ctx, e.texte, W / 2, cy + ph / 2 + tg * 1.3, { taille: tg, t: t - 1, u, couleur: ENCRE }); }
+  },
+
+  // Un défilé de grandes tuiles brillantes, une par chose citée : chacune sort du flou, grossit doucement puis file de
+  // côté pendant que la suivante arrive ; le fil de couleur serpente derrière elles et les relie
   pilules(ctx, s, e) {
-    const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 3).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
-    const tp0 = (vertical ? 52 : 46) * u, lh = tp0 * 2.25, pad = tp0 * 1.1, w = Math.min(W * (vertical ? 0.74 : 0.42), 760 * u), h = n * lh + pad * 1.4, p = ressort(prog(t, 0.05, 0.8));
-    if (e.texte) { let tg = (vertical ? 60 : 52) * u; ctx.font = `500 ${tg}px ${F}`; const wt = ctx.measureText(e.texte).width; if (wt > W * 0.84) tg *= (W * 0.84) / wt; ecrit(ctx, e.texte, W / 2, H / 2 - h / 2 - tg * 1.5, { taille: tg, t: t - 0.5, u, couleur: ENCRE }); }
-    ctx.save(); ctx.translate(W / 2 + Math.sin(t * 0.7) * 10 * u, H / 2 + (e.texte ? 20 * u : 0)); ctx.rotate((-0.035 + 0.02 * prog(t, 0, s.d)) * (1 + (1 - p) * 3)); ctx.scale(0.5 + 0.5 * p, 0.5 + 0.5 * p); ctx.globalAlpha *= Math.min(1, prog(t, 0.05, 0.3) * 1.2); flou(ctx, (1 - Math.min(1, p)) * 16 * u);
-    ctx.save(); ctx.shadowColor = "rgba(20,20,40,.16)"; ctx.shadowBlur = 70 * u; ctx.shadowOffsetY = 28 * u; rond(ctx, -w / 2, -h / 2, w, h, 64 * u); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
+    const { W, H, u, t, d, vertical } = s, items = (e.items ?? []).slice(0, 3).map((x) => ({ texte: texteDe(x), icone: typeof x === "object" ? x?.icone : null })).filter((x) => x.texte), n = Math.max(1, items.length), seg = d / n;
+    const taille = (vertical ? 400 : 330) * u;
     items.forEach((x, i) => {
-      const a = eo(prog(t, 0.45 + i * 0.16, 0.95 + i * 0.16)), y = -h / 2 + pad * 0.7 + lh * (i + 0.5); if (a <= 0) return;
-      ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = tons(i).plein; ctx.beginPath(); ctx.arc(-w / 2 + pad + tp0 * 0.4, y, tp0 * 0.4 * (0.5 + 0.5 * a), 0, Math.PI * 2); ctx.fill();
-      let tp = tp0; ctx.font = `500 ${tp}px ${F}`; const place = w - pad * 2 - tp0 * 1.5, wt = ctx.measureText(x).width; if (wt > place) { tp *= place / wt; ctx.font = `500 ${tp}px ${F}`; }
-      ctx.fillStyle = ENCRE; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x, -w / 2 + pad + tp0 * 1.5, y + tp * 0.04);
-      if (i < n - 1) { ctx.fillStyle = "rgba(0,0,0,.07)"; ctx.fillRect(-w / 2 + pad + tp0 * 1.5, y + lh / 2, w - pad * 2 - tp0 * 1.5, Math.max(1, 2 * u)); }
+      const tl = t - i * seg; if (tl < -0.05 || tl > seg + 0.3) return;
+      const p = eo(prog(tl, 0, 0.5)), q = i < n - 1 ? Math.pow(prog(tl, seg - 0.05, seg + 0.3), 2) : 0, sens = i % 2 ? -1 : 1, z = (0.45 + 0.55 * p) * (1 + (tl / seg) * 0.16);
+      const cx = W / 2 + sens * (1 - p) * W * 0.25 - sens * q * W * 0.95, cy = H * 0.46 + sens * (1 - p) * H * 0.06 - q * H * 0.1;
+      // Le fil : une courbe qui se trace derrière la tuile et ressort de l'autre côté
+      const tr = eio(prog(tl, 0.15, seg * 0.95)); if (tr > 0.01) {
+        const y0 = cy - sens * taille * 1.25, P = [[-W * 0.05, y0], [W * 0.3, y0 + sens * taille * 0.1], [W * 0.42, cy - sens * taille * 0.3], [cx, cy], [W * 0.62, cy - sens * taille * 0.5], [W * 0.8, cy - sens * taille * 1.3], [W * 1.05, cy - sens * taille * 1.1]];
+        ctx.save(); ctx.globalAlpha *= (1 - q) * Math.min(1, p * 1.5); ctx.strokeStyle = rgba(C, 1); ctx.lineWidth = Math.max(3, 8 * u); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); ctx.moveTo(P[0][0], P[0][1]);
+        ctx.bezierCurveTo(P[1][0], P[1][1], P[2][0], P[2][1], P[3][0], P[3][1]); ctx.bezierCurveTo(P[4][0], P[4][1], P[5][0], P[5][1], P[6][0], P[6][1]);
+        const L = W * 2.6; ctx.setLineDash([L * tr, L * 2]); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
+      }
+      ctx.save(); ctx.globalAlpha *= Math.min(1, p * 1.6) * (1 - q); flou(ctx, ((1 - p) * 22 + q * 26) * u);
+      tuile(ctx, cx, cy, taille * z, i, x.icone, u, (-0.06 + 0.05 * (tl / seg)) * sens);
       ctx.restore();
+      let tg = (vertical ? 58 : 50) * u; ctx.font = `500 ${tg}px ${F}`; const wt = ctx.measureText(x.texte).width; if (wt > W * 0.8) tg *= (W * 0.8) / wt;
+      ctx.save(); ctx.globalAlpha *= 1 - q; ecrit(ctx, x.texte, W / 2, cy + taille * 0.78, { taille: tg, t: tl - 0.35, u, couleur: ENCRE }); ctx.restore();
     });
-    ctx.restore();
   },
   choix(ctx, s, e) { CLAIR.pilules(ctx, s, e); },
   // Des cartes pastel qui tombent l'une sous l'autre ; puis la pile recule un peu et son titre s'écrit au-dessus
