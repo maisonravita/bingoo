@@ -1,0 +1,97 @@
+{
+  "duree_s": 161,
+  "app": {
+    "slug": "studio-brume-4y2q",
+    "statut": "pret",
+    "version": 3,
+    "verif": {
+      "at": "2026-11-26T16:57:47.510Z",
+      "ok": true,
+      "phase": "fini",
+      "reste": [],
+      "essais": {
+        "__page": 1
+      },
+      "mesure": {
+        "ok": true,
+        "fin": "2026-11-26T16:57:47.165Z",
+        "cout": 0.083,
+        "debut": "2026-11-26T16:56:39.346Z",
+        "ecrans": 5,
+        "entree": "site",
+        "essais": 1,
+        "modele": "site",
+        "famille": "gestion",
+        "premier": {
+          "ko": 0,
+          "ok": true,
+          "testes": 5
+        }
+      },
+      "repare": [],
+      "journal": [
+        {
+          "t": "Les 5 écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.",
+          "at": "2026-11-26T16:56:39.346Z",
+          "type": "info"
+        },
+        {
+          "t": "Test n° 1 : les 5 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T16:57:08.144Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 1/2) : Contraste trop faible (minimum 4,5:1) : « bien dessinées (2.6:1) ».",
+          "at": "2026-11-26T16:57:08.144Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T16:57:17.979787+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 2 : les 5 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T16:57:47.165Z",
+          "type": "ok"
+        },
+        {
+          "t": "Tout est propre : ton espace gérant (5 écrans) a été testé et fonctionne. Ton site est prêt.",
+          "at": "2026-11-26T16:57:47.165Z",
+          "type": "ok"
+        }
+      ],
+      "version": 3,
+      "passages": 2,
+      "dernieres": {},
+      "resultats": [
+        {
+          "id": "accueil",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "realisations",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "demandes",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "services",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "infos",
+          "ok": true,
+          "erreur": null
+        }
+      ],
+      "en_reparation": []
+    }
+  }
+}

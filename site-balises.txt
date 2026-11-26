@@ -1,0 +1,16 @@
+<title>Studio Brume · Studio de design graphique à Lyon</title>
+<meta name="description" content="Studio Brume crée identités visuelles, typographies et campagnes pour les marques et entreprises, à Lyon.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Studio Brume">
+<meta property="og:title" content="Studio Brume · Studio de design graphique à Lyon">
+<meta property="og:description" content="Studio Brume crée identités visuelles, typographies et campagnes pour les marques et entreprises, à Lyon.">
+<meta property="og:url" content="https://www.bingoo.fr/s/studio-brume-4y2q">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=studio-brume-4y2q&amp;v=12-B83877">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=studio-brume-4y2q&amp;v=12-B83877">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Studio Brume · Studio de design graphique à Lyon">
+<meta name="twitter:description" content="Studio Brume crée identités visuelles, typographies et campagnes pour les marques et entreprises, à Lyon.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Studio Brume","description":"Studio Brume crée identités visuelles, typographies et campagnes pour les marques et entreprises, à Lyon.","url":"https://www.bingoo.fr/s/studio-brume-4y2q","image":"https://www.bingoo.fr/api/og?slug=studio-brume-4y2q&v=12-B83877","areaServed":"Lyon","makesOffer":[{"@type":"Offer","name":"Devis","description":"Décrivez votre projet : nous vous envoyons un devis détaillé."}]}</script>
