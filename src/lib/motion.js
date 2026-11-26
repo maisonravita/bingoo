@@ -869,7 +869,7 @@ function tuile(ctx, cx, cy, taille, i, nomIcone, u, angle = 0) {
   const g = ctx.createLinearGradient(0, -taille / 2, 0, taille / 2); g.addColorStop(0, `hsl(${h},88%,66%)`); g.addColorStop(1, `hsl(${h},74%,46%)`); rond(ctx, -taille / 2, -taille / 2, taille, taille, r); ctx.fillStyle = g; ctx.fill();
   ctx.save(); rond(ctx, -taille / 2, -taille / 2, taille, taille, r); ctx.clip(); const gl = ctx.createLinearGradient(0, -taille / 2, 0, 0); gl.addColorStop(0, "rgba(255,255,255,.38)"); gl.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gl; ctx.beginPath(); ctx.ellipse(0, -taille * 0.52, taille * 0.8, taille * 0.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
   ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = Math.max(1, taille * 0.008); rond(ctx, -taille / 2, -taille / 2, taille, taille, r); ctx.stroke();
-  icone(ctx, ICONES[nomIcone] ? nomIcone : ["message", "agenda", "graphique", "feuille", "etoile"][i % 5], 0, 0, taille * 0.5, "#fff", 2);
+  icone(ctx, ICONES[nomIcone] && nomIcone !== "etincelle" ? nomIcone : ["message", "agenda", "graphique", "feuille", "etoile"][i % 5], 0, 0, taille * 0.5, "#fff", 2);
   ctx.restore();
 }
 const CLAIR = {

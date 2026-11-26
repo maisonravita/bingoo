@@ -588,10 +588,10 @@ if (CONSTRUIRE === "video-images") {
     await page.waitForTimeout(6000); await page.screenshot({ path: `${DOSSIER}/lecteur-page.png` });
     console.log("bouton « Mes photos et vidéos » :", (await page.getByText("Mes photos et vidéos").count()) ? "✓ présent" : "✗ absent", "; clips chargés par la page :", clips);
     for (let k = 0; k < 20; k++) { await page.locator("canvas").first().screenshot({ path: `${DOSSIER}/lecteur-${String(k).padStart(2, "0")}.png` }).catch(() => null); await page.waitForTimeout(1300); }
-    const bouton = page.getByRole("button", { name: /Télécharger/ }).first();
+    const bouton = page.getByRole("button", { name: /Télécharger/ }).first(); const tExp = Date.now();
     if (await bouton.count()) {
-      const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 240000 }).catch(() => null), bouton.click().catch(() => null)]);
-      if (dl) { const nom = dl.suggestedFilename(); await dl.saveAs(`${DOSSIER}/lecteur-export.${nom.split(".").pop()}`); console.log("✓ export téléchargé :", nom); } else console.log("✗ export : pas de fichier en 4 minutes");
+      const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 540000 }).catch(() => null), bouton.click().catch(() => null)]);
+      if (dl) { const nom = dl.suggestedFilename(); await dl.saveAs(`${DOSSIER}/lecteur-export.${nom.split(".").pop()}`); console.log("✓ export téléchargé :", nom, "en", Math.round((Date.now() - tExp) / 1000), "s"); } else console.log("✗ export : pas de fichier en 9 minutes");
     } else console.log("✗ bouton Télécharger introuvable");
   }
 }
