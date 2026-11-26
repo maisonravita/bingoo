@@ -16,7 +16,7 @@ export type Composition = {
   structure: string;
 };
 
-const HONNETE = "Tous les textes viennent du brief : aucun chiffre, prix, note, nombre de clients ou date inventés. Une ligne d'infos ou une carte sans fait réel du brief n'existe pas (retire-la).";
+const HONNETE = "Tous les textes viennent du brief : aucun chiffre, prix, note, nombre de clients, date, zone ou rayon d'intervention inventés (pas de « partout en France » si le brief ne le dit pas). Une ligne d'infos ou une carte sans fait réel du brief n'existe pas (retire-la).";
 
 export const COMPOSITIONS: Record<Composition["id"], Composition> = {
   cinema: {
@@ -134,15 +134,17 @@ Chaque widget correspond à une fonction décrite dans le brief ; les valeurs so
 
 /** Le choix se fait dans le code (jamais deux fois la même chose de suite) selon le genre d'activité et les images possibles. */
 export function choisirComposition(o: { type: TypeProjet; texte: string; images: boolean; aleatoire?: () => number }): Composition | null {
-  const t = o.texte.toLowerCase();
+  const t = ` ${o.texte.toLowerCase()} `;
   const r = o.aleatoire ?? Math.random;
+  // Début de mot obligatoire (« mer » ne doit pas se trouver dans « premier », ni « vin » dans « province »)
+  const a = (...mots: string[]) => new RegExp(`(?:^|[^a-zà-ÿ])(?:${mots.join("|")})`).test(t);
   let liste: Composition["id"][];
-  if (o.type === "software") liste = /\b(widget|suivi|sant[ée]|sport|m[ée]t[ée]o|finance|budget|habitude|tableau de bord|dashboard|statisti)/.test(t) ? ["bento", "bento", "lueur"] : ["lueur", "lueur", "bento"];
+  if (o.type === "software") liste = a("widget", "suivi", "sant[ée]", "sport", "m[ée]t[ée]o", "finance", "budget", "habitude", "tableau de bord", "dashboard", "statisti", "sommeil") ? ["bento", "bento", "lueur"] : ["lueur", "lueur", "bento"];
   else if (!o.images) return null;
-  else if (/(immobili|architect|maison|villa|chalet|h[ôo]tel|g[îi]te|r[ée]sidence|domaine|ch[âa]teau|construct|b[âa]tisseur)/.test(t)) liste = ["mot-geant", "mot-geant", "cinema"];
-  else if (/(vin|vign|domaine|campagne|ferme|nature|montagne|randonn|mer|plage|voyage|s[ée]jour|retraite|yoga|spa|bien-[êe]tre|jardin|paysag)/.test(t)) liste = ["cinema", "cinema", "hublot"];
-  else if (/(voyage|exp[ée]dition|croisi|observatoire|astronom|plong|navig|voile|vol |montgolfi|aventure|nuit|club|studio d'enregistrement)/.test(t)) liste = ["hublot", "cinema"];
-  else if (/(design|graphi|studio|agence|cr[ée]ati|photograph|illustrat|c[ée]ramiq|artisan|atelier|marque|mode|bijou|architecte d'int)/.test(t)) liste = ["galerie", "galerie", "cinema"];
+  else if (a("design", "graphi", "studio de (design|cr[ée]a)", "agence (de )?(cr[ée]a|com|design)", "photograph", "illustrat", "c[ée]ramiq", "typograph", "identit[ée]s? visuel", "bijou", "mode\\b", "cr[ée]atri", "cr[ée]ateur")) liste = ["galerie", "galerie", "hublot"];
+  else if (a("immobili", "architect", "maison", "villa", "chalet", "h[ôo]tel", "g[îi]te", "r[ée]sidence", "domaine", "ch[âa]teau", "construct", "b[âa]tisseur", "vign", "ferme")) liste = ["mot-geant", "mot-geant", "cinema"];
+  else if (a("voyage", "exp[ée]dition", "croisi", "observatoire", "astronom", "plong", "navig", "voile\\b", "aventure", "aurore", "fjord")) liste = ["hublot", "hublot", "cinema"];
+  else if (a("vins?\\b", "campagne\\b", "nature", "montagne", "randonn", "mer\\b", "plage", "s[ée]jour", "retraite", "yoga", "spa\\b", "bien-[êe]tre", "jardin", "paysag")) liste = ["cinema", "cinema", "hublot"];
   else liste = o.type === "product" ? ["galerie", "cinema"] : ["cinema", "hublot", "galerie"];
   return COMPOSITIONS[liste[Math.floor(r() * liste.length)]];
 }
