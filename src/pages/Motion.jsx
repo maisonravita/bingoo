@@ -170,7 +170,7 @@ export default function Motion() {
 
   // Ses propres photos et vidéos (3 au plus) : elles passent en plein écran dans la prochaine vidéo créée, jamais retouchées.
   // Une photo est réduite ici avant l'envoi ; une vidéo part directement dans le dossier de son espace.
-  const [medias, setMedias] = useState([]), [envoiMedia, setEnvoiMedia] = useState(false), fichiersMedia = useRef(null);
+  const [styleVideo, setStyleVideo] = useState(""), [medias, setMedias] = useState([]), [envoiMedia, setEnvoiMedia] = useState(false), fichiersMedia = useRef(null);
   async function ajouterMedias(liste) {
     const fs = [...(liste ?? [])].slice(0, 3 - medias.length); if (!fs.length || !ws?.id) return;
     setEnvoiMedia(true);
@@ -203,7 +203,7 @@ export default function Motion() {
     const n = fil.length;
     setFil((l) => [...l, { moi: t, etat: "encours", creer }]); setSaisie(""); setBusy(true);
     try {
-      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && avecProduit ? { app_id: monApp.id } : {}), photos: medias.filter((m) => m.type === "photo").map((m) => m.url), videos: medias.filter((m) => m.type === "video").map((m) => m.url) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
+      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && avecProduit ? { app_id: monApp.id } : {}), ...(styleVideo ? { look: styleVideo } : {}), photos: medias.filter((m) => m.type === "photo").map((m) => m.url), videos: medias.filter((m) => m.type === "video").map((m) => m.url) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
       setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true); if (creer) setMedias([]);
       const lm = creer ? memoLogo() : null; if (lm?.url) await poserLogo(v, lm).catch(() => null);
       setFil((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", note: v.script?.note } : x)));
@@ -272,6 +272,9 @@ export default function Motion() {
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.5l-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.8-2.8l8.4-8.4" /></svg>{envoiLogo ? "Envoi du logo…" : script?.logo ? "Changer mon logo" : "Ajouter mon logo"}</button>
               <input ref={fichiersMedia} type="file" multiple accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" className="hidden" onChange={(e) => { ajouterMedias(e.target.files); e.target.value = ""; }} />
               <button type="button" onClick={() => fichiersMedia.current?.click()} disabled={busy || envoiMedia || medias.length >= 3} className="mr-auto flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12.5px] font-semibold text-ink-soft hover:bg-[#F1EFEA] hover:text-ink disabled:opacity-40">{envoiMedia ? "Envoi…" : medias.length ? `Mes photos et vidéos (${medias.length}/3)` : "Mes photos et vidéos"}</button>
+              {!sel && <select value={styleVideo} onChange={(e) => setStyleVideo(e.target.value)} disabled={busy} aria-label="Style de la vidéo" className="mr-1 rounded-lg border border-line bg-white px-1.5 py-1 text-[12.5px] font-semibold text-ink-soft">
+                <option value="">Style : au choix de Bingoo!</option><option value="nuit">Nuit</option><option value="pop">Deux tons</option><option value="editorial">Éditorial</option><option value="minimal">Minimal</option><option value="verre">Interface (verre)</option>
+              </select>}
               <button type="submit" disabled={busy || saisie.trim().length < 3} aria-label="Envoyer" className="grid h-8 w-8 place-items-center rounded-full bg-ink text-white disabled:opacity-30">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg></button>
             </div>

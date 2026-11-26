@@ -700,117 +700,148 @@ function modesPop(scenes) {
 // fin, un trait blanc lumineux qui fait le tour de la capsule pendant que le chiffre monte, des textes blancs de graisse
 // moyenne, un point de lumière qui relie les plans. Les scènes non redéfinies ici gardent leur dessin habituel.
 const texteDe = (x) => (typeof x === "string" ? x : String(x?.texte ?? x?.titre ?? x?.nom ?? ""));
-function capsule(ctx, x, y, w, h, u, { tour = 0, fort = false, r = h / 2 } = {}) {
+// Tout y est petit, fin et lumineux, avec beaucoup de noir autour : une capsule sombre, un arc clair qui en fait le tour,
+// des chiffres qui montent, une caméra qui avance sans jamais couper.
+const teinte = (k = 0.2) => mix([255, 255, 255], C, k);
+function flou(ctx, px) { if ("filter" in ctx) ctx.filter = px > 0.4 ? `blur(${px}px)` : "none"; }
+function capsule(ctx, x, y, w, h, u, { tour = 0, r = h / 2, clair = 0 } = {}) {
   ctx.save();
-  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, `rgba(255,255,255,${fort ? 0.13 : 0.075})`); g.addColorStop(1, `rgba(255,255,255,${fort ? 0.05 : 0.025})`);
-  rond(ctx, x, y, w, h, r); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,.2)"; ctx.lineWidth = Math.max(1.5, 2.2 * u); ctx.stroke();
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, `rgba(34,33,42,${0.92})`); g.addColorStop(1, `rgba(16,16,21,${0.92})`);
+  rond(ctx, x, y, w, h, r); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = `rgba(255,255,255,${0.07 + clair * 0.2})`; ctx.lineWidth = Math.max(1, 1.6 * u); ctx.stroke();
   if (tour > 0.002) {
-    const L = 2 * (w - 2 * r) + 2 * (h - 2 * r) + 2 * Math.PI * r;
-    ctx.setLineDash([L * Math.min(1, tour), L * 2]); ctx.lineCap = "round"; ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(3, 6 * u); ctx.shadowColor = rgba(mix(C, [255, 255, 255], 0.5), 0.9); ctx.shadowBlur = 26 * u;
-    rond(ctx, x, y, w, h, r); ctx.stroke(); ctx.setLineDash([]);
+    // L'arc part du milieu du bord haut et tourne dans le sens des aiguilles ; sa queue s'efface
+    const L = 2 * (w - 2 * r) + 2 * (h - 2 * r) + 2 * Math.PI * r, len = L * Math.min(0.86, tour * 0.86), dep = -(w / 2 - r);
+    ctx.lineCap = "round"; ctx.lineWidth = Math.max(2, 4.2 * u); ctx.shadowColor = rgba(teinte(0.45), 0.85); ctx.shadowBlur = 16 * u;
+    [[1, 0.28], [0.62, 0.55], [0.3, 1]].forEach(([part, a]) => { ctx.strokeStyle = rgba(teinte(0.18), a); ctx.setLineDash([len * part, L * 2]); ctx.lineDashOffset = dep - len * (1 - part); rond(ctx, x, y, w, h, r); ctx.stroke(); });
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
   }
   ctx.restore();
 }
+// « Sommeil 67 » → le libellé d'un côté, le chiffre de l'autre (une capsule montre le chiffre, le libellé passe dessous)
+const partage = (x) => { const m = String(x).match(/^(.*?)[\s:·–-]*(\d[\d\s.,]*\s?[%€a-zA-Z]{0,4})$/); return m && m[1].trim() ? { nom: m[1].trim(), val: m[2].trim() } : { nom: "", val: String(x) }; };
+function ecrit(ctx, txt, x, y, { taille, poids = 500, t = 1, couleur = null, aligne = "center", u = 1 }) {
+  const p = eo(prog(t, 0, 0.5)); if (p <= 0) return;
+  ctx.save(); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 10 * u); ctx.font = `${poids} ${taille}px ${F}`; ctx.textAlign = aligne; ctx.textBaseline = "middle"; ctx.fillStyle = couleur ?? rgba(teinte(0.16), 0.96); ctx.fillText(txt, x, y); ctx.restore();
+}
 const VERRE = {
-  // Un histogramme de barres grises ; une barre se remplit de la couleur de la marque puis s'illumine en blanc et devient
-  // la capsule du chiffre, dont le contour se trace pendant que le chiffre monte
+  // Un histogramme vu de loin et de biais ; la caméra fonce dessus, une barre se remplit de la couleur de la marque, vire au
+  // chaud puis au blanc, et il n'en reste qu'un point de lumière d'où sort la capsule du chiffre
   compteur(ctx, s, e) {
-    const { W, H, u, t, d, vertical } = s, long = d >= 2.6, tb = long ? 1.25 : 0;
+    const { W, H, u, t, d, vertical } = s, long = d >= 2.6, tb = long ? 1.45 : 0;
     const cible = Number(String(e.valeur ?? "").replace(/\s/g, "").replace(",", ".")) || 0, dec = /[.,]/.test(String(e.valeur ?? "")) ? 1 : 0;
-    if (long && t < tb + 0.2) {
-      const a = 1 - prog(t, tb - 0.1, tb + 0.2), n = 7, bw = W * (vertical ? 0.075 : 0.05), gap = bw * 0.62, x0 = W / 2 - (n * bw + (n - 1) * gap) / 2, base = H * 0.6, hm = H * (vertical ? 0.2 : 0.3), k = 4;
-      ctx.save(); ctx.globalAlpha *= a;
-      ctx.setLineDash([10 * u, 12 * u]); ctx.strokeStyle = "rgba(255,255,255,.45)"; ctx.lineWidth = Math.max(1.5, 2.5 * u); ctx.beginPath(); ctx.moveTo(x0 - bw * 0.6, base - hm * 0.62); ctx.lineTo(x0 + n * bw + (n - 1) * gap + bw * 0.6, base - hm * 0.62); ctx.stroke(); ctx.setLineDash([]);
+    if (long && t < tb + 0.15) {
+      const q = eio(prog(t, 0, 1.15)), a = Math.min(1, prog(t, 0, 0.3) * 1.3) * (1 - prog(t, tb - 0.18, tb + 0.12)), n = 7, k = 4;
+      const bw = 46 * u, gap = 34 * u, larg = n * bw + (n - 1) * gap, hm = 250 * u, base = hm * 0.5;
+      ctx.save(); ctx.translate(W / 2, H * 0.5); const z = 0.42 + q * 1.5; ctx.transform(z, 0, -0.55 * (1 - q) * z, z * (0.42 + 0.58 * q), 0, (1 - q) * 60 * u);
+      ctx.translate(-(k * (bw + gap) + bw / 2 - larg / 2) * q, 0); ctx.globalAlpha *= a; flou(ctx, (1 - q) * 5 * u);
+      ctx.strokeStyle = "rgba(255,255,255,.07)"; ctx.lineWidth = 1.5 * u; for (let g = 0; g < 4; g++) { ctx.beginPath(); ctx.moveTo(-larg / 2 - 40 * u, base - hm * g / 3); ctx.lineTo(larg / 2 + 40 * u, base - hm * g / 3); ctx.stroke(); }
+      ctx.setLineDash([7 * u, 9 * u]); ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 2 * u; ctx.beginPath(); ctx.moveTo(-larg / 2 - 40 * u, base - hm * 0.6); ctx.lineTo(larg / 2 + 40 * u, base - hm * 0.6); ctx.stroke(); ctx.setLineDash([]);
       for (let i = 0; i < n; i++) {
-        const hh = hm * [0.5, 0.42, 0.66, 0.58, 0.95, 0.74, 0.5][i] * eo(prog(t, i * 0.05, 0.5 + i * 0.05)), x = x0 + i * (bw + gap);
-        ctx.fillStyle = "rgba(255,255,255,.11)"; rond(ctx, x, base - hh, bw, hh, 6 * u); ctx.fill();
+        const hh = hm * [0.5, 0.4, 0.62, 0.55, 0.9, 0.7, 0.48][i], x = -larg / 2 + i * (bw + gap);
+        const gb = ctx.createLinearGradient(0, base - hh, 0, base); gb.addColorStop(0, "rgba(255,255,255,.16)"); gb.addColorStop(1, "rgba(255,255,255,.05)"); ctx.fillStyle = gb; ctx.fillRect(x, base - hh, bw, hh);
         if (i === k) {
-          const q = eio(prog(t, 0.35, 0.95)), fl = prog(t, 0.9, tb), hc = hh * q;
-          if (hc > 1) { const g = ctx.createLinearGradient(0, base, 0, base - hc); g.addColorStop(0, rgba(mix(CV, [255, 255, 255], fl), 1)); g.addColorStop(1, rgba(mix(CV, [255, 255, 255], 0.35 + fl * 0.65), 1)); ctx.save(); ctx.shadowColor = rgba(mix(CV, [255, 255, 255], fl), 0.95); ctx.shadowBlur = (30 + fl * 90) * u; ctx.fillStyle = g; rond(ctx, x, base - hc, bw, hc, 6 * u); ctx.fill(); ctx.restore(); }
+          const r = eio(prog(t, 0.45, 1.0)), ch = prog(t, 0.85, 1.2), bl = prog(t, 1.1, tb), hc = hh * r; if (hc < 1) continue;
+          const bas = mix(C, [255, 255, 255], bl), haut = mix(mix(C, [255, 196, 70], ch), [255, 255, 255], bl);
+          const g = ctx.createLinearGradient(0, base, 0, base - hc); g.addColorStop(0, rgba(bas, 1)); g.addColorStop(0.55, rgba(mix(bas, haut, 0.5), 1)); g.addColorStop(1, rgba(haut, 1));
+          ctx.save(); ctx.shadowColor = rgba(mix(haut, [255, 255, 255], bl), 0.95); ctx.shadowBlur = (26 + ch * 40 + bl * 110) * u; ctx.fillStyle = g; ctx.fillRect(x, base - hc, bw, hc); if (bl > 0) ctx.fillRect(x, base - hc, bw, hc); ctx.restore();
         }
       }
       ctx.restore();
     }
     const tl = t - tb; if (tl < 0) return;
-    const p = ressort(prog(tl, 0, 0.7)), v = cible * eo(prog(tl, 0.15, Math.min(1.7, d - tb - 0.5))), txt = (dec ? v.toFixed(1).replace(".", ",") : Math.round(v).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
-    const fin = (dec ? cible.toFixed(1).replace(".", ",") : Math.round(cible).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
-    serre(ctx, "-0.03em"); let tp = (vertical ? 190 : 140) * u; ctx.font = `600 ${tp}px ${F}`; const wm = ctx.measureText(fin).width; if (wm > W * 0.62) { tp *= (W * 0.62) / wm; ctx.font = `600 ${tp}px ${F}`; }
-    const w = Math.max(ctx.measureText(fin).width + tp * 1.3, tp * 2.6), h = tp * 1.75, cy = H * 0.47;
-    ctx.save(); ctx.translate(W / 2, cy); ctx.scale(0.5 + 0.5 * p, 0.5 + 0.5 * p); ctx.globalAlpha *= Math.min(1, prog(tl, 0, 0.25) * 1.2);
-    capsule(ctx, -w / 2, -h / 2, w, h, u, { tour: cible ? v / cible : prog(tl, 0.15, 1.5), fort: true });
-    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, tp * 0.04); ctx.restore(); serre(ctx, "-0.01em");
-    const leg = e.legende || e.texte; if (leg) { const a = eo(prog(tl, 0.45, 1)); ctx.save(); ctx.globalAlpha *= a; motsAnimes(ctx, leg, e.accent, W / 2, cy + h / 2 + (vertical ? 150 : 100) * u, { taille: (vertical ? 70 : 52) * u, largeur: W * 0.84, t: tl - 0.45, poids: 500, couleur: "rgba(255,255,255,.82)" }); ctx.restore(); }
+    const p = ressort(prog(tl, 0, 0.75)), fin0 = Math.min(1.9, Math.max(0.9, d - tb - 0.7)), v = cible * eo(prog(tl, 0.1, fin0));
+    const fmt = (x) => (dec ? x.toFixed(1).replace(".", ",") : Math.round(x).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
+    serre(ctx, "-0.01em"); const tp = (vertical ? 84 : 76) * u; ctx.font = `500 ${tp}px ${F}`;
+    const w = Math.max(ctx.measureText(fmt(cible)).width + tp * 1.5, tp * 3), h = tp * 1.85, cy = H * 0.49;
+    ctx.save(); ctx.translate(W / 2, cy); ctx.scale(0.25 + 0.75 * p, 0.25 + 0.75 * p); ctx.globalAlpha *= Math.min(1, prog(tl, 0, 0.2) * 1.2);
+    capsule(ctx, -w / 2, -h / 2, w, h, u, { tour: cible ? v / cible : prog(tl, 0.1, fin0) });
+    ctx.fillStyle = rgba(teinte(0.22), 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(fmt(v), 0, tp * 0.04); ctx.restore();
+    const leg = e.legende || e.texte; if (leg) { let tg = (vertical ? 42 : 36) * u; ctx.font = `500 ${tg}px ${F}`; const wl = ctx.measureText(leg).width; if (wl > W * 0.8) tg *= (W * 0.8) / wl; ecrit(ctx, leg, W / 2, cy + h / 2 + tg * 1.5, { taille: tg, t: tl - 0.5, u }); }
   },
-  // Trois capsules de verre qui arrivent l'une après l'autre ; le contour de chacune se trace à son arrivée
+  // Trois petites capsules côte à côte : le chiffre de chacune monte pendant que son arc se trace, le libellé dessous.
+  // À la fin elles descendent, une accolade les réunit, et le titre s'écrit au-dessus.
   pilules(ctx, s, e) {
-    const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 3).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
-    const tp0 = (vertical ? 72 : 50) * u, h = tp0 * 2.2, gap = tp0 * 0.6, w = W * (vertical ? 0.82 : 0.5), y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 50 * u : 0);
-    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 140 * u, { taille: (vertical ? 76 : 50) * u, largeur: W * 0.84, t, poids: 600 });
-    items.forEach((x, i) => {
-      const ti = t - 0.25 - i * 0.42, p = ressort(prog(ti, 0, 0.6)); if (p <= 0) return;
-      const y = y0 + i * (h + gap);
-      ctx.save(); ctx.translate(W / 2, y + h / 2); ctx.scale(0.7 + 0.3 * p, 0.7 + 0.3 * p); ctx.globalAlpha *= Math.min(1, prog(ti, 0, 0.25) * 1.3);
-      capsule(ctx, -w / 2, -h / 2, w, h, u, { tour: eio(prog(ti, 0.1, 1.1)) });
-      let tp = tp0; ctx.font = `600 ${tp}px ${F}`; const wt = ctx.measureText(x).width; if (wt > w * 0.82) { tp *= (w * 0.82) / wt; ctx.font = `600 ${tp}px ${F}`; }
-      ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(x, 0, tp * 0.04); ctx.restore();
+    const { W, H, u, t, d, vertical } = s, items = (e.items ?? []).slice(0, 3).map(texteDe).filter(Boolean).map(partage), n = Math.max(1, items.length);
+    const fin = e.texte ? eio(prog(t, d * 0.52, d * 0.52 + 0.6)) : 0;
+    let tp = (vertical ? 62 : 50) * u; ctx.font = `500 ${tp}px ${F}`;
+    const gap = (vertical ? 22 : 50) * u, lw = items.map((x) => Math.max(ctx.measureText(x.val).width + tp * 1.5, tp * 2.9)), tot = lw.reduce((a, b) => a + b, 0) + gap * (n - 1), k = Math.min(1, (W * 0.9) / tot);
+    tp *= k; const h = tp * 1.85, cy = H * 0.5 + fin * 110 * u; let x = W / 2 - (tot * k) / 2; const centres = [];
+    items.forEach((it, i) => {
+      const w = lw[i] * k, ti = t - 0.15 - i * 0.38, p = ressort(prog(ti, 0, 0.6)), cx = x + w / 2; x += w + gap * k; centres.push(cx); if (p <= 0) return;
+      const num = Number(it.val.replace(/[^\d.,]/g, "").replace(",", ".")), compte = Number.isFinite(num) && /^\d/.test(it.val), q = eo(prog(ti, 0.1, 1.2));
+      ctx.save(); ctx.translate(cx, cy + (1 - p) * 26 * u); ctx.scale(0.6 + 0.4 * p, 0.6 + 0.4 * p); ctx.globalAlpha *= Math.min(1, prog(ti, 0, 0.2) * 1.3);
+      capsule(ctx, -w / 2, -h / 2, w, h, u, { tour: q });
+      ctx.font = `500 ${tp}px ${F}`; ctx.fillStyle = rgba(teinte(0.22), 1); ctx.textAlign = "center"; ctx.textBaseline = "middle"; const nd = (it.val.match(/[.,](\d+)/)?.[1] ?? "").length; ctx.fillText(compte ? it.val.replace(/[\d.,]+/, (num * q).toFixed(nd).replace(".", ",")) : it.val, 0, tp * 0.04); ctx.restore();
+      if (it.nom) ecrit(ctx, it.nom, cx, cy + h / 2 + tp * 0.85, { taille: tp * 0.6, t: ti - 0.35, u });
     });
+    if (fin > 0 && centres.length > 1) {
+      const yb = cy - h / 2 - 34 * u, yh = yb - 46 * u, x1 = centres[0], x2 = centres[centres.length - 1], r = 22 * u, mid = W / 2;
+      ctx.save(); ctx.strokeStyle = rgba(teinte(0.2), 0.9); ctx.lineWidth = Math.max(2, 3.4 * u); ctx.lineCap = "round"; ctx.shadowColor = rgba(teinte(0.45), 0.7); ctx.shadowBlur = 12 * u;
+      const demi = (sx) => { const xe = mid + (sx < 0 ? x1 - mid : x2 - mid) * fin; ctx.beginPath(); ctx.moveTo(mid, yh); ctx.lineTo(xe - sx * r, yh); ctx.quadraticCurveTo(xe, yh, xe, yh + r); ctx.lineTo(xe, yh + r + (yb - yh - r) * fin); ctx.stroke(); };
+      demi(-1); demi(1); ctx.beginPath(); ctx.moveTo(mid, yh); ctx.lineTo(mid, yh - 20 * u * fin); ctx.stroke(); ctx.restore();
+      let tg = (vertical ? 76 : 84) * u; ctx.font = `600 ${tg}px ${F}`; const wt = ctx.measureText(e.texte).width; if (wt > W * 0.86) tg *= (W * 0.86) / wt;
+      ecrit(ctx, e.texte, W / 2, yh - 20 * u - tg * 0.85, { taille: tg, poids: 600, t: t - d * 0.52 - 0.25, u });
+    }
   },
-  // Un petit titre gris, puis des lignes de verre empilées, chacune avec un point de la couleur de la marque
+  // Un petit panneau d'interface : son titre, puis des lignes fines qui se posent l'une sous l'autre
   liste(ctx, s, e) {
     const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 4).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
-    const tp0 = (vertical ? 62 : 44) * u, h = tp0 * 2.5, gap = tp0 * 0.42, w = W * (vertical ? 0.84 : 0.52), x0 = (W - w) / 2, y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 60 * u : 0);
-    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 150 * u, { taille: (vertical ? 84 : 56) * u, largeur: W * 0.84, t, poids: 600 });
+    const tp0 = (vertical ? 40 : 38) * u, h = tp0 * 2.3, gap = tp0 * 0.5, w = W * (vertical ? 0.66 : 0.36), x0 = (W - w) / 2, hh = n * h + (n - 1) * gap, y0 = H / 2 - hh / 2 + (e.texte ? tp0 * 1.1 : 0);
+    if (e.texte) { let tg = tp0 * 1.12; ctx.font = `600 ${tg}px ${F}`; const wt = ctx.measureText(e.texte).width; if (wt > w) tg *= w / wt; ecrit(ctx, e.texte, x0, y0 - tp0 * 1.5, { taille: tg, poids: 600, t, aligne: "left", u, couleur: "rgba(255,255,255,.96)" }); }
     items.forEach((x, i) => {
-      const ti = t - 0.3 - i * 0.22, p = eo(prog(ti, 0, 0.55)); if (p <= 0) return;
-      const y = y0 + i * (h + gap) + (1 - p) * 40 * u;
-      ctx.save(); ctx.globalAlpha *= p; capsule(ctx, x0, y, w, h, u, { r: 30 * u });
-      ctx.fillStyle = rgba(CV, 1); ctx.shadowColor = rgba(CV, 0.9); ctx.shadowBlur = 18 * u; ctx.beginPath(); ctx.arc(x0 + h * 0.42, y + h / 2, 9 * u, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-      let tp = tp0; ctx.font = `500 ${tp}px ${F}`; const place = w - h * 1.05, wt = ctx.measureText(x).width; if (wt > place) { tp *= place / wt; ctx.font = `500 ${tp}px ${F}`; }
-      ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x, x0 + h * 0.78, y + h / 2 + tp * 0.04); ctx.restore();
+      const ti = t - 0.25 - i * 0.2, p = eo(prog(ti, 0, 0.5)); if (p <= 0) return;
+      const y = y0 + i * (h + gap) + (1 - p) * 24 * u;
+      ctx.save(); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 8 * u); capsule(ctx, x0, y, w, h, u, { r: 22 * u, clair: i === 0 ? 0.6 : 0 });
+      ctx.fillStyle = rgba(teinte(0.5), 1); ctx.shadowColor = rgba(teinte(0.6), 0.9); ctx.shadowBlur = 12 * u; ctx.beginPath(); ctx.arc(x0 + h * 0.45, y + h / 2, 6 * u, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      let tp = tp0; ctx.font = `500 ${tp}px ${F}`; const place = w - h * 1.1, wt = ctx.measureText(x).width; if (wt > place) { tp *= place / wt; ctx.font = `500 ${tp}px ${F}`; }
+      ctx.fillStyle = rgba(teinte(0.14), 0.95); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x, x0 + h * 0.82, y + h / 2 + tp * 0.04); ctx.restore();
     });
   },
   cartes(ctx, s, e) { VERRE.liste(ctx, s, e); },
   choix(ctx, s, e) { VERRE.liste(ctx, s, e); },
-  // Un long bouton de verre, un triangle « lecture » et son texte ; un reflet le traverse, puis il s'enfonce et s'allume
+  // Un long bouton de verre teinté par le bas, un triangle « lecture » et son texte ; un reflet le traverse, puis il s'enfonce
   pastille(ctx, s, e) {
-    const { W, H, u, t, vertical } = s, p = ressort(prog(t, 0.05, 0.7)), appui = prog(t, 1.5, 1.7) * (1 - prog(t, 1.7, 2.0)), allume = prog(t, 1.65, 2.2);
-    let tp = (vertical ? 62 : 52) * u; ctx.font = `600 ${tp}px ${F}`; const w = W * (vertical ? 0.84 : 0.5), wt = ctx.measureText(e.texte ?? "").width; if (wt > w * 0.7) { tp *= (w * 0.7) / wt; ctx.font = `600 ${tp}px ${F}`; }
-    const h = (vertical ? 62 : 52) * u * 2.5, k = (0.6 + 0.4 * p) * (1 - appui * 0.05);
-    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.globalAlpha *= Math.min(1, prog(t, 0.05, 0.3) * 1.2);
-    ctx.save(); ctx.shadowColor = rgba(CV, 0.35 + allume * 0.55); ctx.shadowBlur = (40 + allume * 90) * u;
-    const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, "rgba(255,255,255,.1)"); g.addColorStop(1, rgba(mix(CV, [255, 255, 255], allume * 0.3), 0.42 + allume * 0.4));
+    const { W, H, u, t, vertical } = s, p = eo(prog(t, 0.05, 0.75)), appui = prog(t, 1.5, 1.68) * (1 - prog(t, 1.68, 1.95)), allume = prog(t, 1.62, 2.2);
+    let tp = (vertical ? 46 : 42) * u; ctx.font = `500 ${tp}px ${F}`; const w = W * (vertical ? 0.8 : 0.5), wt = ctx.measureText(e.texte ?? "").width; if (wt > w * 0.7) { tp *= (w * 0.7) / wt; ctx.font = `500 ${tp}px ${F}`; }
+    const h = (vertical ? 46 : 42) * u * 2.5, k = (1.25 - 0.25 * p) * (1 - appui * 0.04);
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 14 * u);
+    ctx.save(); ctx.shadowColor = rgba(C, 0.25 + allume * 0.6); ctx.shadowBlur = (30 + allume * 90) * u;
+    const g = ctx.createLinearGradient(-w * 0.2, -h / 2, w * 0.3, h / 2); g.addColorStop(0, "rgba(40,39,50,.95)"); g.addColorStop(0.55, rgba(mix([40, 39, 50], C, 0.35 + allume * 0.3), 0.95)); g.addColorStop(1, rgba(mix([60, 58, 76], C, 0.6 + allume * 0.3), 0.95));
     rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = g; ctx.fill(); ctx.restore();
-    rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = Math.max(1.5, 2.2 * u); ctx.stroke();
-    const br = prog(t, 0.6, 1.4); if (br > 0 && br < 1) { ctx.save(); rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.clip(); const bx = -w / 2 - h + (w + 2 * h) * eio(br), gr = ctx.createLinearGradient(bx - h, 0, bx + h, 0); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.5, "rgba(255,255,255,.28)"); gr.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gr; ctx.fillRect(bx - h, -h / 2, 2 * h, h); ctx.restore(); }
-    const tw = ctx.measureText(e.texte ?? "").width, tri = tp * 0.36, xt = -(tw + tri * 2.6) / 2;
+    rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.strokeStyle = "rgba(255,255,255,.12)"; ctx.lineWidth = Math.max(1, 1.6 * u); ctx.stroke();
+    const br = prog(t, 0.6, 1.4); if (br > 0 && br < 1) { ctx.save(); rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.clip(); const bx = -w / 2 - h + (w + 2 * h) * eio(br), gr = ctx.createLinearGradient(bx - h, 0, bx + h, 0); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.5, "rgba(255,255,255,.2)"); gr.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gr; ctx.fillRect(bx - h, -h / 2, 2 * h, h); ctx.restore(); }
+    const tw = ctx.measureText(e.texte ?? "").width, tri = tp * 0.34, xt = -(tw + tri * 2.8) / 2;
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(xt, -tri); ctx.lineTo(xt + tri * 1.6, 0); ctx.lineTo(xt, tri); ctx.closePath(); ctx.fill();
-    ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(e.texte ?? "", xt + tri * 2.6, tp * 0.04); ctx.restore();
+    ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(e.texte ?? "", xt + tri * 2.8, tp * 0.04); ctx.restore();
   },
-  // Une phrase blanche de graisse moyenne, au centre
+  // Une phrase courte, petite et fine, qui sort du flou mot après mot
   mots(ctx, s, e) {
-    const { W, H, u, t, vertical } = s, largeur = W * (vertical ? 0.84 : 0.72);
-    serre(ctx, "-0.03em"); const taille = remplit(ctx, e.texte || "", (vertical ? 120 : 104) * u, largeur, vertical ? 4 : 3, 600); serre(ctx, "-0.01em");
-    motsAnimes(ctx, e.texte || "", e.accent, W / 2, H / 2, { taille, largeur, t, poids: 600, decale: 0.08 });
+    const { W, H, u, t, vertical } = s, largeur = W * (vertical ? 0.8 : 0.6), txt = e.texte || "";
+    const taille = remplit(ctx, txt, (vertical ? 78 : 70) * u, largeur, 3, 500); ctx.font = `500 ${taille}px ${F}`;
+    const lignes = coupe(ctx, txt, largeur), acc = String(e.accent || "").toLowerCase().split(/\s+/).filter(Boolean), esp = taille * 0.27; let i = 0;
+    lignes.forEach((l, k) => {
+      const mots = l.split(" "), w = mots.reduce((a, m) => a + ctx.measureText(m).width, 0) + esp * (mots.length - 1); let cx = W / 2 - w / 2; const cy = H / 2 + (k - (lignes.length - 1) / 2) * taille * 1.22;
+      for (const m of mots) { const estAcc = acc.includes(m.toLowerCase().replace(/[.,!?;:«»"]/g, "")); ctx.font = `500 ${taille}px ${F}`; const mw = ctx.measureText(m).width; ecrit(ctx, m, cx, cy, { taille, t: t - i * 0.09, aligne: "left", u, couleur: estAcc ? rgba(mix(C, [255, 255, 255], 0.35), 1) : null }); cx += mw + esp; i++; }
+    });
   },
   rature(ctx, s, e) { VERRE.mots(ctx, s, e); },
-  aplat(ctx, s, e) { VERRE.mots(ctx, s, { ...e, texte: e.texte || s.nom }); },
-  // Un mot seul, grand, qui sort du flou avec un halo
+  aplat(ctx, s, e) { VERRE.impact(ctx, s, { ...e, texte: e.texte || s.nom }); },
+  // Un mot seul qui sort du flou en reculant, avec un halo
   impact(ctx, s, e) {
-    const { W, H, u, t } = s, p = eo(prog(t, 0, 0.7)), txt = e.texte || s.nom;
-    serre(ctx, "-0.04em"); const taille = remplit(ctx, txt, 230 * u, W * 0.86, 2, 700);
-    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1.18 - 0.18 * p, 1.18 - 0.18 * p); ctx.globalAlpha *= p; if ("filter" in ctx && p < 0.98) ctx.filter = `blur(${(1 - p) * 26 * u}px)`;
-    ctx.font = `700 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.shadowColor = rgba(mix(CV, [255, 255, 255], 0.4), 0.7); ctx.shadowBlur = 60 * u;
-    const ls = coupe(ctx, txt, W * 0.86); ls.forEach((l, i) => ctx.fillText(l, 0, (i - (ls.length - 1) / 2) * taille * 1.04)); ctx.restore(); serre(ctx, "-0.01em");
+    const { W, H, u, t, vertical } = s, p = eo(prog(t, 0, 0.8)), txt = e.texte || s.nom;
+    serre(ctx, "-0.03em"); const taille = remplit(ctx, txt, (vertical ? 150 : 140) * u, W * 0.8, 2, 600);
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1.3 - 0.3 * p, 1.3 - 0.3 * p); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 28 * u);
+    ctx.font = `600 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.shadowColor = rgba(teinte(0.4), 0.55); ctx.shadowBlur = 40 * u;
+    const ls = coupe(ctx, txt, W * 0.8); ls.forEach((l, i) => ctx.fillText(l, 0, (i - (ls.length - 1) / 2) * taille * 1.06)); ctx.restore(); serre(ctx, "-0.01em");
   },
-  // La fin : le nom sort du flou, lumineux, puis l'adresse en petit dessous
+  // La fin : le nom sort du flou, lumineux, puis l'adresse en tout petit dessous
   logo(ctx, s, e) {
     if (LOGO?.width) return SCENES.logo(ctx, s, e);
-    const { W, H, u, t, vertical } = s, p = eo(prog(t, 0, 0.9));
-    serre(ctx, "-0.04em"); const taille = ajuste(ctx, s.nom, (vertical ? 190 : 170) * u, W * 0.8, 600);
-    ctx.save(); ctx.translate(W / 2, H * 0.47); ctx.scale(1.25 - 0.25 * p, 1.25 - 0.25 * p); ctx.globalAlpha *= p; if ("filter" in ctx && p < 0.98) ctx.filter = `blur(${(1 - p) * 30 * u}px)`;
-    ctx.font = `600 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(255,255,255,.55)"; ctx.shadowBlur = (30 + (1 - p) * 60) * u; ctx.fillText(s.nom, 0, 0); ctx.restore(); serre(ctx, "-0.01em");
-    const bas = [e.texte, s.lien].filter(Boolean);
-    bas.forEach((x, i) => { const a = eo(prog(t, 0.9 + i * 0.25, 1.5 + i * 0.25)); if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; let tp = (i ? 34 : 46) * u; ctx.font = `500 ${tp}px ${F}`; const wt = ctx.measureText(x).width; if (wt > W * 0.84) { tp *= (W * 0.84) / wt; ctx.font = `500 ${tp}px ${F}`; } ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = i ? "rgba(255,255,255,.5)" : "rgba(255,255,255,.82)"; ctx.fillText(x, W / 2, H * 0.47 + taille * 0.75 + (40 + i * 70) * u); ctx.restore(); });
+    const { W, H, u, t, vertical } = s, p = eo(prog(t, 0, 1));
+    serre(ctx, "-0.04em"); const taille = ajuste(ctx, s.nom, (vertical ? 150 : 150) * u, W * 0.7, 600);
+    ctx.save(); ctx.translate(W / 2, H * 0.49); ctx.scale(1.35 - 0.35 * p, 1.35 - 0.35 * p); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 34 * u);
+    ctx.font = `600 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(255,255,255,.5)"; ctx.shadowBlur = (16 + (1 - p) * 70) * u; ctx.fillText(s.nom, 0, 0); ctx.restore(); serre(ctx, "-0.01em");
+    [e.texte, s.lien].filter(Boolean).forEach((x, i) => { let tp = (i ? 28 : 38) * u; ctx.font = `500 ${tp}px ${F}`; const wt = ctx.measureText(x).width; if (wt > W * 0.8) tp *= (W * 0.8) / wt; ecrit(ctx, x, W / 2, H * 0.49 + taille * 0.72 + (36 + i * 62) * u, { taille: tp, t: t - 1 - i * 0.25, u, couleur: i ? "rgba(255,255,255,.42)" : "rgba(255,255,255,.78)" }); });
   },
 };
 export const POLICE_MOTION = "Inter Tight";
@@ -861,6 +892,11 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       // Minimal : simple fondu, très léger agrandissement, aucun effet
       const k = 0.985 + ent * 0.015; ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
       ctx.globalAlpha = ent * (1 - sort); if ("filter" in ctx) ctx.filter = "none";
+    } else if (LOOK === "verre") {
+      // Verre : la caméra avance tout le temps ; le plan qui part fonce vers nous en se floutant, le suivant arrive de loin
+      const es = derniere ? 0 : Math.pow(prog(local, d - 0.3, d), 2), k = 1 + (local / d) * 0.06 - (1 - ent) * 0.22 + es * 0.9;
+      ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
+      ctx.globalAlpha = Math.min(1, ent * 1.4) * (1 - es); if ("filter" in ctx) ctx.filter = (1 - ent) + es > 0.02 ? `blur(${((1 - ent) * 10 + es * 26) * u}px)` : "none";
     } else {
       const k = (1 + local / d * 0.035 + (1 - ent) * 0.05 + sort * 0.08) * pulsation(script, t);
       ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
@@ -901,7 +937,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       tc += dureeScene(e); const q = prog(t, tc - 0.2, tc + 0.3); if (q <= 0 || q >= 1) return;
       const k = Math.sin(q * Math.PI);
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); if ("filter" in ctx) ctx.filter = "none"; ctx.globalAlpha = k; ctx.fillStyle = "#fff"; ctx.shadowColor = "#fff"; ctx.shadowBlur = (40 + k * 80) * u;
-      ctx.beginPath(); ctx.arc(W / 2, H / 2, (6 + k * 16) * u, 0, Math.PI * 2); ctx.fill(); ctx.fill(); ctx.restore();
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, (3 + k * 7) * u, 0, Math.PI * 2); ctx.fill(); ctx.fill(); ctx.restore();
     });
   }
   if (LOOK === "nuit") {
