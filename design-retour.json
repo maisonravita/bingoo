@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "e0": {
+    "p": "#868F9C",
+    "c": "#868F9C",
+    "g": "editorial",
+    "n": 0,
+    "cta": "Réserver une dégustation"
+  },
+  "e1": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Réserver une dégustation"
+  },
+  "e2": {
+    "p": "#868F9C",
+    "c": "#868F9C",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Réserver une dégustation"
+  },
+  "e3": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Réserver une dégustation"
+  }
+}

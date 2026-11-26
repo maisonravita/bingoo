@@ -1,0 +1,22 @@
+{
+  "gen": {
+    "at": "2026-11-26T16:50:09.635Z",
+    "cout": 0.3265,
+    "appels": 5,
+    "entree": 127701,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 6964,
+    "duree_s": 52,
+    "journal": [
+      "Premier écran : composition Mot géant",
+      "Plan : hero, domaine, paysage, degustations, cave, venir, questions, closing",
+      "Images : 3 générée(s), 0.083 €",
+      "Détourage : sujet découpé (commence à 35 %)",
+      "Sections : domaine=recit, paysage=duo, degustations=liste",
+      "Essai 1 : cave (La photo IMG_3 est déjà utilisée plus haut sur la page : n'e)"
+    ],
+    "images_eur": 0.0874,
+    "corrections": 1
+  },
+  "sections": 9
+}
