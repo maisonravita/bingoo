@@ -9,7 +9,8 @@ import { ask, askJson } from "./core.ts";
 import { texteDesign } from "./design.ts";
 import { FICHES, typeDeProjet } from "./design-fiches.ts";
 import { MARQUEURS_DONNEES, REGLES_PAGE } from "./gen-regles.ts";
-import { estAlimentaire, imagesPage } from "./gen-images.ts";
+import { detourer, estAlimentaire, imagesPage } from "./gen-images.ts";
+import { choisirComposition, consigneComposition } from "./gen-compositions.ts";
 import { controlerSection, nettoyer, remplacerTextePage } from "./gen-nettoyage.ts";
 export { controlerSection, nettoyer, remplacerTextePage };
 
@@ -59,7 +60,17 @@ export async function genererPage(e: EntreePage): Promise<{ page: PageGeneree; m
   const luxe = /(luxe|luxueu|5 [ée]toiles|cinq [ée]toiles|palace|haut de gamme|prestige|[ée]l[ée]gan|raffin|joaill|boutique-h[ôo]tel)/i.test(`${e.brief} ${e.metier ?? ""}`);
   // Le vocabulaire du métier, partout (titres, boutons, formulaire) : un hôtel ne parle pas de « prestations » ni de « rendez-vous »
   const VOCABULAIRE = `## Vocabulaire du métier (obligatoire)\nÉcris avec les mots de CE métier : un hôtel, un gîte ou une chambre d'hôtes parle de séjour, chambres ou suites, arrivée, réservation ; un restaurant de carte, table, service ; un artisan de devis, chantier, intervention ; une association d'adhérents, sorties, activités. N'emploie « prestation », « rendez-vous » ou « sur devis » que si le métier fonctionne vraiment ainsi.`;
-  const systeme = `${REGLES_PAGE}\n\n${VOCABULAIRE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}`;
+  // Premier écran signature (cinéma, mot géant, hublot, lueur, galerie courbe, bento vivant), choisi ici selon l'activité
+  const boucheP = estAlimentaire(`${e.brief} ${e.metier ?? ""}`);
+  const nbPhotos = (e.photosMembre ?? []).length;
+  const imagesPossibles = !boucheP && (nbPhotos > 0 || !!Deno.env.get("FAL_KEY"));
+  let compo = choisirComposition({ type: typeP, texte: `${e.brief} ${e.metier ?? ""}`, images: imagesPossibles });
+  if (compo?.id === "galerie" && nbPhotos > 0 && nbPhotos < 3) compo = choisirComposition({ type: typeP, texte: "nature", images: true });
+  // Avec les photos du membre, la composition les utilise (PHOTO_n) à la place des images générées
+  const jetonPhoto = (n: number) => (nbPhotos ? `PHOTO_${n}` : `IMG_${n}`);
+  const consigneCompo = compo ? consigneComposition(compo).replace(/\bIMG_([1-3])\b/g, (_m, n) => jetonPhoto(Number(n))) : "";
+  if (compo) journal.push(`Premier écran : composition ${compo.nom}`);
+  const systeme = `${REGLES_PAGE}\n\n${VOCABULAIRE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}${consigneCompo ? `\n\n${consigneCompo}` : ""}`;
   const donnees = JSON.stringify({ nom: e.nom, modele: e.modele, metier: e.metier, ville: e.ville, bouton_principal: e.cta, demande: e.demande,
     services: (e.services ?? []).map((s: any) => ({ titre: s.titre, prix: s.prix, duree: s.duree })), horaires: e.horaires ?? [], coordonnees: e.infos ?? {}, faq: e.faq ?? [],
     photos_du_membre: (e.photosMembre ?? []).length });
@@ -78,7 +89,7 @@ Fais le plan de SA page (JSON seul) :
     "idee": "ce que la section dit et pourquoi elle donne envie, en une phrase", "visuel": "le visuel précis de la section (typographie, formes, maquette, photo IMG_n)",
     "marqueurs": ["services"|"horaires"|"contact"|"inscription"|"adresse"|"realisations"], "image": "IMG_1 ou null" }] (4 à 8 selon la matière du brief : 4 ou 5 si le brief tient en quelques lignes ; la première "hero", la dernière "closing" ; jamais deux sections sur le même sujet, chaque marqueur une seule fois hors "contact"),
   "images": [{ "id": "IMG_1", "pour": "id de section", "prompt": "prompt anglais détaillé pour un générateur d'images : ambiance, matière, lumière, cadrage ; jamais de personnes reconnaissables, de texte, de logo, ni de plat, produit ou lieu présenté comme celui du membre" }] (0 à 3) }
-Choisis la mise en page de chaque section selon la fiche et les plans Taste, sans deux voisines identiques.`, opts(3000));
+Choisis la mise en page de chaque section selon la fiche et les plans Taste, sans deux voisines identiques.${compo ? `\nLe premier écran est imposé (composition « ${compo.nom} »).${compo.photo && !nbPhotos ? ` ${compo.id === "galerie" ? "IMG_1, IMG_2 et IMG_3 vont au premier écran" : "IMG_1 va au premier écran"} : ${compo.image}` : ""}` : ""}`, opts(3000));
   budget();
   if (!Array.isArray(plan?.sections) || plan.sections.length < 3) throw new Error("Plan de page invalide");
   plan.sections = plan.sections.slice(0, 8).map((s, i) => ({ ...s, id: (String(s.id || `s${i}`).toLowerCase().replace(/[^a-z0-9-]/g, "") || `s${i}`) }));
@@ -96,10 +107,23 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
   let imagesEur = 0;
   const bouche = estAlimentaire(`${e.brief} ${e.metier ?? ""}`);
   if (bouche) journal.push("Images : restauration, aucune image inventée (la page attend les vraies photos du membre)");
+  if (compo?.photo && !bouche && !nbPhotos) {
+    // Les images du premier écran de la composition existent toujours, au bon format (grande pour le plein cadre)
+    plan.images = Array.isArray(plan.images) ? plan.images : [];
+    const voulues = compo.id === "galerie" ? ["IMG_1", "IMG_2", "IMG_3"] : ["IMG_1"];
+    for (const id of voulues) { const d = plan.images.find((x) => x.id === id); if (d) d.prompt = `${compo.image} Subject for this activity: ${d.prompt}`; else plan.images.unshift({ id, pour: "hero", prompt: `${compo.image} Activity: ${(e.metier ?? "").slice(0, 80)} ${e.ville ?? ""}, ${e.brief.slice(0, 200)}` }); }
+    plan.images.sort((a, b) => a.id.localeCompare(b.id));
+    for (const d of plan.images as any[]) if (voulues.includes(d.id)) d.taille = compo.id === "galerie" ? "portrait_4_3" : { width: 1920, height: 1088 };
+  }
   if (!bouche && !(e.photosMembre ?? []).length && (plan.images ?? []).length) {
     const r = await imagesPage((plan.images ?? []).slice(0, 3), PLAFOND_EUR - compteur.cout - 0.3).catch((x) => { journal.push(`Images : ${String(x).slice(0, 120)}`); return { images: {}, cout: 0 }; });
     Object.assign(images, r.images); imagesEur = r.cout;
     journal.push(`Images : ${Object.keys(r.images).length} générée(s), ${r.cout.toFixed(3)} €`);
+  }
+  // Mot géant : le sujet détouré (IMG_6) se pose au-dessus du mot ; sans détourage, le mot reste simplement devant la photo
+  if (compo?.detourage) {
+    const source = images[nbPhotos ? "PHOTO_1" : "IMG_1"]?.url;
+    if (source) { try { const d = await detourer(source); if (d) { images.IMG_6 = { url: d.url, prompt: "la photo d'en-tête détourée (le sujet sans le ciel)" }; imagesEur += d.cout; journal.push("Détourage : sujet découpé"); } } catch (x) { journal.push(`Détourage : ${String(x).slice(0, 120)}`); } }
   }
   const jetons = new Set(Object.keys(images));
   imagesVues = images; await signaler();

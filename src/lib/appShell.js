@@ -947,7 +947,7 @@ const MOD = SITE.modele ?? "vitrine";
 // le temps de la page publique, puis on monte les données vivantes dans les marqueurs data-bingoo (prestations, horaires,
 // formulaires, adresse, réalisations). Les mentions légales et l'accès gérant sont toujours ajoutés par Bingoo!.
 // Version dans l'adresse : une correction de la feuille arrive tout de suite, sans attendre la fin du cache
-const TASTE_CSS = "https://bingoo.fr/taste-system.css?v=20261124c";
+const TASTE_CSS = "https://bingoo.fr/taste-system.css?v=20261126a";
 function nettoyerDom(racine) {
   racine.querySelectorAll("script,iframe,object,embed,form,link,meta,base").forEach((x) => x.remove());
   racine.querySelectorAll("*").forEach((el) => { for (const a of [...el.attributes]) if (/^on/i.test(a.name) || (/^(href|src)$/i.test(a.name) && /^\\s*(javascript|vbscript|data:text)/i.test(a.value))) el.removeAttribute(a.name); });
@@ -1103,6 +1103,10 @@ function SitePageGeneree({ onAuth, saas }) {
     // Menu du téléphone : le bouton du header ouvre et ferme la liste des liens
     const t = el.querySelector(".nav__toggle"), nav = el.querySelector(".nav");
     if (t && nav) t.addEventListener("click", () => { const o = nav.classList.toggle("is-open"); t.setAttribute("aria-expanded", o ? "true" : "false"); });
+    // Premier écran immersif (photo plein cadre, salle sombre) : l'en-tête est transparent tant qu'on est en haut de la page
+    if (window.__bingooNavHaut) removeEventListener("scroll", window.__bingooNavHaut);
+    const immersif = nav && el.querySelector("main section.hero-cine, main section.hero-mot, main section.hero-hublot, main section.hero-lueur");
+    if (immersif) { const maj = () => nav.classList.toggle("nav--sur-photo", scrollY < 40 && !nav.classList.contains("is-open")); window.__bingooNavHaut = maj; addEventListener("scroll", maj, { passive: true }); if (t) t.addEventListener("click", maj); maj(); } else nav?.classList.remove("nav--sur-photo");
     el.querySelectorAll('a[href="#essai"],a[href="#connexion"]').forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); e.stopImmediatePropagation(); onAuth(a.getAttribute("href") === "#essai" ? "signup" : "login"); }));
     // Pages supplémentaires : un lien par page dans le menu (la page en cours est soulignée)
     const liens = el.querySelector(".nav__links");

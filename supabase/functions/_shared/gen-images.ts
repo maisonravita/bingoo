@@ -17,7 +17,7 @@ const GARDE_FOU_APERCU = ", realistic photograph, natural light, no text, no let
 export const MODELE_APERCU = () => Deno.env.get("FAL_MODELE_APERCU") ?? "fal-ai/flux/schnell";
 const PRIX_APERCU_EUR = () => (Number(Deno.env.get("FAL_PRIX_APERCU_USD") ?? "0.003") || 0.003) * (Number(Deno.env.get("USD_EUR") ?? "0.92") || 0.92);
 
-export async function imagesPage(demandes: { id: string; pour: string; prompt: string }[], budgetEur: number, o: { apercu?: boolean; taille?: string } = {}) {
+export async function imagesPage(demandes: { id: string; pour: string; prompt: string; taille?: string | { width: number; height: number } }[], budgetEur: number, o: { apercu?: boolean; taille?: string } = {}) {
   const MODELE = o.apercu ? MODELE_APERCU : MODELE_BASE, PRIX_EUR = o.apercu ? PRIX_APERCU_EUR : PRIX_BASE_EUR;
   const cle = Deno.env.get("FAL_KEY");
   const images: Record<string, { url: string; prompt: string }> = {};
@@ -28,7 +28,7 @@ export async function imagesPage(demandes: { id: string; pour: string; prompt: s
     const id = o.apercu || /^IMG_\d$/.test(d.id) ? d.id : `IMG_${Object.keys(images).length + 1}`;
     const r = await fetch(`https://fal.run/${MODELE()}`, {
       method: "POST", headers: { authorization: `Key ${cle}`, "content-type": "application/json" },
-      body: JSON.stringify({ prompt: String(d.prompt).slice(0, 900) + (o.apercu ? GARDE_FOU_APERCU : GARDE_FOU), image_size: o.taille ?? (o.apercu ? "landscape_4_3" : "landscape_16_9"), num_images: 1, enable_safety_checker: true, ...(o.apercu ? { num_inference_steps: 4 } : {}) }),
+      body: JSON.stringify({ prompt: String(d.prompt).slice(0, 900) + (o.apercu ? GARDE_FOU_APERCU : GARDE_FOU), image_size: d.taille ?? o.taille ?? (o.apercu ? "landscape_4_3" : "landscape_16_9"), num_images: 1, enable_safety_checker: true, ...(o.apercu ? { num_inference_steps: 4 } : {}) }),
       signal: AbortSignal.timeout(60_000),
     });
     if (!r.ok) throw new Error(`fal ${r.status} : ${(await r.text()).slice(0, 160)}`);
@@ -44,6 +44,27 @@ export async function imagesPage(demandes: { id: string; pour: string; prompt: s
     await admin.from("ai_usage").insert({ workspace_id: ctx.ws ?? null, feature: o.apercu ? "idee/images" : "construire/images", model: MODELE(), input_tokens: 0, output_tokens: 0, searches: 0, cost_eur: PRIX_EUR() }).then(() => null, () => null);
   }));
   return { images, cout };
+}
+
+// Détourage (26/11) : le sujet d'une photo sans son fond (PNG transparent), pour poser un mot géant DERRIÈRE lui
+export const MODELE_DETOURAGE = () => Deno.env.get("FAL_MODELE_DETOURAGE") ?? "fal-ai/birefnet/v2";
+const PRIX_DETOURAGE_EUR = () => (Number(Deno.env.get("FAL_PRIX_DETOURAGE_USD") ?? "0.005") || 0.005) * (Number(Deno.env.get("USD_EUR") ?? "0.92") || 0.92);
+export async function detourer(image: string): Promise<{ url: string; cout: number } | null> {
+  const cle = Deno.env.get("FAL_KEY"); if (!cle || !/^https:\/\//.test(image)) return null;
+  const r = await fetch(`https://fal.run/${MODELE_DETOURAGE()}`, {
+    method: "POST", headers: { authorization: `Key ${cle}`, "content-type": "application/json" },
+    body: JSON.stringify({ image_url: image, model: "General Use (Heavy)", operating_resolution: "2048x2048", output_format: "png", refine_foreground: true }),
+    signal: AbortSignal.timeout(90_000),
+  });
+  if (!r.ok) throw new Error(`fal détourage ${r.status} : ${(await r.text()).slice(0, 160)}`);
+  const url = (await r.json())?.image?.url; if (!url) return null;
+  const bin = new Uint8Array(await (await fetch(url, { signal: AbortSignal.timeout(30_000) })).arrayBuffer());
+  const chemin = `gen/${crypto.randomUUID()}.png`;
+  const { error } = await admin.storage.from("apps").upload(chemin, bin, { contentType: "image/png", cacheControl: "31536000" });
+  if (error) throw new Error(`Stockage : ${error.message}`);
+  const ctx = aiCtx.getStore() ?? {};
+  await admin.from("ai_usage").insert({ workspace_id: ctx.ws ?? null, feature: "construire/detourage", model: MODELE_DETOURAGE(), input_tokens: 0, output_tokens: 0, searches: 0, cost_eur: PRIX_DETOURAGE_EUR() }).then(() => null, () => null);
+  return { url: admin.storage.from("apps").getPublicUrl(chemin).data.publicUrl, cout: PRIX_DETOURAGE_EUR() };
 }
 
 // Clips animés (essai du 25/11) : une image de départ devient un clip de 5 s où l'objet bouge vraiment (un verre qui se remplit).
