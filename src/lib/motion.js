@@ -734,18 +734,18 @@ const VERRE = {
     const tl = t - tb; if (tl < 0) return;
     const p = ressort(prog(tl, 0, 0.7)), v = cible * eo(prog(tl, 0.15, Math.min(1.7, d - tb - 0.5))), txt = (dec ? v.toFixed(1).replace(".", ",") : Math.round(v).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
     const fin = (dec ? cible.toFixed(1).replace(".", ",") : Math.round(cible).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
-    serre(ctx, "-0.03em"); let tp = (vertical ? 150 : 130) * u; ctx.font = `600 ${tp}px ${F}`; const wm = ctx.measureText(fin).width; if (wm > W * 0.62) { tp *= (W * 0.62) / wm; ctx.font = `600 ${tp}px ${F}`; }
+    serre(ctx, "-0.03em"); let tp = (vertical ? 190 : 140) * u; ctx.font = `600 ${tp}px ${F}`; const wm = ctx.measureText(fin).width; if (wm > W * 0.62) { tp *= (W * 0.62) / wm; ctx.font = `600 ${tp}px ${F}`; }
     const w = Math.max(ctx.measureText(fin).width + tp * 1.3, tp * 2.6), h = tp * 1.75, cy = H * 0.47;
     ctx.save(); ctx.translate(W / 2, cy); ctx.scale(0.5 + 0.5 * p, 0.5 + 0.5 * p); ctx.globalAlpha *= Math.min(1, prog(tl, 0, 0.25) * 1.2);
     capsule(ctx, -w / 2, -h / 2, w, h, u, { tour: cible ? v / cible : prog(tl, 0.15, 1.5), fort: true });
     ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, tp * 0.04); ctx.restore(); serre(ctx, "-0.01em");
-    const leg = e.legende || e.texte; if (leg) { const a = eo(prog(tl, 0.45, 1)); ctx.save(); ctx.globalAlpha *= a; motsAnimes(ctx, leg, e.accent, W / 2, cy + h / 2 + (vertical ? 110 : 90) * u, { taille: (vertical ? 58 : 50) * u, largeur: W * 0.8, t: tl - 0.45, poids: 500, couleur: "rgba(255,255,255,.82)" }); ctx.restore(); }
+    const leg = e.legende || e.texte; if (leg) { const a = eo(prog(tl, 0.45, 1)); ctx.save(); ctx.globalAlpha *= a; motsAnimes(ctx, leg, e.accent, W / 2, cy + h / 2 + (vertical ? 150 : 100) * u, { taille: (vertical ? 70 : 52) * u, largeur: W * 0.84, t: tl - 0.45, poids: 500, couleur: "rgba(255,255,255,.82)" }); ctx.restore(); }
   },
   // Trois capsules de verre qui arrivent l'une après l'autre ; le contour de chacune se trace à son arrivée
   pilules(ctx, s, e) {
     const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 3).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
-    const tp0 = (vertical ? 62 : 50) * u, h = tp0 * 2.3, gap = tp0 * 0.7, w = W * (vertical ? 0.78 : 0.5), y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 50 * u : 0);
-    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 110 * u, { taille: (vertical ? 54 : 46) * u, largeur: W * 0.84, t, poids: 500, couleur: "rgba(255,255,255,.7)" });
+    const tp0 = (vertical ? 72 : 50) * u, h = tp0 * 2.2, gap = tp0 * 0.6, w = W * (vertical ? 0.82 : 0.5), y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 50 * u : 0);
+    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 140 * u, { taille: (vertical ? 76 : 50) * u, largeur: W * 0.84, t, poids: 600 });
     items.forEach((x, i) => {
       const ti = t - 0.25 - i * 0.42, p = ressort(prog(ti, 0, 0.6)); if (p <= 0) return;
       const y = y0 + i * (h + gap);
@@ -758,8 +758,8 @@ const VERRE = {
   // Un petit titre gris, puis des lignes de verre empilées, chacune avec un point de la couleur de la marque
   liste(ctx, s, e) {
     const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 4).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
-    const tp0 = (vertical ? 50 : 42) * u, h = tp0 * 2.5, gap = tp0 * 0.42, w = W * (vertical ? 0.84 : 0.52), x0 = (W - w) / 2, y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 60 * u : 0);
-    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 120 * u, { taille: (vertical ? 62 : 52) * u, largeur: W * 0.84, t, poids: 600 });
+    const tp0 = (vertical ? 62 : 44) * u, h = tp0 * 2.5, gap = tp0 * 0.42, w = W * (vertical ? 0.84 : 0.52), x0 = (W - w) / 2, y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 60 * u : 0);
+    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 150 * u, { taille: (vertical ? 84 : 56) * u, largeur: W * 0.84, t, poids: 600 });
     items.forEach((x, i) => {
       const ti = t - 0.3 - i * 0.22, p = eo(prog(ti, 0, 0.55)); if (p <= 0) return;
       const y = y0 + i * (h + gap) + (1 - p) * 40 * u;
