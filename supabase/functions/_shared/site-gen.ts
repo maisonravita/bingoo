@@ -158,11 +158,18 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
   budget();
   for (const b of brutes) for (const s of decoupe(b)) ecrites.set(s.id, poser(s.id, s.html));
 
+  // Une même photo sur deux sections : la seconde doit en changer (ou s'en passer). La photo détourée va avec le premier écran.
+  const imageDejaVue = (id: string): string[] => {
+    const ordre = ["nav", ...plan.sections.map((x) => x.id)], rang = ordre.indexOf(id);
+    const avant = new Set(ordre.slice(0, rang).flatMap((k) => [...(ecrites.get(k) ?? "").matchAll(/src="((?:IMG|PHOTO)_\d)"/g)].map((m) => m[1])));
+    const ici = [...(ecrites.get(id) ?? "").matchAll(/src="((?:IMG|PHOTO)_\d)"/g)].map((m) => m[1]).filter((k) => avant.has(k) && k !== "IMG_6");
+    return ici.length ? [`La photo ${ici[0]} est déjà utilisée plus haut sur la page : n'en mets pas, ou prends une photo pas encore utilisée.`] : [];
+  };
   // 4. Contrôles et corrections (3 essais par section, dans le budget)
   let corrections = 0;
   const ids = ["nav", ...plan.sections.map((s) => s.id)];
   for (let essai = 1; essai <= 3; essai++) {
-    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h)))] : ["Section manquante."] })).filter((x) => x.pbs.length);
+    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h))), ...imageDejaVue(id)] : ["Section manquante."] })).filter((x) => x.pbs.length);
     if (!fautives.length) break;
     journal.push(`Essai ${essai} : ${fautives.map((f) => `${f.id} (${f.pbs[0].slice(0, 60)})`).join(" ; ")}`);
     // Temps : une fonction a une durée limitée ; passé 110 s, plus de réécriture (retrait des sections fautives ou secours)
