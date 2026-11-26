@@ -50,7 +50,8 @@ if (!deja) {
 
 // 3) Le navigateur, déjà connecté
 const { chromium } = createRequire(import.meta.url)("playwright");
-const browser = await chromium.launch();
+// Le lecteur vidéo lit des clips MP4 : il faut le vrai Chrome de la machine (le Chromium fourni ne lit pas ce format)
+const browser = await chromium.launch(/lecteur/.test(process.env.DOMAINE ?? "") ? { channel: "chrome" } : {});
 const ouvrir = async (wsId, extra = {}, plus = {}) => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", deviceScaleFactor: 1, ...plus,
     storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `sb-${REF}-auth-token`, value: JSON.stringify(session) }, { name: "kairo-ws", value: wsId }, ...Object.entries(extra).map(([name, v]) => ({ name, value: JSON.stringify(v) }))] }] } });
@@ -576,6 +577,22 @@ if (CONSTRUIRE === "video-images") {
     if (sc) console.log(`clips de la vidéo ${n + 1} : ${ims.filter(([, v]) => v.clip).length} prêts, ${ims.filter(([, v]) => v.attente).length} encore en attente`);
     console.log(r.ok && sc ? `✓ vidéo ${n + 1} : allure ${sc.look}, ${sc.scenes?.length} scènes : ${sc.scenes?.map((x) => x.type).join(" › ")} ; images ${ims.length}` : `✗ vidéo ${n + 1} : ${r.t}`);
     if (sc) { fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-script.json`, JSON.stringify(sc)); for (const [k, v] of ims) { const b = v.url ? await fetch(v.url).then((x) => x.arrayBuffer()).catch(() => null) : null; if (b) fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-${k}.jpg`, Buffer.from(b));  if (v.clip) { const c = await fetch(v.clip).then((x) => x.arrayBuffer()).catch(() => null); if (c) fs2.writeFileSync(`${DOSSIER}/video-${n + 1}-${k}.mp4`, Buffer.from(c)); } } }
+  }
+  // DOMAINE contient « lecteur » : la dernière vidéo créée est ouverte dans le vrai écran Vidéos — photos du lecteur pendant
+  // qu'il joue (les plans animés doivent bouger d'une photo à l'autre), puis téléchargement de la vidéo exportée
+  if (/lecteur/.test(process.env.DOMAINE ?? "")) {
+    const { page } = await ouvrir(wsV, {}, { acceptDownloads: true });
+    let clips = 0; page.on("response", (r) => { if (/\.mp4(\?|$)/.test(r.url()) && r.status() < 400) clips++; });
+    await page.goto(`${SITE}/?c=${Date.now()}#/explorer/motion`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await page.locator("canvas").first().waitFor({ timeout: 60000 }).catch(() => console.log("✗ le lecteur n'est pas apparu"));
+    await page.waitForTimeout(6000); await page.screenshot({ path: `${DOSSIER}/lecteur-page.png` });
+    console.log("bouton « Mes photos et vidéos » :", (await page.getByText("Mes photos et vidéos").count()) ? "✓ présent" : "✗ absent", "; clips chargés par la page :", clips);
+    for (let k = 0; k < 20; k++) { await page.locator("canvas").first().screenshot({ path: `${DOSSIER}/lecteur-${String(k).padStart(2, "0")}.png` }).catch(() => null); await page.waitForTimeout(1300); }
+    const bouton = page.getByRole("button", { name: /Télécharger/ }).first();
+    if (await bouton.count()) {
+      const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 240000 }).catch(() => null), bouton.click().catch(() => null)]);
+      if (dl) { const nom = dl.suggestedFilename(); await dl.saveAs(`${DOSSIER}/lecteur-export.${nom.split(".").pop()}`); console.log("✓ export téléchargé :", nom); } else console.log("✗ export : pas de fichier en 4 minutes");
+    } else console.log("✗ bouton Télécharger introuvable");
   }
 }
 if (CONSTRUIRE === "galerie") {
