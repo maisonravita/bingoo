@@ -666,7 +666,10 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const ids = [...new Set(xs.map((r) => r.user_id).filter(Boolean))];
       const { data } = ids.length ? await admin.from("saas_app_users").select("id, nom, email").eq("app_id", app.id).in("id", ids.slice(0, 1000)) : { data: [] };
       const noms = new Map((data ?? []).map((u: any) => [u.id, (String(u.nom ?? "").trim().split(/\s+/)[0] || String(u.email ?? "").split("@")[0].replace(/[._-]+/g, " ").split(" ")[0] || "Membre").slice(0, 30)]));
-      return xs.map((r) => ({ ...ligne(r), _auteur: noms.get(r.user_id) ?? "Membre", _auteur_id: r.user_id, _moi: r.espace_id === espace }));
+      // Exemples d'une place de marché : une sur deux paraît publiée par un voisin, pour que « Rechercher » et « Réserver » aient de quoi montrer
+      const VOISINS = ["Léa", "Hugo", "Nora", "Malik", "Inès", "Paul"];
+      return xs.map((r, i) => { const ex = (r.data as any)?._exemple === true && r.espace_id === espace && i % 2 === 1;
+        return { ...ligne(r), _auteur: ex ? VOISINS[i % VOISINS.length] : noms.get(r.user_id) ?? "Membre", _auteur_id: ex ? `exemple-${i % VOISINS.length}` : r.user_id, _moi: r.espace_id === espace && !ex }; });
     };
     if (!u0.vu_at || Date.now() - new Date(u0.vu_at).getTime() > 3600e3) await admin.from("saas_app_users").update({ vu_at: new Date().toISOString() }).eq("id", u0.id);
 
