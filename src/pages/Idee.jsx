@@ -185,6 +185,11 @@ export default function Idee() {
   useEffect(() => { if (idee?.type === "video") nav("/explorer/motion", { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [etat, setEtat] = useState("charge"), [r, setR] = useState(null), [err, setErr] = useState(null);
   const [reponses, setReponses] = useState([]), [choix, setChoix] = useState({}), [nom, setNom] = useState(""), [busy, setBusy] = useState(false);
+  // Idée de site trop courte : 3 questions facultatives avant la construction, pour que la page ait de vraies choses à dire
+  // (sinon l'IA redit la même offre dans plusieurs sections). Les réponses partent dans les précisions de l'idée.
+  const [plus, setPlus] = useState({ diff: "", deroule: "", infos: "" });
+  const ideeCourte = idee?.type === "site" && (String(idee?.texte ?? "") + (idee?.reponses ?? []).map((x) => x?.r ?? "").join(" ")).trim().length < 260;
+  const reponsesPlus = () => [["Ce qui te rend différent", plus.diff], ["Comment ça se passe pour un client", plus.deroule], ["Adresse, horaires et prix à afficher", plus.infos]].filter(([, v]) => v.trim().length >= 3).map(([q, v]) => ({ q, r: v.trim().slice(0, 400) }));
   const offert = useOutilOffert(ws, idee?.type);
   const charger = async (rep = []) => {
     setEtat("charge"); setErr(null);
@@ -205,7 +210,7 @@ export default function Idee() {
     if (quoi === "idee") {
       garderNom(idee.texte, nom.trim() || ap.nom);
       ecrire(`bingoo-reponses-${DOMAINE_IDEE}`, { nom: nom.trim() || ap.nom, clients: ap.cible, mieux: "", angle: null });
-      ecrire(CLE_CHANTIER, { idee: true, domaine: DOMAINE_IDEE, nom: nom.trim() || ap.nom, categorie: "", ws: ws.id, ideeTexte: idee.texte, type: idee.type, reponses: idee.reponses ?? [], apercu: { ...ap, nom: nom.trim() || ap.nom }, source: idee.source ?? null });
+      ecrire(CLE_CHANTIER, { idee: true, domaine: DOMAINE_IDEE, nom: nom.trim() || ap.nom, categorie: "", ws: ws.id, ideeTexte: idee.texte, type: idee.type, reponses: [...(idee.reponses ?? []), ...reponsesPlus()], apercu: { ...ap, nom: nom.trim() || ap.nom }, source: idee.source ?? null });
     } else {
       ecrire(`bingoo-reponses-${proche.domaine}`, { nom: "", clients: ap?.cible ?? "", mieux: idee.texte, angle: `Ce que je veux faire mieux : ${idee.texte}` });
       ecrire(CLE_CHANTIER, { domaine: proche.domaine, nom: proche.nom, categorie: "", ws: ws.id });
@@ -286,6 +291,17 @@ export default function Idee() {
               </div>
               {!outil && <div className="order-first">{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <TelReel nom={nom || ap.nom} ap={ap} /> : <SaasReel nom={nom || ap.nom} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil : Bingoo! a choisi la mise en scène, les couleurs et les polices qui vont à ton projet. Fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal dans la vraie coque de ton SaaS, avec des données d'exemple : la construction écrit chaque écran pour de vrai, avec ces couleurs et ces polices."}</p>{!site && (ap.principal?.blocs ?? []).some((b) => (b.images ?? []).some(Boolean)) && <p className="mt-1 text-center text-[11px] text-ink-faint">Images d'exemple créées par l'IA pour cet aperçu : tu mettras les tiennes.</p>}</div>}
             </div>
+            {ideeCourte && site && <div className="mt-6 rounded-2xl border border-line bg-[#FBFAF7] p-4 sm:p-5">
+              <p className="text-[15px] font-bold">Dis-en un peu plus pour un site plus riche <span className="font-normal text-ink-faint">· facultatif, 1 minute</span></p>
+              <p className="mt-1 text-[13px] text-ink-soft">Ton idée est courte : avec ces réponses, Bingoo! écrit des sections qui racontent vraiment ton activité au lieu de répéter ton offre. Rien n'est inventé : ce que tu n'écris pas n'apparaîtra pas.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                {[["diff", `Qu'est-ce qui rend ${nom.trim() || ap.nom} différent ?`, "Ex. tout est fait maison, ouvert le dimanche, installé dans le quartier depuis 2010…"], ["deroule", "Comment ça se passe pour un client ?", "Ex. on commande la veille par téléphone, on vient sur place, on livre…"], ["infos", "Adresse, horaires et prix à afficher", "Ex. 14 rue de Gand, Lille · du mardi au dimanche, 7 h – 19 h 30 · baguette 1,20 €"]].map(([k, q, ph]) => (
+                  <label key={k} className="block text-[13px] font-semibold">{q}
+                    <textarea value={plus[k]} onChange={(e) => setPlus((x) => ({ ...x, [k]: e.target.value }))} placeholder={ph} rows={3} maxLength={400} className="mt-1.5 w-full resize-none rounded-xl border border-line bg-white px-3 py-2 text-[13.5px] font-normal outline-none focus:border-ink/40" />
+                  </label>
+                ))}
+              </div>
+            </div>}
             <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-line pt-5">
               <Prix ws={ws} type={idee.type} />
               <button disabled={busy || nom.trim().length < 2} onClick={() => lancer("idee")} className="rounded-full bg-accent px-7 py-3.5 text-[16px] font-bold text-white shadow-[0_12px_30px_-14px_rgba(226,85,35,.9)] disabled:opacity-50">{busy ? "Un instant…" : offert ? `Construire ${nom.trim() || ap.nom} gratuitement` : `Construire ${nom.trim() || ap.nom}`}</button>
