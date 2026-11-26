@@ -170,7 +170,8 @@ export default function Motion() {
 
   // Ses propres photos et vidéos (3 au plus) : elles passent en plein écran dans la prochaine vidéo créée, jamais retouchées.
   // Une photo est réduite ici avant l'envoi ; une vidéo part directement dans le dossier de son espace.
-  const [styleVideo, setStyleVideo] = useState(""), [medias, setMedias] = useState([]), [envoiMedia, setEnvoiMedia] = useState(false), fichiersMedia = useRef(null);
+  const [styleVideo, setStyleVideo] = useState(() => { // le style du modèle choisi sur l'accueil, s'il y en a un de moins de deux jours
+    try { const x = JSON.parse(localStorage.getItem("bingoo-style-video") ?? "null"); return x?.look && Date.now() - Number(x.at ?? 0) < 2 * 864e5 ? String(x.look) : ""; } catch { return ""; } }), [medias, setMedias] = useState([]), [envoiMedia, setEnvoiMedia] = useState(false), fichiersMedia = useRef(null);
   async function ajouterMedias(liste) {
     const fs = [...(liste ?? [])].slice(0, 3 - medias.length); if (!fs.length || !ws?.id) return;
     setEnvoiMedia(true);
@@ -204,7 +205,7 @@ export default function Motion() {
     setFil((l) => [...l, { moi: t, etat: "encours", creer }]); setSaisie(""); setBusy(true);
     try {
       const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && avecProduit ? { app_id: monApp.id } : {}), ...(styleVideo ? { look: styleVideo } : {}), photos: medias.filter((m) => m.type === "photo").map((m) => m.url), videos: medias.filter((m) => m.type === "video").map((m) => m.url) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
-      setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true); if (creer) setMedias([]);
+      setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true); if (creer) { setMedias([]); try { localStorage.removeItem("bingoo-style-video"); } catch { /* stockage indisponible */ } }
       const lm = creer ? memoLogo() : null; if (lm?.url) await poserLogo(v, lm).catch(() => null);
       setFil((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", note: v.script?.note } : x)));
     } catch (e) {

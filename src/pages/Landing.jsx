@@ -218,12 +218,15 @@ export const VITRINE = [
 // Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
 // Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
 // [fichier, nom, légende, forme] ; deux bandes qui défilent en sens inverse, comme la vitrine des SaaS
+// [fichier, nom, légende, style à reprendre quand on part de ce modèle]
 const VIDEOS_RANGS = [
-  [["trame-film", "Trame", "Logiciel pour artisans · style film"], ["fournil", "Boulangerie artisanale", "Rennes · style éditorial, avec images"], ["kilo", "Kilo", "Appli de course · style interface"], ["petale", "Pétale", "Fleuriste · avec images"], ["terrecuite", "Terre Cuite", "Céramique · style nuit, avec images"], ["lameule", "La Meule", "Fromagerie · avec images"]],
-  [["relais", "Relais", "Marketing · style aura, plans animés"], ["givre", "Givré", "Glacier · style éditorial, avec images"], ["trame", "Trame", "Logiciel pour artisans · style clair"], ["brulerie", "Brûlerie Nord", "Torréfacteur · style deux tons"], ["maisonlune", "Maison Lune", "Bijoux · style minimal, avec images"], ["pointa", "Pointa", "Logiciel pour cabinets · vrais écrans"]],
+  [["trame-film", "Trame", "Logiciel pour artisans · style film", "film"], ["fournil", "Boulangerie artisanale", "Rennes · style éditorial, avec images", "editorial"], ["kilo", "Kilo", "Appli de course · style interface", "verre"], ["petale", "Pétale", "Fleuriste · avec images", "nuit"], ["terrecuite", "Terre Cuite", "Céramique · style nuit, avec images", "nuit"], ["lameule", "La Meule", "Fromagerie · avec images", "minimal"]],
+  [["relais", "Relais", "Marketing · style aura, plans animés", "aura"], ["givre", "Givré", "Glacier · style éditorial, avec images", "editorial"], ["trame", "Trame", "Logiciel pour artisans · style clair", "clair"], ["brulerie", "Brûlerie Nord", "Torréfacteur · style deux tons", "pop"], ["maisonlune", "Maison Lune", "Bijoux · style minimal, avec images", "minimal"], ["pointa", "Pointa", "Logiciel pour cabinets · vrais écrans", ""]],
 ];
+const NOMS_STYLES = { film: "film", verre: "interface", clair: "clair", aura: "aura", nuit: "nuit", pop: "deux tons", editorial: "éditorial", minimal: "minimal" };
 // Une vidéo ne tourne que quand elle est à l'écran (les bandes en contiennent une trentaine)
-function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
+function VideoCarte({ f, nom, quoi, style: look = "", cachee, partir }) {
+  const forme = "9/16";
   const ref = useRef(null);
   useEffect(() => {
     const v = ref.current; if (!v || typeof IntersectionObserver === "undefined") return;
@@ -231,7 +234,11 @@ function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
     o.observe(v); return () => o.disconnect();
   }, []);
   return (
-    <figure aria-hidden={cachee || undefined} className="shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_14px_34px_-24px_rgba(20,20,40,.6)]">
+    <figure aria-hidden={cachee || undefined} className="group relative shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_14px_34px_-24px_rgba(20,20,40,.6)]">
+      {/* Toute la carte est un bouton : on part de ce modèle (son style est retenu pour la vidéo qu'on va décrire) */}
+      <button type="button" tabIndex={cachee ? -1 : 0} onClick={() => partir?.(nom, look)} aria-label={`Partir du modèle ${nom}`} className="absolute inset-0 z-10 flex items-end justify-center bg-gradient-to-t from-black/55 via-black/0 to-black/0 pb-[74px] opacity-0 transition-opacity duration-200 focus-visible:opacity-100 group-hover:opacity-100">
+        <span className="rounded-full bg-white px-4 py-2 text-[13.5px] font-bold text-[#1E2030] shadow-lg">Partir de ce modèle →</span>
+      </button>
       <video ref={ref} poster={`/videos/${f}.jpg?v=4`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[300px] sm:h-[400px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4?v=4`} type="video/mp4" /><source src={`/videos/${f}.webm?v=4`} type="video/webm" /></video>
       {/* La légende ne doit jamais élargir la carte : sinon la vidéo laisse une bande noire à droite */}
       <figcaption className="flex w-0 min-w-full flex-col gap-0.5 bg-white px-3 py-2"><b className="truncate text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
@@ -239,9 +246,14 @@ function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
   );
 }
 function VideosVitrine({ nav }) {
+  // Partir d'un modèle : son style est gardé de côté (l'écran Vidéos le reprendra), et le champ d'idée s'ouvre sur une vidéo
+  const partir = (nom, look) => {
+    try { if (look) localStorage.setItem("bingoo-style-video", JSON.stringify({ look, nom, at: Date.now() })); else localStorage.removeItem("bingoo-style-video"); } catch { /* stockage indisponible */ }
+    window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte: "", genre: "video", modele: look ? { nom, look } : null } }));
+  };
   const rangee = (l, sens) => (
     <div className="videos-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 80 : 72}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
-      {[...l, ...l].map(([f, nom, quoi, forme], i) => <VideoCarte key={f + i} f={f} nom={nom} quoi={quoi} forme={forme} cachee={i >= l.length} />)}
+      {[...l, ...l].map(([f, nom, quoi, style], i) => <VideoCarte key={f + i} f={f} nom={nom} quoi={quoi} style={style} cachee={i >= l.length} partir={partir} />)}
     </div>
   );
   return (
@@ -249,7 +261,7 @@ function VideosVitrine({ nav }) {
       <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.videos-rang{animation:none!important}}.videos-bande:hover .videos-rang{animation-play-state:paused}"}</style>
       <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Et des vidéos aussi</p>
       <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>Des pubs en motion design, faites par Bingoo!</h2>
-      <p className="mx-auto mt-2 max-w-[680px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant. Pub de marque ou vidéo de ton SaaS avec ses vrais écrans, en vertical, carré ou paysage.</p>
+      <p className="mx-auto mt-2 max-w-[680px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur une vidéo pour partir de son modèle. Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant. Pub de marque ou vidéo de ton SaaS avec ses vrais écrans, en vertical, carré ou paysage.</p>
       <div className="videos-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
         {rangee(VIDEOS_RANGS[0], 1)}
         {rangee(VIDEOS_RANGS[1], -1)}
@@ -293,10 +305,10 @@ function IdeeHero({ nav, nb }) {
   // Apps mobiles en V2 : une idée d'« app » est construite comme un logiciel en ligne, qui marche aussi sur téléphone
   const type = ((t) => (t === "app" ? "saas" : t))(choix ?? typeDe(texte));
   const setType = setChoix;
-  const zone = useRef(null);
+  const zone = useRef(null), [modele, setModele] = useState(null); // modèle vidéo choisi dans le défilé (son style sera repris)
   const url = estAdresse(texte);
   useEffect(() => {
-    const f = (e) => { setTexte(e.detail.texte); setChoix(e.detail.genre); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); };
+    const f = (e) => { setTexte(e.detail.texte); setChoix(e.detail.genre); setModele(e.detail.modele ?? null); zone.current?.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => zone.current?.focus(), 400); };
     window.addEventListener("bingoo-remplir", f); return () => window.removeEventListener("bingoo-remplir", f);
   }, []);
   const lancer = async (e) => {
@@ -322,6 +334,7 @@ function IdeeHero({ nav, nb }) {
   return (<>
     <form onSubmit={lancer} className="hero-in mx-auto mt-8 w-full max-w-[680px] rounded-[28px] border border-black/[.09] bg-white p-3 text-left shadow-[0_24px_60px_-28px_rgba(20,20,40,.35)]" style={{ ...JK, animationDelay: ".18s" }}>
       <label htmlFor="idee" className="sr-only">Ton idée, ou l'adresse d'un site qui te plaît</label>
+      {modele && type === "video" && <p className="mb-2 flex items-center gap-2 rounded-2xl bg-[#FFF3EC] px-3 py-2 text-[13px] text-[#1E2030]"><span><b>Modèle choisi : {modele.nom}</b> · style {NOMS_STYLES[modele.look] ?? modele.look}. Décris ton activité, ta vidéo reprendra ce style.</span><button type="button" aria-label="Retirer le modèle" onClick={() => { setModele(null); try { localStorage.removeItem("bingoo-style-video"); } catch { /* rien */ } }} className="ml-auto grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-black/10">×</button></p>}
       <textarea id="idee" ref={zone} value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) lancer(e); }} rows={2} maxLength={300} placeholder="Décris ton idée, ou colle l'adresse d'un site qui te plaît…" className="block w-full resize-none bg-transparent px-3 pt-2 text-[16px] sm:text-[17px] sm:min-h-[84px] leading-relaxed outline-none placeholder:text-[#9A9EAE]" />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {url ? (
