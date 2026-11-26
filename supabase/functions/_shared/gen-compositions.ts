@@ -105,7 +105,7 @@ L'écran montre le VRAI usage du produit décrit (ses rubriques, ses objets : re
     (EXACTEMENT 11 tuiles, dans cet ordre : 1 <figure class="tuile"><img src="IMG_1" alt=""></figure>, 2 <div class="tuile tuile--aplat">(mot du métier)</div>, 3 <div class="tuile tuile--cercles"></div>, 4 <figure class="tuile"><img src="IMG_2" alt=""></figure>, 5 <div class="tuile tuile--encre">(initiale)</div>, 6 <div class="tuile tuile--italique">(un mot)</div>, 7 <div class="tuile tuile--points"></div>, 8 <div class="tuile tuile--clair">01</div>, 9 <div class="tuile tuile--aplat">(mot)</div>, 10 <div class="tuile tuile--encre">(mot)</div>, 11 <figure class="tuile"><img src="IMG_3" alt=""></figure>)
   </div></div>
 </section>
-Les mots des tuiles : un ou deux mots courts du métier (jamais une phrase). Pas de légende chiffrée inventée.`,
+Les mots des tuiles : un mot court et réel du métier, 7 lettres au plus (jamais une phrase, jamais les mots « mot », « initiale » ou un texte entre parenthèses de ce modèle). Pas de légende chiffrée inventée.`,
   },
   bento: {
     id: "bento", nom: "Bento vivant", photo: false,

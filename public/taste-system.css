@@ -1460,6 +1460,7 @@ section.hero.hero-galerie { padding: calc(var(--nav) + clamp(36px, calc(var(--hv
 @keyframes galerie-berce { from { transform: rotateY(-2.5deg); } to { transform: rotateY(2.5deg); } }
 .tuile { flex: none; width: clamp(34px, 5.2vw, 92px); height: clamp(60px, 9vw, 150px); margin: 0; border-radius: 6px; overflow: hidden; display: grid; place-items: center; background: var(--surface); color: var(--ink); font-family: var(--font-display); font-size: clamp(14px, 2vw, 34px); font-weight: 600; letter-spacing: -.03em; box-shadow: 0 18px 40px -22px rgb(0 0 0 / .55); animation: compo-monte 1s both; }
 .tuile img { width: 100%; height: 100%; object-fit: cover; }
+.tuile:not(figure) { padding: 4px; text-align: center; line-height: 1; font-size: clamp(10px, 1.25vw, 22px); overflow-wrap: anywhere; }
 .hero-galerie__piste > .tuile:nth-child(1), .hero-galerie__piste > .tuile:nth-child(11) { width: clamp(80px, 12vw, 210px); height: clamp(180px, 25vw, 380px); }
 .hero-galerie__piste > .tuile:nth-child(2), .hero-galerie__piste > .tuile:nth-child(10) { width: clamp(56px, 8vw, 140px); height: clamp(130px, 18vw, 270px); }
 .hero-galerie__piste > .tuile:nth-child(3), .hero-galerie__piste > .tuile:nth-child(9) { width: clamp(44px, 6.6vw, 118px); height: clamp(96px, 14vw, 216px); }
