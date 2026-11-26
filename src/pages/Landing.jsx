@@ -233,7 +233,8 @@ function VideoCarte({ f, nom, quoi, forme = "9/16", cachee }) {
   return (
     <figure aria-hidden={cachee || undefined} className="shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-black shadow-[0_14px_34px_-24px_rgba(20,20,40,.6)]">
       <video ref={ref} poster={`/videos/${f}.jpg?v=3`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[300px] sm:h-[400px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4?v=3`} type="video/mp4" /><source src={`/videos/${f}.webm?v=3`} type="video/webm" /></video>
-      <figcaption className="flex flex-col gap-0.5 bg-white px-3 py-2"><b className="truncate text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
+      {/* La légende ne doit jamais élargir la carte : sinon la vidéo laisse une bande noire à droite */}
+      <figcaption className="flex w-0 min-w-full flex-col gap-0.5 bg-white px-3 py-2"><b className="truncate text-[13.5px] text-[#1E2030]">{nom}</b><span className="truncate text-[12px] text-[#5B6075]">{quoi}</span></figcaption>
     </figure>
   );
 }
