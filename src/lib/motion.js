@@ -92,7 +92,7 @@ function plaqueLogo(ctx, cx, cy, hauteur, u, ombre = true, image = true) {
 let F = "system-ui", C = [79, 70, 229], CV = C, NOIR = true, INK = "#fff", INK2 = (a) => `rgba(255,255,255,${a})`;
 // Quatre allures pour que deux vidéos ne se ressemblent pas : nuit (sombre, capitales grasses), pop (couleur de la marque
 // partout), editorial (crème, titres à empattements, casse normale, sans halo), minimal (blanc pur, sobre, sans halo)
-export const LOOKS = ["nuit", "pop", "editorial", "minimal"];
+export const LOOKS = ["nuit", "pop", "editorial", "minimal", "verre"];
 let LOOK = "nuit";
 // Les vrais écrans du SaaS ou du site du membre (captures de son produit), par titre : { titre: image }
 let ECRANS = {}, ECRANS_L = [];
@@ -111,6 +111,13 @@ function palette(mode) {
   INK = NOIR ? "#fff" : "#0E0F13"; INK2 = NOIR ? (a) => `rgba(255,255,255,${a})` : (a) => `rgba(14,15,19,${a})`;
 }
 function fond(ctx, W, H, t, u) {
+  // Verre : noir profond, une brume claire teintée de la marque qui tombe du haut (comme un écran dans le noir)
+  if (LOOK === "verre") {
+    ctx.fillStyle = "#050507"; ctx.fillRect(0, 0, W, H);
+    const cx = W * (0.5 + Math.sin(t * 0.25) * 0.06), R = Math.max(W, H) * 0.75, g = ctx.createRadialGradient(cx, -H * 0.05, 0, cx, -H * 0.05, R);
+    g.addColorStop(0, rgba(mix(C, [170, 165, 200], 0.55), 0.34)); g.addColorStop(0.5, rgba(mix(C, [120, 115, 150], 0.6), 0.1)); g.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    return;
+  }
   if (LOOK === "pop") { ctx.fillStyle = MODE === "couleur" ? rgba(C, 1) : "#fff"; ctx.fillRect(0, 0, W, H); return; }
   if (MODE === "couleur") {
     const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.1), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.18), 1)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -689,13 +696,130 @@ function modesPop(scenes) {
   if (m.length > 1) { m[m.length - 1] = "blanc"; if (m[m.length - 2] === "blanc") m[m.length - 2] = "couleur"; }
   return m;
 }
+// ── Allure « verre » : une interface sombre faite de pièces en verre et de lumière. Des capsules translucides au contour
+// fin, un trait blanc lumineux qui fait le tour de la capsule pendant que le chiffre monte, des textes blancs de graisse
+// moyenne, un point de lumière qui relie les plans. Les scènes non redéfinies ici gardent leur dessin habituel.
+const texteDe = (x) => (typeof x === "string" ? x : String(x?.texte ?? x?.titre ?? x?.nom ?? ""));
+function capsule(ctx, x, y, w, h, u, { tour = 0, fort = false, r = h / 2 } = {}) {
+  ctx.save();
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, `rgba(255,255,255,${fort ? 0.13 : 0.075})`); g.addColorStop(1, `rgba(255,255,255,${fort ? 0.05 : 0.025})`);
+  rond(ctx, x, y, w, h, r); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = "rgba(255,255,255,.2)"; ctx.lineWidth = Math.max(1.5, 2.2 * u); ctx.stroke();
+  if (tour > 0.002) {
+    const L = 2 * (w - 2 * r) + 2 * (h - 2 * r) + 2 * Math.PI * r;
+    ctx.setLineDash([L * Math.min(1, tour), L * 2]); ctx.lineCap = "round"; ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(3, 6 * u); ctx.shadowColor = rgba(mix(C, [255, 255, 255], 0.5), 0.9); ctx.shadowBlur = 26 * u;
+    rond(ctx, x, y, w, h, r); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+const VERRE = {
+  // Un histogramme de barres grises ; une barre se remplit de la couleur de la marque puis s'illumine en blanc et devient
+  // la capsule du chiffre, dont le contour se trace pendant que le chiffre monte
+  compteur(ctx, s, e) {
+    const { W, H, u, t, d, vertical } = s, long = d >= 2.6, tb = long ? 1.25 : 0;
+    const cible = Number(String(e.valeur ?? "").replace(/\s/g, "").replace(",", ".")) || 0, dec = /[.,]/.test(String(e.valeur ?? "")) ? 1 : 0;
+    if (long && t < tb + 0.2) {
+      const a = 1 - prog(t, tb - 0.1, tb + 0.2), n = 7, bw = W * (vertical ? 0.075 : 0.05), gap = bw * 0.62, x0 = W / 2 - (n * bw + (n - 1) * gap) / 2, base = H * 0.6, hm = H * (vertical ? 0.2 : 0.3), k = 4;
+      ctx.save(); ctx.globalAlpha *= a;
+      ctx.setLineDash([10 * u, 12 * u]); ctx.strokeStyle = "rgba(255,255,255,.45)"; ctx.lineWidth = Math.max(1.5, 2.5 * u); ctx.beginPath(); ctx.moveTo(x0 - bw * 0.6, base - hm * 0.62); ctx.lineTo(x0 + n * bw + (n - 1) * gap + bw * 0.6, base - hm * 0.62); ctx.stroke(); ctx.setLineDash([]);
+      for (let i = 0; i < n; i++) {
+        const hh = hm * [0.5, 0.42, 0.66, 0.58, 0.95, 0.74, 0.5][i] * eo(prog(t, i * 0.05, 0.5 + i * 0.05)), x = x0 + i * (bw + gap);
+        ctx.fillStyle = "rgba(255,255,255,.11)"; rond(ctx, x, base - hh, bw, hh, 6 * u); ctx.fill();
+        if (i === k) {
+          const q = eio(prog(t, 0.35, 0.95)), fl = prog(t, 0.9, tb), hc = hh * q;
+          if (hc > 1) { const g = ctx.createLinearGradient(0, base, 0, base - hc); g.addColorStop(0, rgba(mix(CV, [255, 255, 255], fl), 1)); g.addColorStop(1, rgba(mix(CV, [255, 255, 255], 0.35 + fl * 0.65), 1)); ctx.save(); ctx.shadowColor = rgba(mix(CV, [255, 255, 255], fl), 0.95); ctx.shadowBlur = (30 + fl * 90) * u; ctx.fillStyle = g; rond(ctx, x, base - hc, bw, hc, 6 * u); ctx.fill(); ctx.restore(); }
+        }
+      }
+      ctx.restore();
+    }
+    const tl = t - tb; if (tl < 0) return;
+    const p = ressort(prog(tl, 0, 0.7)), v = cible * eo(prog(tl, 0.15, Math.min(1.7, d - tb - 0.5))), txt = (dec ? v.toFixed(1).replace(".", ",") : Math.round(v).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
+    const fin = (dec ? cible.toFixed(1).replace(".", ",") : Math.round(cible).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : "");
+    serre(ctx, "-0.03em"); let tp = (vertical ? 150 : 130) * u; ctx.font = `600 ${tp}px ${F}`; const wm = ctx.measureText(fin).width; if (wm > W * 0.62) { tp *= (W * 0.62) / wm; ctx.font = `600 ${tp}px ${F}`; }
+    const w = Math.max(ctx.measureText(fin).width + tp * 1.3, tp * 2.6), h = tp * 1.75, cy = H * 0.47;
+    ctx.save(); ctx.translate(W / 2, cy); ctx.scale(0.5 + 0.5 * p, 0.5 + 0.5 * p); ctx.globalAlpha *= Math.min(1, prog(tl, 0, 0.25) * 1.2);
+    capsule(ctx, -w / 2, -h / 2, w, h, u, { tour: cible ? v / cible : prog(tl, 0.15, 1.5), fort: true });
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, 0, tp * 0.04); ctx.restore(); serre(ctx, "-0.01em");
+    const leg = e.legende || e.texte; if (leg) { const a = eo(prog(tl, 0.45, 1)); ctx.save(); ctx.globalAlpha *= a; motsAnimes(ctx, leg, e.accent, W / 2, cy + h / 2 + (vertical ? 110 : 90) * u, { taille: (vertical ? 58 : 50) * u, largeur: W * 0.8, t: tl - 0.45, poids: 500, couleur: "rgba(255,255,255,.82)" }); ctx.restore(); }
+  },
+  // Trois capsules de verre qui arrivent l'une après l'autre ; le contour de chacune se trace à son arrivée
+  pilules(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 3).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
+    const tp0 = (vertical ? 62 : 50) * u, h = tp0 * 2.3, gap = tp0 * 0.7, w = W * (vertical ? 0.78 : 0.5), y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 50 * u : 0);
+    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 110 * u, { taille: (vertical ? 54 : 46) * u, largeur: W * 0.84, t, poids: 500, couleur: "rgba(255,255,255,.7)" });
+    items.forEach((x, i) => {
+      const ti = t - 0.25 - i * 0.42, p = ressort(prog(ti, 0, 0.6)); if (p <= 0) return;
+      const y = y0 + i * (h + gap);
+      ctx.save(); ctx.translate(W / 2, y + h / 2); ctx.scale(0.7 + 0.3 * p, 0.7 + 0.3 * p); ctx.globalAlpha *= Math.min(1, prog(ti, 0, 0.25) * 1.3);
+      capsule(ctx, -w / 2, -h / 2, w, h, u, { tour: eio(prog(ti, 0.1, 1.1)) });
+      let tp = tp0; ctx.font = `600 ${tp}px ${F}`; const wt = ctx.measureText(x).width; if (wt > w * 0.82) { tp *= (w * 0.82) / wt; ctx.font = `600 ${tp}px ${F}`; }
+      ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(x, 0, tp * 0.04); ctx.restore();
+    });
+  },
+  // Un petit titre gris, puis des lignes de verre empilées, chacune avec un point de la couleur de la marque
+  liste(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 4).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
+    const tp0 = (vertical ? 50 : 42) * u, h = tp0 * 2.5, gap = tp0 * 0.42, w = W * (vertical ? 0.84 : 0.52), x0 = (W - w) / 2, y0 = H / 2 - (n * h + (n - 1) * gap) / 2 + (e.texte ? 60 * u : 0);
+    if (e.texte) motsAnimes(ctx, e.texte, e.accent, W / 2, y0 - 120 * u, { taille: (vertical ? 62 : 52) * u, largeur: W * 0.84, t, poids: 600 });
+    items.forEach((x, i) => {
+      const ti = t - 0.3 - i * 0.22, p = eo(prog(ti, 0, 0.55)); if (p <= 0) return;
+      const y = y0 + i * (h + gap) + (1 - p) * 40 * u;
+      ctx.save(); ctx.globalAlpha *= p; capsule(ctx, x0, y, w, h, u, { r: 30 * u });
+      ctx.fillStyle = rgba(CV, 1); ctx.shadowColor = rgba(CV, 0.9); ctx.shadowBlur = 18 * u; ctx.beginPath(); ctx.arc(x0 + h * 0.42, y + h / 2, 9 * u, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      let tp = tp0; ctx.font = `500 ${tp}px ${F}`; const place = w - h * 1.05, wt = ctx.measureText(x).width; if (wt > place) { tp *= place / wt; ctx.font = `500 ${tp}px ${F}`; }
+      ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x, x0 + h * 0.78, y + h / 2 + tp * 0.04); ctx.restore();
+    });
+  },
+  cartes(ctx, s, e) { VERRE.liste(ctx, s, e); },
+  choix(ctx, s, e) { VERRE.liste(ctx, s, e); },
+  // Un long bouton de verre, un triangle « lecture » et son texte ; un reflet le traverse, puis il s'enfonce et s'allume
+  pastille(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, p = ressort(prog(t, 0.05, 0.7)), appui = prog(t, 1.5, 1.7) * (1 - prog(t, 1.7, 2.0)), allume = prog(t, 1.65, 2.2);
+    let tp = (vertical ? 62 : 52) * u; ctx.font = `600 ${tp}px ${F}`; const w = W * (vertical ? 0.84 : 0.5), wt = ctx.measureText(e.texte ?? "").width; if (wt > w * 0.7) { tp *= (w * 0.7) / wt; ctx.font = `600 ${tp}px ${F}`; }
+    const h = (vertical ? 62 : 52) * u * 2.5, k = (0.6 + 0.4 * p) * (1 - appui * 0.05);
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.globalAlpha *= Math.min(1, prog(t, 0.05, 0.3) * 1.2);
+    ctx.save(); ctx.shadowColor = rgba(CV, 0.35 + allume * 0.55); ctx.shadowBlur = (40 + allume * 90) * u;
+    const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, "rgba(255,255,255,.1)"); g.addColorStop(1, rgba(mix(CV, [255, 255, 255], allume * 0.3), 0.42 + allume * 0.4));
+    rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = g; ctx.fill(); ctx.restore();
+    rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = Math.max(1.5, 2.2 * u); ctx.stroke();
+    const br = prog(t, 0.6, 1.4); if (br > 0 && br < 1) { ctx.save(); rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.clip(); const bx = -w / 2 - h + (w + 2 * h) * eio(br), gr = ctx.createLinearGradient(bx - h, 0, bx + h, 0); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(0.5, "rgba(255,255,255,.28)"); gr.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = gr; ctx.fillRect(bx - h, -h / 2, 2 * h, h); ctx.restore(); }
+    const tw = ctx.measureText(e.texte ?? "").width, tri = tp * 0.36, xt = -(tw + tri * 2.6) / 2;
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(xt, -tri); ctx.lineTo(xt + tri * 1.6, 0); ctx.lineTo(xt, tri); ctx.closePath(); ctx.fill();
+    ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(e.texte ?? "", xt + tri * 2.6, tp * 0.04); ctx.restore();
+  },
+  // Une phrase blanche de graisse moyenne, au centre
+  mots(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, largeur = W * (vertical ? 0.84 : 0.72);
+    serre(ctx, "-0.03em"); const taille = remplit(ctx, e.texte || "", (vertical ? 120 : 104) * u, largeur, vertical ? 4 : 3, 600); serre(ctx, "-0.01em");
+    motsAnimes(ctx, e.texte || "", e.accent, W / 2, H / 2, { taille, largeur, t, poids: 600, decale: 0.08 });
+  },
+  rature(ctx, s, e) { VERRE.mots(ctx, s, e); },
+  aplat(ctx, s, e) { VERRE.mots(ctx, s, { ...e, texte: e.texte || s.nom }); },
+  // Un mot seul, grand, qui sort du flou avec un halo
+  impact(ctx, s, e) {
+    const { W, H, u, t } = s, p = eo(prog(t, 0, 0.7)), txt = e.texte || s.nom;
+    serre(ctx, "-0.04em"); const taille = remplit(ctx, txt, 230 * u, W * 0.86, 2, 700);
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1.18 - 0.18 * p, 1.18 - 0.18 * p); ctx.globalAlpha *= p; if ("filter" in ctx && p < 0.98) ctx.filter = `blur(${(1 - p) * 26 * u}px)`;
+    ctx.font = `700 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.shadowColor = rgba(mix(CV, [255, 255, 255], 0.4), 0.7); ctx.shadowBlur = 60 * u;
+    const ls = coupe(ctx, txt, W * 0.86); ls.forEach((l, i) => ctx.fillText(l, 0, (i - (ls.length - 1) / 2) * taille * 1.04)); ctx.restore(); serre(ctx, "-0.01em");
+  },
+  // La fin : le nom sort du flou, lumineux, puis l'adresse en petit dessous
+  logo(ctx, s, e) {
+    if (LOGO?.width) return SCENES.logo(ctx, s, e);
+    const { W, H, u, t, vertical } = s, p = eo(prog(t, 0, 0.9));
+    serre(ctx, "-0.04em"); const taille = ajuste(ctx, s.nom, (vertical ? 190 : 170) * u, W * 0.8, 600);
+    ctx.save(); ctx.translate(W / 2, H * 0.47); ctx.scale(1.25 - 0.25 * p, 1.25 - 0.25 * p); ctx.globalAlpha *= p; if ("filter" in ctx && p < 0.98) ctx.filter = `blur(${(1 - p) * 30 * u}px)`;
+    ctx.font = `600 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(255,255,255,.55)"; ctx.shadowBlur = (30 + (1 - p) * 60) * u; ctx.fillText(s.nom, 0, 0); ctx.restore(); serre(ctx, "-0.01em");
+    const bas = [e.texte, s.lien].filter(Boolean);
+    bas.forEach((x, i) => { const a = eo(prog(t, 0.9 + i * 0.25, 1.5 + i * 0.25)); if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; let tp = (i ? 34 : 46) * u; ctx.font = `500 ${tp}px ${F}`; const wt = ctx.measureText(x).width; if (wt > W * 0.84) { tp *= (W * 0.84) / wt; ctx.font = `500 ${tp}px ${F}`; } ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = i ? "rgba(255,255,255,.5)" : "rgba(255,255,255,.82)"; ctx.fillText(x, W / 2, H * 0.47 + taille * 0.75 + (40 + i * 70) * u); ctx.restore(); });
+  },
+};
 export const POLICE_MOTION = "Inter Tight";
 export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null, images = null, filigrane = false } = {}) {
   LOGO = logo; IMAGES = images && typeof images === "object" ? images : {}; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
   LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
   F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");
-  const FOND = LOOK === "editorial" || LOOK === "minimal" || LOOK === "pop" ? "blanc" : script?.fond === "blanc" ? "blanc" : "noir";
+  const FOND = LOOK === "editorial" || LOOK === "minimal" || LOOK === "pop" ? "blanc" : LOOK === "verre" ? "noir" : script?.fond === "blanc" ? "blanc" : "noir";
   // Pop : graisse moyenne partout (les titres très gras deviennent des linéales serrées, comme une pub de marque)
   const policeCtx = LOOK === "pop" ? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx), "font") : null;
   if (policeCtx?.set) try { Object.defineProperty(ctx, "font", { configurable: true, get() { return policeCtx.get.call(this); }, set(v) { policeCtx.set.call(this, String(v).replace(/^(italic )?(\d{3}) /, (m, it, w) => `${it || ""}${Math.min(+w, 600)} `)); } }); } catch { /* contexte figé */ }
@@ -717,6 +841,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     let modeScene = ["couleur", "blanc", "noir"].includes(e.fond) ? e.fond : FOND;
     if ((LOOK === "editorial" || LOOK === "minimal") && modeScene === "noir") modeScene = "blanc";
     if (MP) modeScene = MP[i];
+    if (LOOK === "verre") modeScene = "noir";
     palette(modeScene);
     if (modeScene !== FOND) { ctx.save(); ctx.globalAlpha = MP ? 1 : Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
     ctx.save();
@@ -745,11 +870,11 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     // Éditorial et minimal : aucun halo lumineux (le réglage d'ombre des scènes est ignoré le temps de la scène)
     const sansHalo = LOOK === "editorial" || LOOK === "minimal";
     if (sansHalo) try { Object.defineProperty(ctx, "shadowBlur", { configurable: true, get: () => 0, set: () => {} }); } catch { /* contexte figé */ }
-    try { SCENES[e.type](ctx, { W, H, u, t: local, d, vertical, i, nom: script.nom ?? "", lien: script.lien ?? "" }, e); }
+    try { ((LOOK === "verre" && VERRE[e.type]) || SCENES[e.type])(ctx, { W, H, u, t: local, d, vertical, i, nom: script.nom ?? "", lien: script.lien ?? "" }, e); }
     catch (x) { console.warn("scène", e.type, x); }
     finally { if (sansHalo) try { delete ctx.shadowBlur; } catch { /* rien */ } ctx.restore(); }
     // Vague de couleur qui balaie l'écran à l'entrée de la scène (style Jiwa)
-    if (e.transition === "vague" && local < 0.7) {
+    if (e.transition === "vague" && local < 0.7 && LOOK !== "verre") {
       const q = eio(prog(local, 0, 0.7));
       ctx.save(); ctx.fillStyle = rgba(C, 1);
       if (LOOK === "pop") {
@@ -768,6 +893,16 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       }
       ctx.restore();
     }
+  }
+  // Verre : un point de lumière s'allume au centre à chaque changement de plan, comme si le plan suivant en sortait
+  if (LOOK === "verre") {
+    let tc = 0;
+    scenes.slice(0, -1).forEach((e) => {
+      tc += dureeScene(e); const q = prog(t, tc - 0.2, tc + 0.3); if (q <= 0 || q >= 1) return;
+      const k = Math.sin(q * Math.PI);
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); if ("filter" in ctx) ctx.filter = "none"; ctx.globalAlpha = k; ctx.fillStyle = "#fff"; ctx.shadowColor = "#fff"; ctx.shadowBlur = (40 + k * 80) * u;
+      ctx.beginPath(); ctx.arc(W / 2, H / 2, (6 + k * 16) * u, 0, Math.PI * 2); ctx.fill(); ctx.fill(); ctx.restore();
+    });
   }
   if (LOOK === "nuit") {
     let de4 = 0;
@@ -816,6 +951,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
   let iCour = 0, modeCour = FOND; { let de3 = 0; for (let j = 0; j < scenes.length; j++) { const dj = dureeScene(scenes[j]); if (t >= de3) { iCour = j; modeCour = ["couleur", "blanc", "noir"].includes(scenes[j].fond) ? scenes[j].fond : FOND; } de3 += dj; } }
   if ((LOOK === "editorial" || LOOK === "minimal") && modeCour === "noir") modeCour = "blanc";
   if (MP) modeCour = MP[iCour];
+  if (LOOK === "verre") modeCour = "noir";
   palette(modeCour); ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
   const derniere = iCour === scenes.length - 1;
   if (LOOK === "editorial" && !derniere) {

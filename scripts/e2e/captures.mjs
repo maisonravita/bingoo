@@ -569,7 +569,7 @@ if (CONSTRUIRE === "video-images") {
       console.log(`dépôt du membre : photo ${ph.ok ? "✓" : "✗ " + ph.t} ; vidéo ${env?.ok ? "✓" : "✗ " + (env ? env.status : vi.t)}`);
       depot = { photos: ph.ok ? [ph.j.url] : [], videos: env?.ok ? [vi.j.url] : [] };
     }
-    const r = await appel("video-creer", { workspace_id: wsV, texte: idee, format: "vertical", ...depot });
+    const r = await appel("video-creer", { workspace_id: wsV, texte: idee, format: "vertical", ...depot, ...(/look:(\w+)/.test(process.env.DOMAINE ?? "") ? { look: process.env.DOMAINE.match(/look:(\w+)/)[1] } : {}) });
     let sc = r.j?.script ?? null;
     // Clips animés : on attend qu'ils soient prêts (ou abandonnés), six minutes au plus
     for (let i = 0; i < 36 && sc && Object.values(sc.images ?? {}).some((x) => x?.attente); i++) { await new Promise((ok) => setTimeout(ok, 10000)); const e = await appel("video-clips", { workspace_id: wsV, video_id: r.j.id }); if (e.ok && e.j?.script) sc = e.j.script; }

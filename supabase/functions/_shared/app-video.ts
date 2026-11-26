@@ -93,11 +93,12 @@ export type SceneVideo = Record<string, any> & { type: string };
 export type ScriptLibre = { genre: "libre"; nom: string; fond: "noir" | "blanc"; look?: string; lien?: string; couleur?: string; police?: string; scenes: SceneVideo[]; note?: string };
 
 // Deux vidéos ne doivent pas se ressembler : une allure visuelle et une construction tirées au sort à chaque création
-const LOOKS_VIDEO: Record<string, string> = {
+export const LOOKS_VIDEO: Record<string, string> = {
   nuit: "nuit : fond sombre, capitales grasses, halos de couleur (énergie, premium)",
   pop: "pop : la couleur de la marque partout, gros mots blancs, très rythmé (jeune, fun, sport, food)",
   editorial: "éditorial : papier crème, titres élégants à empattements en casse normale, calme et chic (artisan, mode, beauté, conseil)",
   minimal: "minimal : blanc pur, peu de mots, beaucoup d'air, la couleur seulement pour l'accent (tech, santé, services)",
+  verre: "verre : interface sombre faite de capsules de verre et de lumière, chiffres qui montent, très soigné (appli, logiciel, tech, finance, objets connectés)",
 };
 const STRUCTURES: [string, string][] = [
   ["rature", "Construction PROBLÈME → SOLUTION : ouvre sur une « rature » (la mauvaise façon barrée), puis la solution, puis les bénéfices."],
