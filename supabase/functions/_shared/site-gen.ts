@@ -71,7 +71,8 @@ export async function genererPage(e: EntreePage): Promise<{ page: PageGeneree; m
   const jetonPhoto = (n: number) => (nbPhotos ? `PHOTO_${n}` : `IMG_${n}`);
   const consigneCompo = compo ? consigneComposition(compo).replace(/\bIMG_([1-3])\b/g, (_m, n) => jetonPhoto(Number(n))) : "";
   if (compo) journal.push(`Premier écran : composition ${compo.nom}`);
-  const systeme = `${REGLES_PAGE}\n\n${VOCABULAIRE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}${consigneCompo ? `\n\n${consigneCompo}` : ""}`;
+  const consigneDe = (c: string) => `${REGLES_PAGE}\n\n${VOCABULAIRE}\n\n## Palette et polices imposées (système de design tiré pour ce membre)\n${texteDesign(e.design)}\n\n## Fiche du type de projet (${typeP})\n${FICHES[typeP] ?? ""}${luxe ? `\n\n${FICHE_LUXE}` : ""}${e.consignes ? `\n\n## Ce projet\n${e.consignes}` : ""}${c ? `\n\n${c}` : ""}`;
+  let systeme = consigneDe(consigneCompo);
   const donnees = JSON.stringify({ nom: e.nom, modele: e.modele, metier: e.metier, ville: e.ville, bouton_principal: e.cta, demande: e.demande,
     services: (e.services ?? []).map((s: any) => ({ titre: s.titre, prix: s.prix, duree: s.duree })), horaires: e.horaires ?? [], coordonnees: e.infos ?? {}, faq: e.faq ?? [],
     photos_du_membre: (e.photosMembre ?? []).length });
@@ -130,6 +131,12 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
         // Sujet qui monte trop haut (au-dessus du tiers de l'image) : il cacherait tout le mot ; le mot reste alors devant la photo
         if (d.haut != null && d.haut < 0.3) journal.push(`Détourage : sujet trop haut (${Math.round(d.haut * 100)} %), mot devant la photo`);
         else { images.IMG_6 = { url: d.url, prompt: "la photo d'en-tête détourée (le sujet sans le ciel)" }; journal.push(`Détourage : sujet découpé${d.haut != null ? ` (commence à ${Math.round(d.haut * 100)} %)` : ""}`); } } } catch (x) { journal.push(`Détourage : ${String(x).slice(0, 120)}`); } }
+  }
+  // Les images du premier écran n'ont pas pu être créées (service indisponible, crédit épuisé) : la composition photo est
+  // abandonnée pour un premier écran typographique, plutôt qu'une galerie ou un plein cadre vides
+  if (compo?.photo && !(compo.id === "galerie" ? [1, 2, 3] : [1]).every((n) => images[nbPhotos ? `PHOTO_${n}` : `IMG_${n}`])) {
+    journal.push(`Premier écran : images absentes, composition ${compo.nom} abandonnée`);
+    compo = null; systeme = consigneDe("");
   }
   const jetons = new Set(Object.keys(images));
   imagesVues = images; await signaler();
