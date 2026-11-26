@@ -25,6 +25,8 @@ export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
 export { alignerCode, couvrirDemo } from "./${S}/contrat-donnees.ts";
+export { controlerSection, doublonsServices } from "./${S}/gen-nettoyage.ts";
+export { choisirComposition, choisirSections } from "./${S}/gen-compositions.ts";
 export { modeleDe, specReservation, specDevis, specEcriture, specCrm, specProjets, specSupport, specBoutique, specFormation, specRecrutement, specReseaux, specFormulaires, specNotes } from "./${S}/modeles.ts";
 `;
 const stubs = {
@@ -315,6 +317,38 @@ await test("jetons de couleur : contrastes WCAG 2.2 AA en clair et en sombre", a
   const paires = [["ink", "paper"], ["ink-soft", "paper"], ["ink-faint", "paper"], ["ink-soft", "surface"], ["ink-faint", "surface"], ["accent-dark", "surface"], ["accent-dark", "accent-soft"], ["good", "good-soft"], ["warn", "warn-soft"], ["bad", "bad-soft"], ["info", "info-soft"]];
   for (const [nom, t] of [["clair", clair], ["sombre", sombre]]) for (const [a, b] of paires) {
     const v = r(t[a], t[b]); if (v < 4.5) throw new Error(`${nom} : ${a} sur ${b} = ${v.toFixed(2)} (4,5 minimum)`);
+  }
+});
+console.log("\nRégularité des pages");
+await test("textes du modèle recopiés et zones inventées sont signalés, pas les vrais textes", () => {
+  const c = (h, b = "") => T.controlerSection("s", "<h2>Titre réel</h2>" + h, b).join(" ");
+  assert.match(c('<div class="tuile">Mot</div>'), /modèle recopié/);
+  assert.match(c("<p>(2 à 4 mots)</p>"), /modèle recopié/);
+  assert.match(c("<p>Nous intervenons partout en France.</p>"), /Zone inventée/);
+  assert.doesNotMatch(c("<p>Nous intervenons partout en France.</p>", "intervient partout en France"), /Zone inventée/);
+  assert.doesNotMatch(c("<p>Visite (état des lieux compris) à Lyon.</p><p>Notre motif préféré.</p>"), /modèle|Zone/);
+});
+await test("prestations recopiées à côté du marqueur services : signalées", () => {
+  const t = ["Circuit aurores boréales", "Circuit fjords de Norvège"];
+  assert.equal(T.doublonsServices("<h3>Circuit aurores boréales</h3><h3>Circuit fjords de Norvège</h3>", t, true).length, 1);
+  assert.equal(T.doublonsServices("<h3>Circuit aurores boréales</h3><h3>Circuit fjords de Norvège</h3>", t, false).length, 0);
+  assert.equal(T.doublonsServices('<h2>Nos voyages</h2><div data-bingoo="services"></div>', t, false).length, 0);
+});
+await test("compositions : le métier décide, « premier » n'est pas « mer »", () => {
+  const ids = (type, texte) => new Set(Array.from({ length: 40 }, () => T.choisirComposition({ type, texte, images: true })?.id));
+  assert.ok(ids("service", "Studio de design graphique. Premier rendez-vous offert.").has("galerie"));
+  assert.ok(!ids("service", "Studio de design graphique. Premier rendez-vous offert.").has("cinema"));
+  assert.ok(ids("service", "agence immobilière à Biarritz").has("mot-geant"));
+  assert.equal(T.choisirComposition({ type: "place", texte: "restaurant", images: false }), null);
+});
+await test("sections du bas de page : jamais deux voisines identiques, adresse jamais dans un récit", () => {
+  const plan = ["hero", "domaine", "vins", "degustation", "visite", "faq", "contact"].map((id) => ({ id, role: id === "contact" ? "closing" : id, marqueurs: id === "vins" ? ["services"] : id === "visite" ? ["adresse"] : [] }));
+  for (let i = 0; i < 30; i++) {
+    const c = T.choisirSections(plan, ["IMG_2", "IMG_3"]);
+    const suite = plan.map((s) => c[s.id]?.mise ?? null);
+    for (let k = 1; k < suite.length; k++) if (suite[k] && suite[k] === suite[k - 1]) throw new Error("voisines identiques " + suite.join(","));
+    if (c.visite && c.visite.mise === "recit") throw new Error("adresse dans un récit");
+    if (c.vins?.mise !== "liste") throw new Error("prestations hors liste");
   }
 });
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);

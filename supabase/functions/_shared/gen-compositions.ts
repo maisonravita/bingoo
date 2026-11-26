@@ -179,3 +179,68 @@ export function controlerCompo(c: Composition, html: string): string[] {
   const manque = [`hero-${{ cinema: "cine", "mot-geant": "mot", hublot: "hublot", lueur: "lueur", galerie: "galerie", bento: "bento" }[c.id]}`, ...CLES[c.id]].filter((k) => !new RegExp(`class="[^"]*\\b${k}\\b`).test(html));
   return manque.length ? [`Composition « ${c.nom} » non respectée : il manque ${manque.join(", ")}. Reprends EXACTEMENT la structure imposée, sans <style>.`] : [];
 }
+
+// ---------------------------------------------------------------- Sections signatures (le bas de page)
+export type MiseSection = "recit" | "manifeste" | "liste" | "duo" | "etapes";
+export const SECTIONS: Record<MiseSection, { nom: string; photo: boolean; structure: string }> = {
+  recit: { nom: "Récit photo", photo: true, structure: `<section id="ID" class="s-recit">
+  <img src="IMG_n" alt="(la scène en une phrase)">
+  <div class="s-recit__texte"><span class="t-label">(2 à 4 mots)</span><h2>(phrase forte, 4 à 9 mots)</h2><p>(deux phrases concrètes du brief)</p></div>
+</section>` },
+  manifeste: { nom: "Manifeste", photo: false, structure: `<section id="ID" class="section s-manifeste"><div class="wrap">
+  <span class="t-label">(2 à 4 mots)</span>
+  <h2>(une phrase de 10 à 18 mots qui dit la promesse, avec UN fragment de 2 à 4 mots dans <em>…</em>)</h2>
+  <div class="s-manifeste__pied"><p>(une ou deux phrases concrètes du brief)</p><a class="btn btn--primary" href="#contact">(action)</a></div>
+</div></section>` },
+  liste: { nom: "Liste éditoriale", photo: false, structure: `<section id="ID" class="section s-liste"><div class="wrap">
+  <div class="s-liste__tete"><h2>(titre de la section)</h2><p>(une phrase)</p></div>
+  <div class="s-liste__ligne"><span class="s-liste__num">01</span><h3>(élément réel du brief)</h3><p>(ce que c'est, une ou deux phrases)</p></div>
+  (2 à 5 lignes en tout, une par élément réel du brief. Si la section porte le marqueur services : n'écris AUCUNE ligne, le marqueur affiche déjà les prestations ; pose seulement <div data-bingoo="services"></div> sous la tête de section)
+</div></section>` },
+  duo: { nom: "Duo photo", photo: true, structure: `<section id="ID" class="s-duo">
+  <figure><img src="IMG_n" alt="(la scène en une phrase)"></figure>
+  <div class="s-duo__texte"><span class="t-label">(2 à 4 mots)</span><h2>(titre, 4 à 8 mots)</h2><p>(deux phrases concrètes)</p>
+    <ul class="s-duo__points"><li>(fait réel du brief)</li> (2 à 4 points)</ul></div>
+</section>
+(ajoute la classe s-duo--inverse sur la section pour mettre la photo à droite)` },
+  etapes: { nom: "Étapes", photo: false, structure: `<section id="ID" class="section s-etapes"><div class="wrap">
+  <h2>(comment ça se passe, 4 à 8 mots)</h2>
+  <div class="s-etapes__rang"><div class="s-etape"><h3>(étape)</h3><p>(une phrase)</p></div> (3 ou 4 étapes, celles que le brief permet de décrire)</div>
+</div></section>` },
+};
+
+/** Une mise en page par section du milieu (ni premier écran, ni fin, ni FAQ, ni formulaire) ; jamais deux voisines identiques ;
+ *  les photos vont aux sections « récit » et « duo » tant qu'il en reste. */
+export function choisirSections(sections: { id: string; role?: string; marqueurs?: string[] }[], photosLibres: string[], aleatoire: () => number = Math.random): Record<string, { mise: MiseSection; image?: string }> {
+  const out: Record<string, { mise: MiseSection; image?: string }> = {};
+  const libres = [...photosLibres];
+  let prec: MiseSection | null = null;
+  const deja = new Set<MiseSection>();
+  for (const s of sections) {
+    const role = String(s.role ?? "").toLowerCase(), m = s.marqueurs ?? [], q = `${role} ${s.id}`;
+    if (s.id === "hero" || /hero|closing|faq|question|contact|inscription/.test(role) || m.includes("contact") || m.includes("inscription")) { prec = null; continue; }
+    let options: MiseSection[];
+    if (m.some((x) => ["adresse", "horaires", "realisations"].includes(x))) options = libres.length ? ["duo"] : [];
+    else if (/fonctionnement|methode|m[ée]thode|etape|[ée]tape|process|comment|d[ée]roul/.test(q)) options = ["etapes"];
+    else if (m.includes("services") || /offre|prestation|service|prix|tarif|carte|vins?\b|chambres?|voyages?|destinations?|produits?|savoir/.test(q)) options = ["liste"];
+    else if (/promesse|manifeste|citation|valeur|vision|pourquoi/.test(q)) options = ["manifeste"];
+    else options = libres.length ? ["recit", "duo"] : ["manifeste"];
+    // Un manifeste et un récit par page au plus : au-delà, la page redevient libre (les règles Taste)
+    let choix = options.filter((o) => o !== prec && !((o === "manifeste" || o === "recit") && deja.has(o)));
+    if (!choix.length) { prec = null; continue; }
+    const mise = choix[Math.floor(aleatoire() * choix.length)];
+    const image = SECTIONS[mise].photo ? libres.shift() : undefined;
+    if (SECTIONS[mise].photo && !image) { prec = null; continue; }
+    out[s.id] = { mise, ...(image ? { image } : {}) };
+    deja.add(mise); prec = mise;
+  }
+  return out;
+}
+
+export function consigneSections(choix: Record<string, { mise: MiseSection; image?: string }>, ids: string[]): string {
+  const lignes = ids.filter((id) => choix[id]).map((id) => `### Section « ${id} » : mise en page « ${SECTIONS[choix[id].mise].nom} »${choix[id].image ? ` (photo ${choix[id].image})` : ""}\n${SECTIONS[choix[id].mise].structure.replace(/\bID\b/g, id).replace(/IMG_n/g, choix[id].image ?? "IMG_n")}`);
+  return lignes.length ? `\nMISES EN PAGE IMPOSÉES (garde exactement ces balises et ces classes, remplace les parenthèses par les vrais textes, n'ajoute AUCUNE balise <style> ni attribut style dans ces sections ; tu peux ajouter un marqueur data-bingoo à l'endroit indiqué) :\n${lignes.join("\n\n")}\n` : "";
+}
+
+/** Une section signature : jamais de style écrit à la main (le kit fait le rendu) */
+export function estSectionSignature(html: string) { return /class="[^"]*\bs-(recit|manifeste|liste|duo|etapes)\b/.test(String(html ?? "")); }

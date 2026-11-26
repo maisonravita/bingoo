@@ -35,6 +35,13 @@ export function controlerSection(id: string, html: string, brief: string): strin
   if (id !== "nav" && id !== "hero" && !/<h2\b/i.test(html) && !/<footer\b/i.test(html)) pbs.push("Il manque le h2 de la section.");
   if (id !== "hero" && /<h1\b/i.test(html)) pbs.push("Un seul h1 sur la page : il est dans le premier écran.");
   if (/(<button\b(?![^>]*nav__toggle))/i.test(html)) pbs.push("Pas de <button> : un lien .btn vers une ancre.");
+  // Textes du modèle recopiés tels quels (« (titre) », « Mot », « Initiale ») : la page se verrait inachevée
+  const modele = texte.match(/\(\s*(?:\d+ à \d+ |une? |le |la |les |ce qu'|des? )?(titre|mot|mots|rubrique|libell[ée]|valeur|initiale|[ée]l[ée]ment r[ée]el|fait r[ée]el|phrase|promesse|bouton|m[ée]tier|lien court|deux phrases)\b[^()]{0,60}\)/i)?.[0]
+    ?? html.match(/>\s*(Mot|Mots|Initiale|Titre|Rubrique|Libellé|Lorem ipsum)\s*</)?.[1];
+  if (modele) pbs.push(`Texte du modèle recopié : « ${modele} ». Remplace-le par un vrai texte du métier.`);
+  // Zone ou portée inventée (« partout en France ») : seulement si le brief le dit
+  const zone = texte.match(/(partout en France|toute la France|France enti[èe]re|dans toute la r[ée]gion|toute l'Europe|dans le monde entier|\d+\s*km (autour|à la ronde))/i)?.[0];
+  if (zone && !brief.toLowerCase().includes(zone.toLowerCase())) pbs.push(`Zone inventée : « ${zone} » n'est pas dans le brief. Retire-la.`);
   return pbs;
 }
 
@@ -55,3 +62,12 @@ export function remplacerTextePage(page: { sections: { id: string; html: string 
   return n;
 }
 
+
+/** Prestations recopiées à la main alors que le marqueur services les affiche déjà ailleurs (ou dans la même section) */
+export function doublonsServices(html: string, titres: string[], marqueurAilleurs: boolean): string[] {
+  const t = html.replace(/<div[^>]*data-bingoo="services"[^>]*>[\s\S]*?<\/div>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").toLowerCase();
+  const ici = /data-bingoo="services"/.test(html);
+  if (!ici && !marqueurAilleurs) return [];
+  const vus = titres.map((x) => String(x ?? "").trim().toLowerCase()).filter((x) => x.length > 4 && t.includes(x));
+  return vus.length >= 2 ? [`Les prestations (${vus.slice(0, 3).join(", ")}) sont déjà affichées par le marqueur services : ne les réécris pas à la main, parle d'autre chose ou retire la liste.`] : [];
+}
