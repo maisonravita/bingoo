@@ -1324,6 +1324,19 @@ if (CONSTRUIRE === "spec") {
       if (f) { const h = await f.evaluate(() => document.body.scrollHeight).catch(() => 0); if (h > vp.height) await p2.setViewportSize({ width: vp.width, height: Math.min(h + 80, 9000) }); await p2.waitForTimeout(1500); }
       await p2.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom); await c2.close();
     }
+    // Un petit film du site en ligne (souris sur la photo, puis défilement) : montre les effets (ondulation, mots, défilement doux)
+    try {
+      const cf = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR", recordVideo: { dir: `${DOSSIER}/film-tmp`, size: { width: 1440, height: 900 } } });
+      const pf = await cf.newPage();
+      await pf.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+      await pf.waitForTimeout(6000);
+      for (let k = 0; k < 60; k++) { await pf.mouse.move(720 + Math.cos(k / 6) * 380, 450 + Math.sin(k / 6) * 200); await pf.waitForTimeout(50); }
+      for (let k = 0; k < 26; k++) { await pf.mouse.wheel(0, 260); await pf.waitForTimeout(420); }
+      await pf.waitForTimeout(800);
+      const chemin = await pf.video()?.path(); await cf.close();
+      if (chemin) { fs.renameSync(chemin, `${DOSSIER}/site-film.webm`); console.log("✓ film du site"); }
+      fs.rmSync(`${DOSSIER}/film-tmp`, { recursive: true, force: true });
+    } catch (e) { console.log("✗ film du site", e.message); }
     // L'espace gérant, vu par le gérant : il crée son accès (adresse de son compte Bingoo!), les demandes reçues avant l'attendent
     const API = `${SB}/functions/v1/t/app/${a.slug}`;
     const mdpG = crypto.randomBytes(15).toString("base64url");
