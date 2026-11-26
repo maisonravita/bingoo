@@ -1536,6 +1536,7 @@ section.hero.hero-bento { padding: calc(var(--nav) + clamp(32px, calc(var(--hv, 
 /* 7. Affiche : la couleur de la marque en plein écran, un titre immense sur deux lignes, des formes géométriques douces */
 section.hero.hero-affiche { position: relative; min-height: clamp(580px, var(--hv, 100svh), 960px) !important; padding: calc(var(--nav) + clamp(24px, calc(var(--hv, 100vh) * 0.05), 64px)) 0 clamp(32px, calc(var(--hv, 100vh) * 0.06), 72px) !important; display: flex; flex-direction: column; justify-content: space-between; gap: 28px; overflow: hidden; isolation: isolate; background: var(--p-accent); color: var(--p-accent-ink); }
 .hero-affiche > * { width: 100%; max-width: 1320px; margin-inline: auto; padding-inline: var(--gut); }
+section.hero.hero-affiche > .hero-affiche__titre { width: 100%; max-width: 1320px; margin-inline: auto !important; padding-inline: var(--gut) !important; }
 .hero-affiche__formes { position: absolute; inset: 0; max-width: none; padding: 0; z-index: -1; pointer-events: none; }
 .hero-affiche__formes i { position: absolute; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--p-accent-ink) 22%, transparent); animation: affiche-tourne 40s linear infinite; }
 .hero-affiche__formes i:nth-child(1) { width: 62vmax; aspect-ratio: 1; right: -18vmax; top: -22vmax; }
