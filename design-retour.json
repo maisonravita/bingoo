@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "e0": {
+    "p": "#225BD8",
+    "c": "#225BD8",
+    "g": "editorial",
+    "n": 0,
+    "cta": "Prendre rendez-vous"
+  },
+  "e1": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Prendre rendez-vous"
+  },
+  "e2": {
+    "p": "#225BD8",
+    "c": "#225BD8",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Prendre rendez-vous"
+  },
+  "e3": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Prendre rendez-vous"
+  }
+}

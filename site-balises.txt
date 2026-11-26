@@ -1,0 +1,16 @@
+<title>Maison Rive · Agence immobilière de prestige à Biarritz</title>
+<meta name="description" content="Maison Rive accompagne acheteurs et vendeurs de villas et d&#39;appartements avec vue sur l&#39;océan à Biarritz et sur le Pays basque.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Maison Rive">
+<meta property="og:title" content="Maison Rive · Agence immobilière de prestige à Biarritz">
+<meta property="og:description" content="Maison Rive accompagne acheteurs et vendeurs de villas et d&#39;appartements avec vue sur l&#39;océan à Biarritz et sur le Pays basque.">
+<meta property="og:url" content="https://www.bingoo.fr/s/maison-rive-4y5y">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=maison-rive-4y5y&amp;v=11-225BD8">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=maison-rive-4y5y&amp;v=11-225BD8">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Maison Rive · Agence immobilière de prestige à Biarritz">
+<meta name="twitter:description" content="Maison Rive accompagne acheteurs et vendeurs de villas et d&#39;appartements avec vue sur l&#39;océan à Biarritz et sur le Pays basque.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Maison Rive","description":"Maison Rive accompagne acheteurs et vendeurs de villas et d'appartements avec vue sur l'océan à Biarritz et sur le Pays basque.","url":"https://www.bingoo.fr/s/maison-rive-4y5y","image":"https://www.bingoo.fr/api/og?slug=maison-rive-4y5y&v=11-225BD8","telephone":"05 59 00 00 00","areaServed":"Biarritz et Pays basque","makesOffer":[{"@type":"Offer","name":"Estimation de votre bien","description":"Nous évaluons votre villa ou votre appartement au regard du marché local et des biens comparables."},{"@type":"Offer","name":"Vente de villas et appartements","description":"Nous mettons en valeur votre bien et recherchons l'acquéreur qui correspond à votre projet."},{"@type":"Offer","name":"Recherche d'acquisition","description":"Nous identifions pour vous les biens face à l'océan qui répondent à vos critères sur la côte basque."}]}</script>

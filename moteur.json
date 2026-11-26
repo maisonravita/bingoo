@@ -1,0 +1,24 @@
+{
+  "gen": {
+    "at": "2026-11-26T17:02:50.024Z",
+    "cout": 0.3224,
+    "appels": 6,
+    "entree": 153971,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 6038,
+    "duree_s": 51,
+    "journal": [
+      "Premier écran : composition Mot géant",
+      "Plan : hero, estimation, prestations, pays-basque, visites, questions, contact",
+      "Images : 3 générée(s), 0.083 €",
+      "Détourage : sujet découpé (commence à 47 %)",
+      "Sections : estimation=liste, pays-basque=recit, visites=duo",
+      "Essai 1 : pays-basque (La photo IMG_2 est déjà utilisée plus haut sur la page : n'e)",
+      "Essai 2 : pays-basque (La photo IMG_2 est déjà utilisée plus haut sur la page : n'e)",
+      "Essai 3 : visites (La photo IMG_3 est déjà utilisée plus haut sur la page : n'e)"
+    ],
+    "images_eur": 0.0874,
+    "corrections": 2
+  },
+  "sections": 7
+}
