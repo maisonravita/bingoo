@@ -825,6 +825,13 @@ export async function saasEditionDirecte(appId: string, b: any) {
     for (const [k, v] of Object.entries(page.images ?? {}) as [string, any][]) if (v?.url === avant) { page.images[k] = { ...v, url }; n++; }
     for (const s of page.sections) if (typeof s.html === "string" && s.html.includes(avant)) { s.html = s.html.split(avant).join(url); n++; }
     if (!n) throw new Error("Image introuvable dans la page");
+    // Mot géant : la photo d'en-tête a une copie détourée (IMG_6) posée par-dessus. Nouvelle photo, nouveau détourage ;
+    // s'il échoue ou si le sujet monte trop haut, la copie est retirée (le mot reste devant la photo, jamais l'ancien sujet)
+    if (page.images?.IMG_6 && page.images?.IMG_1?.url === url) {
+      let ok = false;
+      try { const { detourer } = await import("./gen-images.ts"); const d = await detourer(url); if (d && !(d.haut != null && d.haut < 0.3)) { page.images.IMG_6 = { ...page.images.IMG_6, url: d.url }; ok = true; } } catch (x) { console.error("détourage remplacement", x); }
+      if (!ok) { delete page.images.IMG_6; for (const s of page.sections) if (typeof s.html === "string") s.html = s.html.replace(/<img\b[^>]*\bhero-mot__sujet\b[^>]*>/gi, ""); }
+    }
   } else if (b.quoi === "police") {
     const ok = (p: unknown) => typeof p === "string" && /^[A-Za-z0-9 ]{2,40}$/.test(p);
     if (!ok(b.titres) || !ok(b.texte)) throw new Error("Police invalide");
