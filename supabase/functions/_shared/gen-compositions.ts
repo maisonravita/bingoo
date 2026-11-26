@@ -128,7 +128,7 @@ Les mots des tuiles : un mot court et réel du métier, 7 lettres au plus (jamai
     </div>
   </div>
 </section>
-Chaque widget correspond à une fonction décrite dans le brief ; les valeurs sont des exemples d'usage, jamais des résultats du membre.`,
+Chaque widget correspond à une fonction décrite dans le brief ; les valeurs sont des exemples d'usage, jamais des résultats du membre. widget__valeur ne contient qu'un nombre, une heure ou un mot court (8 lettres au plus), jamais une phrase ; une phrase va dans widget__note. Remplis exactement les 6 colonnes : par exemple 1 grand (3×2) + 2 larges (3×1), puis 3 petits (2×1).`,
   },
 };
 
