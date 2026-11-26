@@ -84,7 +84,7 @@ function FilmAuto() {
   useLectureAuto(ref);
   // Le film de 32 s (sans son) : l'idée, la construction en direct, un site qui te plaît, les SaaS qui marchent
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-paper">
+    <div className="fx-halo overflow-hidden rounded-2xl bg-white">
       <video ref={ref} src="/film-lancement.mp4?v=8" poster="/film-lancement.jpg?v=6" muted loop playsInline preload="metadata" controls aria-label="Film de présentation de Bingoo! : tu écris ton idée, Bingoo! la construit sous tes yeux (vraie construction accélérée), puis ses SaaS, sites et vidéos" className="w-full block aspect-video bg-white" />
     </div>
   );
@@ -311,7 +311,7 @@ function IdeeHero({ nav, nb }) {
     <form onSubmit={lancer} className="hero-in mx-auto mt-10 w-full max-w-[720px] rounded-[20px] border border-ink/15 bg-white text-left transition focus-within:border-ink/40 focus-within:shadow-[0_0_0_4px_rgba(21,22,26,.06)]" style={{ animationDelay: ".16s" }}>
       <label htmlFor="idee" className="sr-only">Ton idée, ou l'adresse d'un site qui te plaît</label>
       {modele && type === "video" && <p className="m-2 mb-0 flex items-center gap-2 rounded-xl bg-accent-soft px-3 py-2 text-[13px] text-ink"><span><b>Style choisi : {modele.nom}</b> · {NOMS_STYLES[modele.look] ?? modele.look}. Décris ton activité, ta vidéo reprendra ce style.</span><button type="button" aria-label="Retirer le style" onClick={() => { setModele(null); try { localStorage.removeItem("bingoo-style-video"); } catch { /* rien */ } }} className="ml-auto grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-black/10">×</button></p>}
-      <textarea id="idee" ref={zone} value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) lancer(e); }} rows={3} maxLength={300} placeholder={`Décris ce que tu imagines. Ex. : ${EXEMPLES_IDEE[type][0].toLowerCase()}`} className="block w-full resize-none bg-transparent px-5 pt-4 text-[17px] leading-relaxed text-ink outline-none placeholder:text-ink-faint" />
+      <textarea id="idee" ref={zone} value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) lancer(e); }} rows={3} maxLength={300} placeholder="Décris ton idée, ou colle l'adresse d'un site qui te plaît…" className="block w-full resize-none bg-transparent px-5 pt-4 text-[17px] leading-relaxed text-ink outline-none placeholder:text-ink-faint" />
       <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2.5">
         {url ? (
           <span className="inline-flex items-center gap-1.5 px-2 text-[13.5px] font-semibold text-ink"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" /></svg>Une adresse : Bingoo! va lire ce site et faire ta version</span>
@@ -324,7 +324,7 @@ function IdeeHero({ nav, nb }) {
             ))}
           </div>
         )}
-        <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-accent px-4 py-2.5 text-[15px] font-semibold text-white transition hover:bg-accent-dark disabled:opacity-60">{busy ? "Un instant…" : <>{url ? "Faire ma version" : "Créer"} <Arrow /></>}</button>
+        <button type="submit" disabled={busy} className="w-full sm:w-auto sm:ml-auto inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-accent px-4 py-2.5 text-[15px] font-semibold text-white transition hover:bg-accent-dark disabled:opacity-60">{busy ? "Un instant…" : <>{url ? "Faire ma version" : "Construire mon idée"} <Arrow /></>}</button>
       </div>
     </form>
     <p className="hero-in mx-auto mt-3 max-w-[720px] px-1 text-left text-[13px] text-ink-soft" style={{ animationDelay: ".2s" }}>{url ? "Bingoo! relève ses couleurs, ses polices et son organisation. Jamais ses textes, ses images ni son logo." : type === "video" ? "20 secondes en motion design, à tes couleurs, avec une musique libre de droits." : type === "outil" ? "Ton premier outil ou jeu est offert, sans carte bancaire." : type === "site" ? "Ton site en ligne en quelques minutes : tes services, tes prix, tes horaires et un formulaire." : "Écrans, comptes clients et abonnements sur ton Stripe. Tu vois l'aperçu avant de payer."}</p>
@@ -364,14 +364,14 @@ export default function Landing() {
   // Un titre de section : numéro, rubrique, grand titre, chapeau. Toujours aligné à gauche, même rythme partout.
   const Tete = ({ n, rub, titre, children }) => (
     <header className="max-w-[860px]">
-      <p className="flex items-center gap-3 text-[13px] font-semibold text-ink-soft"><span className="tnum text-accent">{n}</span><span className="h-px w-8 bg-line" aria-hidden />{rub}</p>
+      <p className="flex items-center gap-3 text-[13px] font-semibold text-ink-soft"><span className="tnum fx-texte">{n}</span><span className="h-px w-8 bg-line" aria-hidden />{rub}</p>
       <h2 className="mt-4 text-[34px] sm:text-[52px] font-bold leading-[1.04] tracking-[-.035em] text-ink">{titre}</h2>
       {children && <p className="mt-5 max-w-[640px] text-[17px] leading-relaxed text-ink-soft">{children}</p>}
     </header>
   );
   const Capture = ({ src, tel, alt, legende }) => (
     <figure className="min-w-0">
-      <div className="overflow-hidden rounded-2xl border border-line bg-paper"><picture>{tel && <source media="(max-width: 640px)" srcSet={tel} />}<img src={src} alt={alt} loading="lazy" className="block w-full" /></picture></div>
+      <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-[0_30px_70px_-40px_rgba(21,23,42,.55)]"><picture>{tel && <source media="(max-width: 640px)" srcSet={tel} />}<img src={src} alt={alt} loading="lazy" className="block w-full" /></picture></div>
       {legende && <figcaption className="mt-3 text-[13px] text-ink-faint">{legende}</figcaption>}
     </figure>
   );
@@ -380,37 +380,44 @@ export default function Landing() {
     <div className="min-h-full bg-white text-ink" style={JK}>
       <style>{`@keyframes land-in{from{opacity:0;transform:translateY(10px)}}.land-in{animation:land-in .45s ease-out both}@media (prefers-reduced-motion: reduce){.land-in{animation:none}}`}</style>
 
-      {/* En-tête : blanc, net ; un filet apparaît dès qu'on descend */}
-      <header className={cx("sticky top-0 z-30 transition-colors", defile ? "border-b border-line bg-white/90 backdrop-blur" : "border-b border-transparent bg-white")}>
-        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-4 px-5 sm:px-10">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!, haut de page" className="shrink-0"><Logo height={26} /></button>
-          <nav aria-label="Navigation principale" className="hidden lg:flex items-center gap-1 text-[14.5px] font-medium">
-            {[["Réalisations", "realisations"], ["Comment ça marche", "comment"], ["Explorer", "explorer"], ["Tarifs", "prix"]].map(([t, id]) => <a key={id} href={`#${id}`} onClick={scrollTo(id)} className="rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">{t}</a>)}
+      {/* Menu flottant sombre, en pilule */}
+      <header className="sticky top-0 z-30 px-3 sm:px-6 pt-3">
+        <div className={cx("mx-auto flex h-[60px] max-w-[1180px] items-center justify-between gap-3 rounded-full bg-[#15171F]/95 pl-5 pr-2 text-white backdrop-blur border border-white/[.06] transition-shadow", defile ? "shadow-[0_18px_40px_-18px_rgba(0,0,0,.7)]" : "shadow-[0_18px_40px_-22px_rgba(0,0,0,.5)]")}>
+          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Bingoo!, haut de page" className="shrink-0"><Logo height={28} inverse /></button>
+          <nav aria-label="Navigation principale" className="hidden lg:flex items-center gap-1 text-[14.5px] font-medium whitespace-nowrap">
+            {[["Réalisations", "realisations"], ["Comment ça marche", "comment"], ["Explorer", "explorer"], ["Tarifs", "prix"]].map(([t, id]) => <a key={id} href={`#${id}`} onClick={scrollTo(id)} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">{t}</a>)}
             <div className="group relative">
-              <button type="button" aria-haspopup="true" className="flex items-center gap-1 rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">Comparer<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg></button>
+              <button type="button" aria-haspopup="true" className="flex items-center gap-1 rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">Comparer<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="m6 9 6 6 6-6" /></svg></button>
               <div className="invisible absolute left-0 top-full pt-2 opacity-0 transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
-                <div className="w-56 rounded-xl border border-line bg-white p-1.5 shadow-[0_16px_40px_-20px_rgba(21,22,26,.35)]">{COMPARER.map(([t, href]) => <a key={href} href={href} className="block rounded-lg px-3 py-2.5 text-[14px] text-ink-soft hover:bg-paper hover:text-ink">{t}</a>)}</div>
+                <div className="w-56 rounded-2xl border border-white/10 bg-[#15171F] p-1.5 shadow-2xl">{COMPARER.map(([t, href]) => <a key={href} href={href} className="block rounded-xl px-3 py-2.5 text-[14px] text-white/80 hover:bg-white/10 hover:text-white">{t}</a>)}</div>
               </div>
             </div>
-            <a href="#faq" onClick={scrollTo("faq")} className="rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">FAQ</a>
+            <a href="#faq" onClick={scrollTo("faq")} className="rounded-full px-3.5 py-2 text-white/75 hover:bg-white/10 hover:text-white transition">FAQ</a>
           </nav>
-          <div className="flex items-center gap-1 text-[14.5px] font-semibold whitespace-nowrap">
-            <button onClick={() => nav("/connexion?mode=login")} className="rounded-lg px-3 py-2 text-ink-soft hover:text-ink transition">Se connecter</button>
-            <button onClick={go} className="rounded-lg bg-ink px-4 py-2 text-white hover:bg-black transition">Commencer</button>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[14px] sm:text-[15px] font-semibold whitespace-nowrap">
+            <button onClick={() => nav("/connexion?mode=login")} className="rounded-full px-3 sm:px-4 py-2.5 text-white/80 hover:text-white hover:bg-white/10 transition">Se connecter</button>
+            <button onClick={go} className="rounded-full bg-white text-[#15171F] px-4 sm:px-5 py-2.5 hover:bg-white/90 transition">Commencer</button>
           </div>
         </div>
       </header>
 
       <main>
         {/* 1. Tout commence par une idée : le champ de création, au centre */}
-        <section className="px-5 sm:px-10 pt-16 sm:pt-28 pb-16 sm:pb-24 text-center">
-          <p className="hero-in inline-flex items-center gap-2 text-[14px] font-semibold text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />Imagine. Crée. Lance.</p>
-          <h1 className="hero-in mx-auto mt-6 max-w-[1000px] text-[46px] sm:text-[76px] lg:text-[96px] font-bold leading-[.98] tracking-[-.045em] text-ink" style={{ animationDelay: ".05s" }}>Tout commence par une <span className="text-accent">idée.</span></h1>
-          <p className="hero-in mx-auto mt-7 max-w-[640px] text-[18px] sm:text-[21px] leading-[1.45] text-ink-soft" style={{ animationDelay: ".1s" }}>Crée des sites web, des applications, des logiciels et des jeux simplement en décrivant ce que tu imagines.</p>
+        <section className="relative overflow-hidden px-5 sm:px-10 pt-14 sm:pt-24 pb-16 sm:pb-24 text-center">
+          <div className="fx-grille" aria-hidden />
+          <span className="fx-aurore h-[360px] w-[360px] bg-[#F6A06B] left-[8%] top-[60px]" aria-hidden />
+          <span className="fx-aurore h-[320px] w-[320px] bg-[#9B6BFF] right-[8%] top-[140px]" style={{ animationDelay: "-6s" }} aria-hidden />
+          <div className="relative z-[1]">
+          <h1 className="hero-in mx-auto max-w-[1180px]">
+            <span className="block text-[34px] sm:text-[56px] lg:text-[72px] font-medium leading-[1.08] tracking-[-.02em] text-[#3A3F55]">Donne ton idée.</span>
+            <span className="mt-1 block text-[42px] sm:text-[68px] lg:text-[88px] font-bold leading-[1.04] tracking-[-.035em] text-ink">Bingoo! <span className="fx-texte">la construit.</span></span>
+          </h1>
+          <p className="hero-in mx-auto mt-6 sm:mt-8 max-w-[720px] text-[17px] sm:text-[21px] leading-[1.45] text-[#3A3F55]" style={{ animationDelay: ".1s" }}>Ton site, ton logiciel, ton outil ou ton jeu en ligne en quelques minutes, à ton nom. Bingoo! le crée sous tes yeux, le teste, puis t'aide à trouver tes premiers clients.</p>
           <IdeeHero nav={nav} nb={nb} />
           <div id="film" className="hero-in mx-auto mt-16 sm:mt-20 max-w-[1120px] scroll-mt-24 text-left" style={{ animationDelay: ".3s" }}>
             <FilmAuto />
             <p className="mt-3 text-[13px] text-ink-faint">Film réel, accéléré : une idée tapée, Bingoo! qui construit, le résultat en ligne.</p>
+          </div>
           </div>
         </section>
 
@@ -432,8 +439,8 @@ export default function Landing() {
               ].map(([h, d, [src, tel, alt, leg]], k) => (
                 <li key={h} className="grid items-start gap-8 lg:grid-cols-[minmax(0,.75fr)_minmax(0,1.25fr)] lg:gap-16">
                   <div className="lg:sticky lg:top-28">
-                    <p className="tnum text-[14px] font-semibold text-accent">0{k + 1}</p>
-                    <p className="mt-2 text-[44px] sm:text-[60px] font-bold leading-none tracking-[-.045em] text-ink">{h}</p>
+                    <span className="grid h-9 w-9 place-items-center rounded-full fx-pastille text-[14px] font-bold text-white tnum">{k + 1}</span>
+                    <p className="mt-4 text-[44px] sm:text-[60px] font-bold leading-none tracking-[-.045em] text-ink">{h}</p>
                     <p className="mt-6 text-[17px] leading-relaxed text-ink-soft">{d}</p>
                     {k === 0 && <button onClick={versIdee} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-[15px] font-semibold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow /></button>}
                   </div>
@@ -514,10 +521,10 @@ export default function Landing() {
                 ["Lancer", "24,99 €", "par mois · 19 € à vie pour les 50 premiers", ["Ton SaaS, construit et testé", "Comptes clients et abonnements sur ton Stripe", "L'atelier, tes premiers clients, ta vidéo"]],
               ].map(([t, p, sous, l], k) => (
                 <div key={t} className={cx("p-7 sm:p-8", k > 0 && "border-t border-line md:border-l md:border-t-0", k === 2 && "bg-ink text-white")}>
-                  <p className={cx("text-[15px] font-semibold", k === 2 ? "text-white" : "text-ink")}>{t}</p>
+                  <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 2 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>
                   <p className="mt-5 text-[44px] font-bold leading-none tracking-[-.03em] tnum">{p}</p>
                   <p className={cx("mt-2 text-[13.5px]", k === 2 ? "text-white/65" : "text-ink-soft")}>{sous}</p>
-                  <ul className="mt-7 space-y-3 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2.5"><Check className={cx("mt-1 h-4 w-4 shrink-0", k === 2 ? "text-white" : "text-accent")} />{x}</li>)}</ul>
+                  <ul className="mt-7 space-y-3 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2.5"><Check className={cx("mt-1 h-4 w-4 shrink-0", k === 2 ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
                 </div>
               ))}
             </div>
@@ -544,17 +551,22 @@ export default function Landing() {
         </div>
 
         {/* 10. Dernier appel */}
-        <section className="border-t border-line bg-paper px-5 sm:px-10 py-24 sm:py-32 text-center">
-          <p className="inline-flex items-center gap-2 text-[14px] font-semibold text-ink-soft"><span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />Imagine. Crée. Lance.</p>
-          <p className="mx-auto mt-6 max-w-[820px] text-[40px] sm:text-[64px] font-bold leading-[1.02] tracking-[-.045em] text-ink">Ton idée mérite d'exister.</p>
+        <section className="relative overflow-hidden border-t border-line px-5 sm:px-10 py-24 sm:py-32 text-center">
+          <div className="fx-grille" style={{ WebkitMaskImage: "radial-gradient(ellipse 60% 70% at 50% 50%, #000 25%, transparent 75%)", maskImage: "radial-gradient(ellipse 60% 70% at 50% 50%, #000 25%, transparent 75%)" }} aria-hidden />
+          <span className="fx-aurore h-[300px] w-[300px] bg-[#F6A06B] left-[18%] top-[40px]" aria-hidden />
+          <span className="fx-aurore h-[280px] w-[280px] bg-[#9B6BFF] right-[18%] top-[120px]" style={{ animationDelay: "-5s" }} aria-hidden />
+          <div className="relative z-[1]">
+          <p className="mx-auto max-w-[820px] text-[40px] sm:text-[64px] font-bold leading-[1.02] tracking-[-.045em] text-ink">Ton idée mérite d'exister.</p>
           <p className="mx-auto mt-5 max-w-[560px] text-[18px] text-ink-soft">Écris-la en une phrase : Bingoo! te montre ce qu'il va construire, gratuitement.</p>
-          <button onClick={versIdee} className="mt-9 inline-flex items-center gap-2 rounded-xl bg-accent px-7 py-3.5 text-[16px] font-semibold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow /></button>
+          <button onClick={versIdee} className="fx-brille mt-9 inline-flex items-center gap-2 rounded-full bg-accent px-8 py-4 text-[17px] font-bold text-white hover:bg-accent-dark transition">Décrire mon idée <Arrow /></button>
+          </div>
         </section>
       </main>
 
-      <footer className="border-t border-line bg-white">
+      <footer className="bg-white">
+        <div className="fx-filet" aria-hidden />
         <div className="mx-auto grid max-w-[1200px] grid-cols-2 gap-8 px-5 sm:px-10 py-14 text-[15px] md:grid-cols-4">
-          <div className="col-span-2 md:col-span-1"><Logo height={28} /><p className="mt-4 text-[14px] text-ink-soft">Imagine. Crée. Lance.</p></div>
+          <div className="col-span-2 md:col-span-1"><Logo height={28} /><p className="mt-4 text-[14px] text-ink-soft">Donne ton idée, Bingoo! la construit.</p></div>
           <div><p className="font-semibold">Produit</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5">{[["realisations", "Réalisations"], ["comment", "Comment ça marche"], ["copie", "Un site qui te plaît"], ["explorer", "Explorer"], ["prix", "Tarifs"]].map(([id, l]) => <li key={id}><a href={`#${id}`} onClick={scrollTo(id)} className="hover:text-ink">{l}</a></li>)}</ul></div>
           <div><p className="font-semibold">Comparer et explorer</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5"><li><a href="/comparer/codunk/" className="hover:text-ink">Bingoo! ou Codunk</a></li><li><a href="/comparer/wix/" className="hover:text-ink">Bingoo! ou Wix</a></li><li><a href="/comparer/webflow/" className="hover:text-ink">Bingoo! ou Webflow</a></li><li><a href="/saas" className="hover:text-ink">Tous les SaaS suivis</a></li><li><a href={`mailto:bingoo@maisonravita.fr?subject=${encodeURIComponent("Corriger ou retirer une fiche")}`} title="Écris-nous depuis une adresse de ton domaine : correction ou retrait sous 72 heures." className="hover:text-ink">Corriger ou retirer une fiche</a></li></ul></div>
           <div><p className="font-semibold">Compte et légal</p><ul className="mt-3 space-y-0.5 text-ink-soft [&_a]:inline-block [&_a]:py-1.5 [&_button]:py-1.5"><li><button onClick={() => nav("/connexion?mode=login")} className="hover:text-ink">Connexion</button></li><li><button onClick={go} className="hover:text-ink">Créer un compte</button></li>{legalReady && <><li><a href="#/mentions-legales" className="hover:text-ink">Mentions légales</a></li><li><a href="#/confidentialite" className="hover:text-ink">Confidentialité</a></li><li><a href="#/conditions" className="hover:text-ink">Conditions</a></li></>}<li><a href="#/opposition" className="hover:text-ink">Ne plus être contacté</a></li></ul></div>

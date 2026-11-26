@@ -194,14 +194,16 @@ export function BingooIA({ go }) {
   const q = qs[qi % (qs.length || 1)];
 
   return (
-    <section id="ia" ref={ref} className="reveal scroll-mt-24 bg-ink px-5 sm:px-10 py-20 sm:py-28 text-white" style={JK}>
-      <div className="mx-auto max-w-[1200px]">
+    <section id="ia" ref={ref} className="reveal relative overflow-hidden scroll-mt-24 bg-[#15171F] px-5 sm:px-10 py-20 sm:py-28 text-white" style={JK}>
+      <span className="fx-aurore h-[340px] w-[340px] bg-[#E0531F] -left-20 -top-24 opacity-40" aria-hidden />
+      <span className="fx-aurore h-[300px] w-[300px] bg-[#9B6BFF] -right-16 bottom-0 opacity-30" style={{ animationDelay: "-5s" }} aria-hidden />
+      <div className="relative z-[1] mx-auto max-w-[1200px]">
         <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-16">
           <div>
             <div className="flex lg:justify-start"><Badge sombre>Bingoo! dans ton IA</Badge></div>
-            <h2 className="mt-6 text-[34px] sm:text-[52px] font-bold leading-[1.04] tracking-[-.035em]">Demande à ton IA.<br /><span className="text-[#F6A06B]">Elle fouille dans Bingoo!</span></h2>
+            <h2 className="mt-6 text-[34px] sm:text-[52px] font-bold leading-[1.04] tracking-[-.035em]">Demande à ton IA.<br /><span className="fx-texte">Elle fouille dans Bingoo!</span></h2>
             <p className="mt-5 max-w-[480px] text-[17px] leading-[1.55] text-white/70">Branche Bingoo! à ton IA : Claude, ChatGPT, Le Chat, Gemini, Perplexity… Pose ta question comme tu la penses : ton IA cherche dans les SaaS suivis et te répond avec leurs vrais chiffres.</p>
-            <button onClick={go} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-[15px] font-semibold text-ink hover:bg-white/90 transition">Brancher Bingoo! à mon IA</button>
+            <button onClick={go} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-[16px] font-bold text-[#15171F] hover:bg-white/90 transition">Brancher Bingoo! à mon IA</button>
             <p className="mt-3 text-[13px] text-white/50">Essai gratuit, sans carte. Les chiffres complets sont inclus dans la formule Lancer.</p>
           </div>
 
