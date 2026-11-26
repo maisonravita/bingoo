@@ -168,6 +168,12 @@ function ChantierFlou({ texte, genre, children }) {
 // Un clic sur un SaaS de la vitrine remplit l'idée (point de départ à adapter)
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 export const VITRINE = [
+  // Premiers écrans signatures (26/11) : mot géant, hublot, galerie courbe, lueur
+  ["domaine-trois-collines", "Domaine des Trois Collines", "Site de vigneron", "Le site de mon domaine viticole dans le Luberon, avec les dégustations au domaine", "site"],
+  ["cap-lointain", "Cap Lointain", "Site d'agence de voyages", "Le site de mon agence de voyages sur mesure en Islande et en Norvège", "site"],
+  ["maison-rive", "Maison Rive", "Site d'agence immobilière", "Le site de mon agence immobilière de prestige à Biarritz, avec l'estimation offerte", "site"],
+  ["studio-brume", "Studio Brume", "Site de studio de design", "Le site de mon studio de design graphique à Lyon : identités visuelles, typographies et campagnes", "site"],
+  ["nocta", "Nocta", "Page d'appli mobile", "La page de présentation de mon appli qui suit le sommeil, le cœur, les pas et l'humeur", "site"],
   // Sites du nouveau design (novembre 2026), mis en avant. Un seul premier écran « aplat de couleur et grand titre » : plusieurs côte à côte se ressemblent trop.
   ["atelier-nord", "Atelier Nord", "Site d'architecte d'intérieur", "Le site de mon agence d'architecture d'intérieur à Annecy, avec ma méthode et mes réalisations", "site"],
   ["hotel-des-quais", "Hôtel des Quais", "Site d'hôtel", "Le site de mon hôtel 4 étoiles à Bordeaux, avec les chambres et la réservation", "site"],
@@ -264,8 +270,8 @@ function Vitrine({ choisir }) {
       <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, sites, outils et jeux, déjà en ligne</h2>
       <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
       <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
-        {rangee(VITRINE.slice(0, 10), 1)}
-        {rangee(VITRINE.slice(10), -1)}
+        {rangee(VITRINE.filter((_, i) => i % 2 === 0), 1)}
+        {rangee(VITRINE.filter((_, i) => i % 2 === 1), -1)}
       </div>
     </section>
   );
