@@ -1,0 +1,21 @@
+{
+  "gen": {
+    "at": "2026-11-26T18:30:43.770Z",
+    "cout": 0.3049,
+    "appels": 5,
+    "entree": 126437,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 5881,
+    "duree_s": 49,
+    "journal": [
+      "Premier écran : composition Bandeau",
+      "Plan : hero, services, atelier, devis, horaires, faq, contact",
+      "Images : 3 générée(s), 0.083 €",
+      "Sections : services=liste, devis=etapes, horaires=duo",
+      "Essai 1 : horaires (La photo IMG_2 est déjà utilisée plus haut sur la page : n'e)"
+    ],
+    "images_eur": 0.0828,
+    "corrections": 1
+  },
+  "sections": 8
+}

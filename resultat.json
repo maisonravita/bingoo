@@ -1,0 +1,92 @@
+{
+  "duree_s": 164,
+  "app": {
+    "slug": "durand-plomberie-3q56",
+    "statut": "pret",
+    "version": 3,
+    "verif": {
+      "at": "2026-11-26T18:31:44.836Z",
+      "ok": true,
+      "phase": "fini",
+      "reste": [],
+      "essais": {
+        "__page": 1
+      },
+      "mesure": {
+        "ok": true,
+        "fin": "2026-11-26T18:31:44.502Z",
+        "cout": 0.08,
+        "debut": "2026-11-26T18:30:47.284Z",
+        "ecrans": 4,
+        "entree": "site",
+        "essais": 1,
+        "modele": "site",
+        "famille": "gestion",
+        "premier": {
+          "ko": 0,
+          "ok": true,
+          "testes": 4
+        }
+      },
+      "repare": [],
+      "journal": [
+        {
+          "t": "Les 4 écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.",
+          "at": "2026-11-26T18:30:47.284Z",
+          "type": "info"
+        },
+        {
+          "t": "Test n° 1 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T18:31:12.079Z",
+          "type": "ok"
+        },
+        {
+          "t": "Je corrige l'affichage de ta page (essai 1/2) : Contraste trop faible (minimum 4,5:1) : « Chaque chantier est mené avec méthode, p (3.1:1) ».",
+          "at": "2026-11-26T18:31:12.079Z",
+          "type": "correction"
+        },
+        {
+          "t": "Affichage de ta page corrigé. Je reteste tout.",
+          "at": "2026-11-26T18:31:20.551486+00:00",
+          "type": "correction"
+        },
+        {
+          "t": "Test n° 2 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T18:31:44.502Z",
+          "type": "ok"
+        },
+        {
+          "t": "Tout est propre : ton espace gérant (4 écrans) a été testé et fonctionne. Ton site est prêt.",
+          "at": "2026-11-26T18:31:44.502Z",
+          "type": "ok"
+        }
+      ],
+      "version": 3,
+      "passages": 2,
+      "dernieres": {},
+      "resultats": [
+        {
+          "id": "accueil",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "demandes",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "services",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "infos",
+          "ok": true,
+          "erreur": null
+        }
+      ],
+      "en_reparation": []
+    }
+  }
+}

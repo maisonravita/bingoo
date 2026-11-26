@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "e0": {
+    "p": "#CA2323",
+    "c": "#CA2323",
+    "g": "editorial",
+    "n": 0,
+    "cta": "Demander un devis"
+  },
+  "e1": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Demander un devis"
+  },
+  "e2": {
+    "p": "#CA2323",
+    "c": "#CA2323",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Demander un devis"
+  },
+  "e3": {
+    "p": "#0F766E",
+    "c": "#0F766E",
+    "g": "editorial",
+    "n": 1,
+    "cta": "Demander un devis"
+  }
+}
