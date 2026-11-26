@@ -212,64 +212,65 @@ function VideoCarte({ f, nom, quoi, style: look = "", cachee, partir }) {
     <figure aria-hidden={cachee || undefined} className="group relative shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-black">
       {/* Toute la carte est un bouton : on part de ce modèle (son style est retenu pour la vidéo qu'on va décrire) */}
       <button type="button" tabIndex={cachee ? -1 : 0} onClick={() => partir?.(nom, look)} aria-label={`Partir du modèle ${nom}`} className="absolute inset-0 z-10 flex items-end justify-center bg-gradient-to-t from-black/55 via-black/0 to-black/0 pb-[74px] opacity-0 transition-opacity duration-200 focus-visible:opacity-100 group-hover:opacity-100">
-        <span className="rounded-full bg-white px-4 py-2 text-[13.5px] font-semibold text-ink">Partir de ce style →</span>
+        <span className="rounded-full bg-white px-4 py-2 text-[13.5px] font-bold text-[#1E2030] shadow-lg">Partir de ce modèle →</span>
       </button>
-      <video ref={ref} poster={`/videos/${f}.jpg?v=5`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[380px] sm:h-[440px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4?v=5`} type="video/mp4" /><source src={`/videos/${f}.webm?v=5`} type="video/webm" /></video>
+      <video ref={ref} poster={`/videos/${f}.jpg?v=5`} muted loop playsInline preload="none" style={{ aspectRatio: forme }} className="block h-[300px] sm:h-[400px] w-auto object-cover" aria-label={cachee ? undefined : `Vidéo ${nom}, créée avec Bingoo!`}><source src={`/videos/${f}.mp4?v=5`} type="video/mp4" /><source src={`/videos/${f}.webm?v=5`} type="video/webm" /></video>
       {/* La légende ne doit jamais élargir la carte : sinon la vidéo laisse une bande noire à droite */}
       <figcaption className="flex w-0 min-w-full flex-col gap-0.5 bg-white px-3.5 py-2.5"><b className="truncate text-[14px] text-ink">{nom}</b><span className="truncate text-[12.5px] text-ink-soft">{quoi}</span></figcaption>
     </figure>
   );
 }
-// Ce que Bingoo! a construit, rangé par genre : une liste à gauche, la vraie capture en grand à droite.
-// Chaque projet sert de point de départ ; les vidéos se lisent en place et donnent leur style.
-const GENRES_REAL = [["site", "Sites web"], ["saas", "Logiciels"], ["outil", "Outils et jeux"], ["video", "Vidéos"]];
-function Realisations({ choisir, partirVideo }) {
-  const [genre, setGenre] = useState("site"), [i, setI] = useState(0);
-  const liste = VITRINE.filter(([, , , , g]) => (g ?? "saas") === genre), cur = liste[Math.min(i, liste.length - 1)];
-  return (
-    <div className="mt-10">
-      <div role="tablist" aria-label="Genre de projet" className="flex gap-1 overflow-x-auto border-b border-line">
-        {GENRES_REAL.map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={genre === k} onClick={() => { setGenre(k); setI(0); }} className={cx("-mb-px shrink-0 border-b-2 px-4 py-3 text-[15px] font-semibold transition", genre === k ? "border-ink text-ink" : "border-transparent text-ink-soft hover:text-ink")}>
-            {l}<span className="ml-2 tnum text-[13px] font-medium text-ink-faint">{k === "video" ? VIDEOS_RANGS[0].length : VITRINE.filter(([, , , , g]) => (g ?? "saas") === k).length}</span>
-          </button>
-        ))}
-      </div>
-      {genre === "video" ? (
-        <div className="mt-8">
-          <div className="-mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-4 sm:-mx-10 sm:px-10">
-            {VIDEOS_RANGS[0].map(([f, nom, quoi, style]) => <VideoCarte key={f} f={f} nom={nom} quoi={quoi} style={style} partir={partirVideo} />)}
-          </div>
-          <p className="mt-3 text-[14px] text-ink-soft">Clique sur une vidéo pour partir de son style. Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant.</p>
-        </div>
-      ) : (
-        <div className="mt-8 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-10">
-          <ul className="-mx-5 flex gap-2 overflow-x-auto px-5 lg:mx-0 lg:block lg:space-y-0.5 lg:overflow-visible lg:px-0" aria-label="Projets">
-            {liste.map(([img, nom, quoi], k) => (
-              <li key={img} className="shrink-0">
-                <button type="button" onClick={() => setI(k)} aria-current={cur?.[0] === img || undefined} className={cx("w-full rounded-xl px-3.5 py-2.5 text-left transition lg:py-3", cur?.[0] === img ? "bg-paper" : "hover:bg-paper/70")}>
-                  <span className="block whitespace-nowrap text-[15px] font-semibold text-ink">{nom}</span>
-                  <span className="block whitespace-nowrap text-[13px] text-ink-soft">{quoi}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {cur && (
-            <figure key={cur[0]} className="land-in min-w-0">
-              <button type="button" onClick={() => choisir?.(cur[3], cur[4] ?? "saas")} className="group block w-full overflow-hidden rounded-2xl border border-line bg-paper text-left">
-                <img src={`/vitrine/${cur[0]}.jpg`} alt={`${cur[1]}, construit avec Bingoo!`} className="aspect-[16/10] w-full object-cover object-top transition duration-500 group-hover:scale-[1.01]" />
-              </button>
-              <figcaption className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <span className="text-[14px] text-ink-soft">Premier écran réel, construit par Bingoo! à partir de : <span className="text-ink">« {cur[3]} »</span></span>
-                <button type="button" onClick={() => choisir?.(cur[3], cur[4] ?? "saas")} className="inline-flex items-center gap-1.5 text-[14.5px] font-semibold text-accent-dark hover:text-ink">Partir de celui-ci <Arrow className="h-4 w-4" /></button>
-              </figcaption>
-            </figure>
-          )}
-        </div>
-      )}
+// Les réalisations défilent : deux bandes de projets, puis une bande de vidéos (pause au survol)
+function VideosVitrine({ nav }) {
+  // Partir d'un modèle : son style est gardé de côté (l'écran Vidéos le reprendra), et le champ d'idée s'ouvre sur une vidéo
+  const partir = (nom, look) => {
+    try { if (look) localStorage.setItem("bingoo-style-video", JSON.stringify({ look, nom, at: Date.now() })); else localStorage.removeItem("bingoo-style-video"); } catch { /* stockage indisponible */ }
+    window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte: "", genre: "video", modele: look ? { nom, look } : null } }));
+  };
+  const rangee = (l, sens) => (
+    <div className="videos-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 110 : 100}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
+      {[...l, ...l, ...l, ...l].map(([f, nom, quoi, style], i) => <VideoCarte key={f + i} f={f} nom={nom} quoi={quoi} style={style} cachee={i >= l.length} partir={partir} />)}
     </div>
   );
+  return (
+    <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-10 pb-6 text-left" aria-label="Vidéos créées avec Bingoo!">
+      <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.videos-rang{animation:none!important}}.videos-bande:hover .videos-rang{animation-play-state:paused}"}</style>
+      <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Et des vidéos aussi</p>
+      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>Des pubs en motion design, faites par Bingoo!</h2>
+      <p className="mx-auto mt-2 max-w-[680px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur une vidéo pour partir de son modèle. Une phrase suffit : Bingoo! écrit le scénario, l'anime à tes couleurs, et tu la retouches en discutant. Pub de marque ou vidéo de ton SaaS avec ses vrais écrans, en vertical, carré ou paysage.</p>
+      <div className="videos-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
+        {rangee(VIDEOS_RANGS[0], 1)}
+      </div>
+      <div className="mt-6 text-center"><button type="button" onClick={() => nav?.()} className="rounded-full bg-[#1E2030] px-5 py-2.5 text-[14px] font-semibold text-white hover:brightness-125" style={JK}>Créer ma vidéo →</button></div>
+    </section>
+  );
 }
+
+function Vitrine({ choisir }) {
+  const rangee = (l, sens) => (
+    <div className="vitrine-rang flex w-max gap-4" style={{ animation: `vitrine ${sens > 0 ? 70 : 80}s linear infinite${sens < 0 ? " reverse" : ""}` }}>
+      {[...l, ...l].map(([img, nom, quoi, idee, genre], i) => (
+        <button type="button" key={img + i} tabIndex={i >= l.length ? -1 : 0} aria-hidden={i >= l.length} onClick={() => choisir?.(idee, genre ?? "saas")} title={`Partir de ${nom}`} className="group w-[300px] sm:w-[380px] shrink-0 overflow-hidden rounded-2xl border border-black/[.08] bg-white text-left shadow-[0_14px_34px_-24px_rgba(20,20,40,.55)] transition hover:-translate-y-1 hover:shadow-[0_22px_44px_-24px_rgba(20,20,40,.6)]">
+          <img src={`/vitrine/${img}.jpg`} alt={`${nom}, construit avec Bingoo!`} loading="lazy" className="aspect-[16/10] w-full object-cover object-top" />
+          <span className="flex items-center justify-between gap-2 px-3.5 py-2.5"><b className="text-[14px] text-[#1E2030]">{nom}</b><span className="truncate text-[12.5px] text-[#5B6075] group-hover:hidden">{quoi}</span><span className="hidden text-[12.5px] font-semibold text-[#E8571C] group-hover:inline">Partir de celui-ci →</span></span>
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <section className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden pt-12 pb-4 text-left" aria-label="SaaS construits avec Bingoo!">
+      <style>{"@keyframes vitrine{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.vitrine-rang{animation:none!important}}.vitrine-bande:hover .vitrine-rang{animation-play-state:paused}"}</style>
+      <p className="text-center text-[13px] font-semibold uppercase tracking-[.16em] text-[#5B6075]" style={JK}>Construits avec Bingoo!</p>
+      <h2 className="mx-auto mt-2 max-w-[760px] px-4 text-center text-[24px] sm:text-[32px] font-bold leading-tight text-[#1E2030]" style={JK}>De vrais SaaS, sites, outils et jeux, déjà en ligne</h2>
+      <p className="mx-auto mt-2 max-w-[640px] px-4 text-center text-[15px] text-[#5B6075]" style={JK}>Clique sur celui qui ressemble à ton projet : Bingoo! part de là et l'adapte à toi.</p>
+      <div className="vitrine-bande mt-7 space-y-4 [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
+        {rangee(VITRINE.slice(0, 10), 1)}
+        {rangee(VITRINE.slice(10), -1)}
+      </div>
+    </section>
+  );
+}
+
 
 // Les cartes de la vitrine (SaaS, vidéos) remplissent le champ d'idée du haut de page
 const remplirIdee = (texte, genre) => window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte, genre } }));
@@ -357,10 +358,6 @@ export default function Landing() {
   const [defile, setDefile] = useState(false);
   useEffect(() => { const f = () => setDefile(window.scrollY > 8); f(); window.addEventListener("scroll", f, { passive: true }); return () => window.removeEventListener("scroll", f); }, []);
   const versIdee = () => { window.scrollTo({ top: 0, behavior: "smooth" }); setTimeout(() => document.getElementById("idee")?.focus(), 500); };
-  const partirVideo = (nom, look) => {
-    try { if (look) localStorage.setItem("bingoo-style-video", JSON.stringify({ look, nom, at: Date.now() })); else localStorage.removeItem("bingoo-style-video"); } catch { /* stockage indisponible */ }
-    window.dispatchEvent(new CustomEvent("bingoo-remplir", { detail: { texte: "", genre: "video", modele: look ? { nom, look } : null } }));
-  };
   // Un titre de section : numéro, rubrique, grand titre, chapeau. Toujours aligné à gauche, même rythme partout.
   const Tete = ({ n, rub, titre, children }) => (
     <header className="max-w-[860px]">
@@ -423,14 +420,14 @@ export default function Landing() {
 
         <div className="mx-auto max-w-[1200px]">
           {/* 2. Ce que Bingoo! a vraiment construit */}
-          <section id="realisations" className={SECTION}>
-            <Tete n="01" rub="Réalisations" titre="Ce que Bingoo! a déjà construit.">De vrais projets, construits par Bingoo! et en ligne. Choisis celui qui ressemble au tien : Bingoo! part de là et l'adapte à toi.</Tete>
-            <Realisations choisir={(t, g) => remplirIdee(t, g)} partirVideo={partirVideo} />
-          </section>
+          <div id="realisations" className="scroll-mt-24 border-t border-line px-5 sm:px-10">
+            <Vitrine choisir={(t, g) => remplirIdee(t, g)} />
+            <VideosVitrine nav={() => remplirIdee("Une vidéo pour présenter mon activité", "video")} />
+          </div>
 
           {/* 3. Comment ça marche : Imagine. Crée. Lance. */}
           <section id="comment" className={SECTION}>
-            <Tete n="02" rub="Comment ça marche" titre="Trois temps. Aucune ligne de code." />
+            <Tete n="01" rub="Comment ça marche" titre="Trois temps. Aucune ligne de code." />
             <ol className="mt-14 space-y-20 sm:space-y-28">
               {[
                 ["Imagine.", "Décris ton projet en une phrase, comme tu l'expliquerais à quelqu'un : « un logiciel de réservation pour les coiffeurs ». Bingoo! comprend s'il s'agit d'un site, d'un logiciel, d'un outil, d'un jeu ou d'une vidéo, et te montre son nom, ses écrans et un vrai rendu. Si une partie ne peut pas marcher telle quelle, il te le dit avant de construire.", ["/accueil/idee-tapee.jpg", null, "Le champ de création de Bingoo!, avec une idée tapée.", null]],
@@ -454,7 +451,7 @@ export default function Landing() {
           <section id="copie" className={SECTION}>
             <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] lg:gap-16">
               <div>
-                <Tete n="03" rub="Un site qui te plaît" titre="Tu as vu un site qui te plaît ? Colle son adresse." />
+                <Tete n="02" rub="Un site qui te plaît" titre="Tu as vu un site qui te plaît ? Colle son adresse." />
                 <ul className="mt-8 divide-y divide-line border-y border-line">
                   {["Bingoo! le lit point par point : couleurs, polices, rubriques, ce que c'est", "Tu choisis ton nom et tu ajoutes ton logo", "Bingoo! construit ta version, dans la même ambiance, avec tes propres textes"].map((x, k) => <li key={x} className="flex gap-4 py-4 text-[16px] text-ink"><span className="tnum text-[14px] font-semibold text-ink-faint">{k + 1}</span>{x}</li>)}
                 </ul>
@@ -469,7 +466,7 @@ export default function Landing() {
             <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,.85fr)] lg:gap-16">
               <div className="order-2 lg:order-1"><button onClick={() => nav("/decouvrir")} className="block w-full text-left"><Capture src="/accueil/decouvrir.jpg" alt="La page des SaaS qui marchent, avec leur revenu vérifié." legende="L'explorateur : de vrais SaaS, leurs revenus vérifiés, leurs prix." /></button></div>
               <div className="order-1 lg:order-2">
-                <Tete n="04" rub="Explorer" titre="Pas d'idée ? Pars de ce qui marche déjà.">{nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "Des milliers de"} SaaS et applis suivis, avec leurs revenus vérifiés, leurs prix, leurs concurrents et ce qu'il faut pour faire ta version. Choisis une opportunité : Bingoo! construit la tienne, à ton nom, sans reprendre leur marque.</Tete>
+                <Tete n="03" rub="Explorer" titre="Pas d'idée ? Pars de ce qui marche déjà.">{nb ? (Math.floor(nb / 1000) * 1000).toLocaleString("fr-FR") : "Des milliers de"} SaaS et applis suivis, avec leurs revenus vérifiés, leurs prix, leurs concurrents et ce qu'il faut pour faire ta version. Choisis une opportunité : Bingoo! construit la tienne, à ton nom, sans reprendre leur marque.</Tete>
                 <button onClick={() => nav("/decouvrir")} className="mt-8 inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-3 text-[15px] font-semibold text-white hover:bg-black transition">Explorer les opportunités <Arrow /></button>
               </div>
             </div>
@@ -481,7 +478,7 @@ export default function Landing() {
           <section id="clients" className={SECTION}>
             <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] lg:gap-16">
               <div>
-                <Tete n="05" rub="Après la mise en ligne" titre="En ligne, c'est bien. Avec des clients, c'est mieux." />
+                <Tete n="04" rub="Après la mise en ligne" titre="En ligne, c'est bien. Avec des clients, c'est mieux." />
                 <ul className="mt-8 divide-y divide-line border-y border-line">
                   {["Les établissements à contacter, trouvés dans le registre public", "Le message prêt, adressé au dirigeant", "Une étape par jour, chaque matin dans ta boîte mail", "Ta vidéo de présentation et tes posts, faits par Bingoo!"].map((x) => <li key={x} className="flex gap-3 py-4 text-[16px] text-ink"><Check className="mt-1 h-4 w-4 shrink-0 text-accent" />{x}</li>)}
                 </ul>
@@ -492,7 +489,7 @@ export default function Landing() {
 
           {/* 7. Intégrations : logos officiels, défilé continu */}
           <section id="branchements" className={SECTION}>
-            <Tete n="06" rub="Intégrations" titre="Ton projet se branche sur tes outils.">Tu colles un identifiant ou une adresse dans les réglages, Bingoo! fait le reste. Rien à coder.</Tete>
+            <Tete n="05" rub="Intégrations" titre="Ton projet se branche sur tes outils.">Tu colles un identifiant ou une adresse dans les réglages, Bingoo! fait le reste. Rien à coder.</Tete>
             <style>{`@keyframes bingooIntegrations { from { transform: translateX(0); } to { transform: translateX(-50%); } } .bingoo-integrations-track { animation: bingooIntegrations 48s linear infinite; } .bingoo-integrations:hover .bingoo-integrations-track, .bingoo-integrations:focus-within .bingoo-integrations-track { animation-play-state: paused; } @media (prefers-reduced-motion: reduce) { .bingoo-integrations-track { animation: none; } .bingoo-integrations-copy { display: none !important; } }`}</style>
             <div className="bingoo-integrations mt-12 overflow-x-auto border-y border-line py-8 [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]" tabIndex={0} aria-label="Intégrations disponibles">
               <div className="bingoo-integrations-track flex w-max">
@@ -513,7 +510,7 @@ export default function Landing() {
         <div className="mx-auto max-w-[1200px]">
           {/* 8. Tarifs */}
           <section id="prix" className={SECTION}>
-            <Tete n="07" rub="Tarifs" titre="Ton premier outil est offert. Tu paies pour aller plus loin." />
+            <Tete n="06" rub="Tarifs" titre="Ton premier outil est offert. Tu paies pour aller plus loin." />
             <div className="mt-12 grid overflow-hidden rounded-2xl border border-line md:grid-cols-3">
               {[
                 ["Gratuit", "0 €", "Pour voir, et ton premier outil", ["Ton premier outil ou jeu, construit et en ligne", "L'aperçu de ton idée : nom, écrans, vrai rendu", "La lecture d'un site qui te plaît", "Les SaaS qui marchent, en aperçu"]],
@@ -537,7 +534,7 @@ export default function Landing() {
           {/* 9. Questions */}
           <section id="faq" className={SECTION}>
             <div className="grid gap-10 lg:grid-cols-[minmax(0,.7fr)_minmax(0,1.3fr)] lg:gap-16">
-              <Tete n="08" rub="Questions" titre="Questions fréquentes." />
+              <Tete n="07" rub="Questions" titre="Questions fréquentes." />
               <div className="divide-y divide-line border-y border-line">
                 {FAQ.map(([q, a]) => (
                   <details key={q} className="group py-5">
