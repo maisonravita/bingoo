@@ -1252,18 +1252,24 @@ if (CONSTRUIRE === "spec") {
   if (a?.slug && CONSTRUIRE === "copie") { const [d] = await q(`select spec->'design'->'couleurs'->>'primary' prim, spec->'design'->'polices' pol, spec->'design'->>'source_style' src, spec->>'logo' logo from saas_apps where slug = ${lit(a.slug)}`); console.log("STYLE APPLIQUÉ :", JSON.stringify(d)); }
   if (["idee", "ia", "copie"].includes(CONSTRUIRE) && a?.slug) {
     const [{ titres }] = await q(`select coalesce(json_agg(e->>'titre'), '[]') titres from saas_apps, jsonb_array_elements(spec->'ecrans') e where slug = ${lit(a.slug)} and coalesce((e->>'public')::boolean, false) = false`);
+    // Les écrans vus de l'intérieur, comme un client du SaaS : un compte créé par l'API de l'application, puis l'application ouverte
+    const mdpC = crypto.randomBytes(15).toString("base64url");
+    const accesC = await fetch(`${SB}/functions/v1/t/app/${a.slug}/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: `robot+${Date.now()}@bingoo.fr`, password: mdpC, nom: "Robot client" }) }).then((r) => r.json()).catch((e) => ({ erreur: String(e) }));
+    console.log("Compte client du SaaS :", accesC.token ? "créé" : JSON.stringify(accesC).slice(0, 200));
     for (const [suffixe, vp] of [["", { width: 1440, height: 900 }], ["-mobile", { width: 390, height: 844 }]]) {
-      await page.setViewportSize(vp);
-      await page.goto(`${SITE}/?c=${Date.now()}#/explorer/mon-saas`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
-      await page.waitForTimeout(8000);
-      const cadre = page.frameLocator("iframe").first();
+      const cC = await browser.newContext({ viewport: vp, locale: "fr-FR", storageState: { cookies: [], origins: [{ origin: SITE, localStorage: accesC.token ? [{ name: `bingoo-app:${a.slug}`, value: accesC.token }] : [] }] } });
+      const pC = await cC.newPage();
+      await pC.goto(`${SITE}/?c=${Date.now()}#/app/${a.slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+      await pC.waitForTimeout(8000);
+      const cadre = pC.frameLocator("iframe").first();
       for (const [i, t] of (titres ?? []).entries()) {
         if (suffixe && i > 3) break;
         const b = cadre.getByRole("button", { name: t, exact: true });
         if (await b.count().catch(() => 0)) { await b.first().click({ timeout: 5000 }).catch(() => null); }
-        await page.waitForTimeout(2500);
-        await page.screenshot({ path: `${DOSSIER}/ecran-${String(i + 1).padStart(2, "0")}${suffixe}.png` }).catch(() => null);
+        await pC.waitForTimeout(2500);
+        await pC.screenshot({ path: `${DOSSIER}/ecran-${String(i + 1).padStart(2, "0")}${suffixe}.png` }).catch(() => null);
       }
+      await cC.close();
     }
     console.log("✓ écrans du SaaS photographiés :", (titres ?? []).join(", "));
     // La page de présentation telle que la voit un visiteur (moteur de pages), ordinateur puis téléphone
