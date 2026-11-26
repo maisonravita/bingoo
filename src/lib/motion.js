@@ -92,7 +92,7 @@ function plaqueLogo(ctx, cx, cy, hauteur, u, ombre = true, image = true) {
 let F = "system-ui", C = [79, 70, 229], CV = C, NOIR = true, INK = "#fff", INK2 = (a) => `rgba(255,255,255,${a})`;
 // Quatre allures pour que deux vidéos ne se ressemblent pas : nuit (sombre, capitales grasses), pop (couleur de la marque
 // partout), editorial (crème, titres à empattements, casse normale, sans halo), minimal (blanc pur, sobre, sans halo)
-export const LOOKS = ["nuit", "pop", "editorial", "minimal", "verre"];
+export const LOOKS = ["nuit", "pop", "editorial", "minimal", "verre", "clair"];
 let LOOK = "nuit";
 // Les vrais écrans du SaaS ou du site du membre (captures de son produit), par titre : { titre: image }
 let ECRANS = {}, ECRANS_L = [];
@@ -111,6 +111,15 @@ function palette(mode) {
   INK = NOIR ? "#fff" : "#0E0F13"; INK2 = NOIR ? (a) => `rgba(255,255,255,${a})` : (a) => `rgba(14,15,19,${a})`;
 }
 function fond(ctx, W, H, t, u) {
+  // Clair : un gris très clair, doux, avec de grandes taches de lumière floues qui bougent à peine
+  if (LOOK === "clair") {
+    ctx.fillStyle = "#ECECEE"; ctx.fillRect(0, 0, W, H);
+    [[0.22, 0.2, 0.75, "255,255,255", 0.95], [0.85, 0.78, 0.7, "255,255,255", 0.8], [0.8, 0.12, 0.5, "205,205,210", 0.55], [0.12, 0.88, 0.55, "210,210,215", 0.5]].forEach(([x, y, r, c, a], i) => {
+      const cx = W * (x + Math.sin(t * 0.22 + i * 1.7) * 0.05), cy = H * (y + Math.cos(t * 0.18 + i) * 0.04), R = Math.max(W, H) * r, g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      g.addColorStop(0, `rgba(${c},${a})`); g.addColorStop(1, `rgba(${c},0)`); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    });
+    return;
+  }
   // Verre : noir profond, une brume claire teintée de la marque qui tombe du haut (comme un écran dans le noir)
   if (LOOK === "verre") {
     ctx.fillStyle = "#050507"; ctx.fillRect(0, 0, W, H);
@@ -844,13 +853,118 @@ const VERRE = {
     [e.texte, s.lien].filter(Boolean).forEach((x, i) => { let tp = (i ? 28 : 38) * u; ctx.font = `500 ${tp}px ${F}`; const wt = ctx.measureText(x).width; if (wt > W * 0.8) tp *= (W * 0.8) / wt; ecrit(ctx, x, W / 2, H * 0.49 + taille * 0.72 + (36 + i * 62) * u, { taille: tp, t: t - 1 - i * 0.25, u, couleur: i ? "rgba(255,255,255,.42)" : "rgba(255,255,255,.78)" }); });
   },
 };
+// ── Allure « clair » : sobre comme une pub de logiciel. Un gris très clair, de petites phrases noires nettes dont un mot
+// prend la couleur de la marque, une caméra qui finit par plonger dans la phrase, une tuile blanche, des cartes pastel
+// qui s'empilent, un passage au noir quand ça va mal, et un fil de couleur qui traverse l'écran d'un plan à l'autre.
+const ENCRE = "#111114";
+const teinteDe = (c) => { const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (d < 0.001) return 220; const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
+const tons = (i) => { const h = (teinteDe(C) + [0, 135, 250, 60][i % 4]) % 360; return { fond: `hsl(${h},85%,90%)`, encre: `hsl(${h},55%,30%)`, plein: `hsl(${h},62%,46%)` }; };
+const CLAIR = {
+  // Une petite phrase noire qui sort du flou mot après mot ; dans la seconde moitié, la caméra plonge dedans
+  mots(ctx, s, e) {
+    const { W, H, u, t, d, vertical } = s, largeur = W * (vertical ? 0.8 : 0.6), txt = e.texte || "";
+    const taille = remplit(ctx, txt, (vertical ? 88 : 72) * u, largeur, 3, 500); ctx.font = `500 ${taille}px ${F}`;
+    const z = 1 + Math.pow(prog(t, d * 0.58, d), 2.2) * 2.4;
+    ctx.save(); ctx.translate(W / 2 - (z - 1) * W * 0.16, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
+    const lignes = coupe(ctx, txt, largeur), acc = String(e.accent || "").toLowerCase().split(/\s+/).filter(Boolean), esp = taille * 0.27; let i = 0;
+    lignes.forEach((l, k) => {
+      const mots = l.split(" "), w = mots.reduce((a, m) => a + ctx.measureText(m).width, 0) + esp * (mots.length - 1); let cx = W / 2 - w / 2; const cy = H / 2 + (k - (lignes.length - 1) / 2) * taille * 1.2;
+      for (const m of mots) { const estAcc = acc.includes(m.toLowerCase().replace(/[.,!?;:«»"]/g, "")); ctx.font = `500 ${taille}px ${F}`; const mw = ctx.measureText(m).width; ecrit(ctx, m, cx, cy, { taille, t: t - 0.1 - i * 0.11, aligne: "left", u, couleur: estAcc ? rgba(C, 1) : ENCRE }); cx += mw + esp; i++; }
+    });
+    ctx.restore();
+  },
+  // Un grand mot gras qui arrive de côté avec un filé, puis se pose
+  impact(ctx, s, e) {
+    const { W, H, u, t } = s, txt = e.texte || s.nom, p = eo(prog(t, 0, 0.5));
+    serre(ctx, "-0.04em"); const taille = remplit(ctx, txt, 250 * u, W * 0.9, 2, 700); ctx.font = `700 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const ls = coupe(ctx, txt, W * 0.9), dessine = (dx, a) => { ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = ENCRE; ls.forEach((l, i) => ctx.fillText(l, W / 2 + dx, H / 2 + (i - (ls.length - 1) / 2) * taille * 1.04)); ctx.restore(); };
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1.18 - 0.18 * p, 1.18 - 0.18 * p); ctx.translate(-W / 2, -H / 2);
+    if (p < 0.98) for (let k = 1; k <= 6; k++) dessine((1 - p) * k * 46 * u, 0.1 * p);
+    dessine((1 - p) * 12 * u, Math.min(1, p * 1.4)); ctx.restore(); serre(ctx, "-0.01em");
+  },
+  // Passage au noir : une phrase blanche en italique, floue, qui devient nette puis se dissout (ce qui ne va pas)
+  rature(ctx, s, e) {
+    const { W, H, u, t, d, vertical } = s, txt = e.texte || "", p = eo(prog(t, 0.05, 0.9)), q = prog(t, d - 0.45, d);
+    ctx.save(); ctx.globalAlpha = Math.min(1, prog(t, 0, 0.18)) * (1 - prog(t, d - 0.18, d)); ctx.fillStyle = "#050506"; ctx.fillRect(-W, -H, W * 3, H * 3);
+    ctx.fillStyle = "rgba(255,255,255,.035)"; for (let y = 0; y < H; y += 7 * u) ctx.fillRect(0, y, W, 2 * u); ctx.restore();
+    const taille = remplit(ctx, txt, (vertical ? 96 : 84) * u, W * 0.82, 3, 500); ctx.font = `italic 500 ${taille}px ${F}`;
+    ctx.save(); ctx.globalAlpha *= p * (1 - q); flou(ctx, ((1 - p) * 26 + q * 26) * u); ctx.fillStyle = "#fff"; ctx.shadowColor = "rgba(255,255,255,.5)"; ctx.shadowBlur = 26 * u; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const ls = coupe(ctx, txt, W * 0.82); ls.forEach((l, i) => ctx.fillText(l, W / 2, H / 2 + (i - (ls.length - 1) / 2) * taille * 1.2)); ctx.restore();
+  },
+  aplat(ctx, s, e) { CLAIR.impact(ctx, s, { ...e, texte: e.texte || s.nom }); },
+  // Une tuile blanche aux coins très ronds, posée avec son ombre : trois lignes, chacune avec sa pastille de couleur
+  pilules(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 3).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
+    const tp0 = (vertical ? 52 : 46) * u, lh = tp0 * 2.25, pad = tp0 * 1.1, w = Math.min(W * (vertical ? 0.74 : 0.42), 760 * u), h = n * lh + pad * 1.4, p = ressort(prog(t, 0.05, 0.8));
+    if (e.texte) { let tg = (vertical ? 60 : 52) * u; ctx.font = `500 ${tg}px ${F}`; const wt = ctx.measureText(e.texte).width; if (wt > W * 0.84) tg *= (W * 0.84) / wt; ecrit(ctx, e.texte, W / 2, H / 2 - h / 2 - tg * 1.5, { taille: tg, t: t - 0.5, u, couleur: ENCRE }); }
+    ctx.save(); ctx.translate(W / 2 + Math.sin(t * 0.7) * 10 * u, H / 2 + (e.texte ? 20 * u : 0)); ctx.rotate((-0.035 + 0.02 * prog(t, 0, s.d)) * (1 + (1 - p) * 3)); ctx.scale(0.5 + 0.5 * p, 0.5 + 0.5 * p); ctx.globalAlpha *= Math.min(1, prog(t, 0.05, 0.3) * 1.2); flou(ctx, (1 - Math.min(1, p)) * 16 * u);
+    ctx.save(); ctx.shadowColor = "rgba(20,20,40,.16)"; ctx.shadowBlur = 70 * u; ctx.shadowOffsetY = 28 * u; rond(ctx, -w / 2, -h / 2, w, h, 64 * u); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
+    items.forEach((x, i) => {
+      const a = eo(prog(t, 0.45 + i * 0.16, 0.95 + i * 0.16)), y = -h / 2 + pad * 0.7 + lh * (i + 0.5); if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = tons(i).plein; ctx.beginPath(); ctx.arc(-w / 2 + pad + tp0 * 0.4, y, tp0 * 0.4 * (0.5 + 0.5 * a), 0, Math.PI * 2); ctx.fill();
+      let tp = tp0; ctx.font = `500 ${tp}px ${F}`; const place = w - pad * 2 - tp0 * 1.5, wt = ctx.measureText(x).width; if (wt > place) { tp *= place / wt; ctx.font = `500 ${tp}px ${F}`; }
+      ctx.fillStyle = ENCRE; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x, -w / 2 + pad + tp0 * 1.5, y + tp * 0.04);
+      if (i < n - 1) { ctx.fillStyle = "rgba(0,0,0,.07)"; ctx.fillRect(-w / 2 + pad + tp0 * 1.5, y + lh / 2, w - pad * 2 - tp0 * 1.5, Math.max(1, 2 * u)); }
+      ctx.restore();
+    });
+    ctx.restore();
+  },
+  choix(ctx, s, e) { CLAIR.pilules(ctx, s, e); },
+  // Des cartes pastel qui tombent l'une sous l'autre ; puis la pile recule un peu et son titre s'écrit au-dessus
+  liste(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, items = (e.items ?? []).slice(0, 4).map(texteDe).filter(Boolean), n = Math.max(1, items.length);
+    const tp0 = (vertical ? 50 : 44) * u, h = tp0 * 2.7, gap = tp0 * 0.5, w = W * (vertical ? 0.8 : 0.4), hh = n * h + (n - 1) * gap, tFin = 0.2 + n * 0.3 + 0.25, f = e.texte ? eio(prog(t, tFin, tFin + 0.6)) : 0, k = 1 - 0.14 * f;
+    ctx.save(); ctx.translate(W / 2, H / 2 + f * tp0 * 1.1); ctx.scale(k, k);
+    items.forEach((x, i) => {
+      const ti = t - 0.2 - i * 0.3, p = eo(prog(ti, 0, 0.5)); if (p <= 0) return;
+      const y = -hh / 2 + i * (h + gap) - (1 - p) * 170 * u, c = tons(i);
+      ctx.save(); ctx.globalAlpha *= Math.min(1, p * 1.5); flou(ctx, (1 - p) * 12 * u);
+      ctx.save(); ctx.shadowColor = "rgba(20,20,40,.1)"; ctx.shadowBlur = 30 * u; ctx.shadowOffsetY = 10 * u; rond(ctx, -w / 2, y, w, h, 36 * u); ctx.fillStyle = c.fond; ctx.fill(); ctx.restore();
+      const cr = h * 0.46; rond(ctx, w / 2 - cr - h * 0.27, y + (h - cr) / 2, cr, cr, cr * 0.28); ctx.fillStyle = c.plein; ctx.fill();
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(2, cr * 0.11); ctx.lineCap = "round"; ctx.lineJoin = "round"; const bx = w / 2 - cr - h * 0.27, by = y + (h - cr) / 2; ctx.beginPath(); ctx.moveTo(bx + cr * 0.27, by + cr * 0.52); ctx.lineTo(bx + cr * 0.44, by + cr * 0.68); ctx.lineTo(bx + cr * 0.74, by + cr * 0.34); ctx.stroke();
+      let tp = tp0; ctx.font = `500 ${tp}px ${F}`; const place = w - cr - h * 0.9, wt = ctx.measureText(x).width; if (wt > place) { tp *= place / wt; ctx.font = `500 ${tp}px ${F}`; }
+      ctx.fillStyle = c.encre; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(x, -w / 2 + h * 0.36, y + h / 2 + tp * 0.04); ctx.restore();
+    });
+    ctx.restore();
+    if (e.texte && f > 0) { let tg = (vertical ? 68 : 58) * u; ctx.font = `600 ${tg}px ${F}`; const wt = ctx.measureText(e.texte).width; if (wt > W * 0.84) tg *= (W * 0.84) / wt; ecrit(ctx, e.texte, W / 2, H / 2 - (hh * k) / 2 - tg * 0.7 + f * tp0 * 1.1 - tp0 * 0.4, { taille: tg, poids: 600, t: t - tFin - 0.2, u, couleur: ENCRE }); }
+  },
+  cartes(ctx, s, e) { CLAIR.liste(ctx, s, e); },
+  // Un grand chiffre noir qui monte, sa légende dessous
+  compteur(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, cible = Number(String(e.valeur ?? "").replace(/\s/g, "").replace(",", ".")) || 0, dec = /[.,]/.test(String(e.valeur ?? "")) ? 1 : 0;
+    const v = cible * eo(prog(t, 0.15, 1.6)), fmt = (x) => (dec ? x.toFixed(1).replace(".", ",") : Math.round(x).toLocaleString("fr-FR")) + (e.suffixe ? ` ${e.suffixe}` : ""), p = eo(prog(t, 0, 0.6));
+    serre(ctx, "-0.04em"); const taille = ajuste(ctx, fmt(cible), (vertical ? 280 : 240) * u, W * 0.84, 600);
+    ctx.save(); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 18 * u); ctx.font = `600 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = ENCRE; ctx.fillText(fmt(v), W / 2, H / 2 - 30 * u); ctx.restore(); serre(ctx, "-0.01em");
+    const leg = e.legende || e.texte; if (leg) { let tg = (vertical ? 54 : 46) * u; ctx.font = `500 ${tg}px ${F}`; const wl = ctx.measureText(leg).width; if (wl > W * 0.84) tg *= (W * 0.84) / wl; ecrit(ctx, leg, W / 2, H / 2 + taille * 0.55 + 30 * u, { taille: tg, t: t - 0.6, u, couleur: "rgba(17,17,20,.62)" }); }
+  },
+  // Un bouton plein de la couleur de la marque, avec son ombre colorée
+  pastille(ctx, s, e) {
+    const { W, H, u, t, vertical } = s, p = ressort(prog(t, 0.05, 0.75)), appui = prog(t, 1.4, 1.58) * (1 - prog(t, 1.58, 1.85));
+    let tp = (vertical ? 60 : 52) * u; ctx.font = `600 ${tp}px ${F}`; const wt0 = ctx.measureText(e.texte ?? "").width; if (wt0 > W * 0.66) { tp *= (W * 0.66) / wt0; ctx.font = `600 ${tp}px ${F}`; }
+    const w = ctx.measureText(e.texte ?? "").width + tp * 2.2, h = tp * 2.4, k = (0.5 + 0.5 * p) * (1 - appui * 0.06);
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.globalAlpha *= Math.min(1, prog(t, 0.05, 0.3) * 1.2);
+    ctx.save(); ctx.shadowColor = rgba(C, 0.38); ctx.shadowBlur = 50 * u; ctx.shadowOffsetY = 20 * u; rond(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = rgba(C, 1); ctx.fill(); ctx.restore();
+    ctx.fillStyle = lum(C) > 0.62 ? ENCRE : "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(e.texte ?? "", 0, tp * 0.04); ctx.restore();
+  },
+  // La fin : le nom en noir, puis la formule qui s'écrit mot par mot à côté, et l'adresse en petit
+  logo(ctx, s, e) {
+    if (LOGO?.width) return SCENES.logo(ctx, s, e);
+    const { W, H, u, t, vertical } = s, p = eo(prog(t, 0, 0.7));
+    serre(ctx, "-0.03em"); const taille = ajuste(ctx, s.nom, (vertical ? 130 : 120) * u, W * 0.72, 700);
+    ctx.save(); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 20 * u); ctx.translate(W / 2, H * 0.47); ctx.scale(0.86 + 0.14 * p, 0.86 + 0.14 * p); ctx.font = `700 ${taille}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = ENCRE; ctx.fillText(s.nom, 0, 0); ctx.restore(); serre(ctx, "-0.01em");
+    const mots = String(e.texte ?? "").split(/\s+/).filter(Boolean); let tp = (vertical ? 52 : 46) * u; ctx.font = `500 ${tp}px ${F}`; const esp = tp * 0.27, larg = () => mots.reduce((a, m) => a + ctx.measureText(m).width, 0) + esp * Math.max(0, mots.length - 1); if (larg() > W * 0.84) { tp *= (W * 0.84) / larg(); ctx.font = `500 ${tp}px ${F}`; }
+    let cx = W / 2 - larg() / 2; const cy = H * 0.47 + taille * 0.72 + 30 * u;
+    mots.forEach((m, i) => { ctx.font = `500 ${tp}px ${F}`; const mw = ctx.measureText(m).width; ecrit(ctx, m, cx, cy, { taille: tp, t: t - 0.8 - i * 0.32, aligne: "left", u, couleur: ENCRE }); cx += mw + tp * 0.27; });
+    if (s.lien) ecrit(ctx, s.lien, W / 2, cy + tp * 1.7, { taille: 30 * u, t: t - 1.2 - mots.length * 0.32, u, couleur: "rgba(17,17,20,.45)" });
+  },
+};
 export const POLICE_MOTION = "Inter Tight";
 export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = null, images = null, filigrane = false } = {}) {
   LOGO = logo; IMAGES = images && typeof images === "object" ? images : {}; ECRANS = ecrans && typeof ecrans === "object" ? ecrans : {}; ECRANS_L = Object.values(ECRANS).filter(Boolean);
   LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
   F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");
-  const FOND = LOOK === "editorial" || LOOK === "minimal" || LOOK === "pop" ? "blanc" : LOOK === "verre" ? "noir" : script?.fond === "blanc" ? "blanc" : "noir";
+  const FOND = LOOK === "editorial" || LOOK === "minimal" || LOOK === "pop" || LOOK === "clair" ? "blanc" : LOOK === "verre" ? "noir" : script?.fond === "blanc" ? "blanc" : "noir";
   // Pop : graisse moyenne partout (les titres très gras deviennent des linéales serrées, comme une pub de marque)
   const policeCtx = LOOK === "pop" ? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx), "font") : null;
   if (policeCtx?.set) try { Object.defineProperty(ctx, "font", { configurable: true, get() { return policeCtx.get.call(this); }, set(v) { policeCtx.set.call(this, String(v).replace(/^(italic )?(\d{3}) /, (m, it, w) => `${it || ""}${Math.min(+w, 600)} `)); } }); } catch { /* contexte figé */ }
@@ -873,6 +987,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     if ((LOOK === "editorial" || LOOK === "minimal") && modeScene === "noir") modeScene = "blanc";
     if (MP) modeScene = MP[i];
     if (LOOK === "verre") modeScene = "noir";
+    if (LOOK === "clair") modeScene = "blanc";
     palette(modeScene);
     if (modeScene !== FOND) { ctx.save(); ctx.globalAlpha = MP ? 1 : Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
     ctx.save();
@@ -892,6 +1007,11 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       // Minimal : simple fondu, très léger agrandissement, aucun effet
       const k = 0.985 + ent * 0.015; ctx.translate(W / 2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
       ctx.globalAlpha = ent * (1 - sort); if ("filter" in ctx) ctx.filter = "none";
+    } else if (LOOK === "clair") {
+      // Clair : le plan sort du flou en s'approchant un peu, et repart en filant vers la gauche
+      const es = derniere ? 0 : Math.pow(prog(local, d - 0.26, d), 2), k = 0.93 + ent * 0.07 + (local / d) * 0.03;
+      ctx.translate(W / 2 - es * W * 0.2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
+      ctx.globalAlpha = Math.min(1, ent * 1.4) * (1 - es); if ("filter" in ctx) ctx.filter = (1 - ent) + es > 0.02 ? `blur(${((1 - ent) * 14 + es * 18) * u}px)` : "none";
     } else if (LOOK === "verre") {
       // Verre : la caméra avance tout le temps ; le plan qui part fonce vers nous en se floutant, le suivant arrive de loin
       const es = derniere ? 0 : Math.pow(prog(local, d - 0.3, d), 2), k = 1 + (local / d) * 0.06 - (1 - ent) * 0.22 + es * 0.9;
@@ -906,11 +1026,11 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     // Éditorial et minimal : aucun halo lumineux (le réglage d'ombre des scènes est ignoré le temps de la scène)
     const sansHalo = LOOK === "editorial" || LOOK === "minimal";
     if (sansHalo) try { Object.defineProperty(ctx, "shadowBlur", { configurable: true, get: () => 0, set: () => {} }); } catch { /* contexte figé */ }
-    try { ((LOOK === "verre" && VERRE[e.type]) || SCENES[e.type])(ctx, { W, H, u, t: local, d, vertical, i, nom: script.nom ?? "", lien: script.lien ?? "" }, e); }
+    try { ((LOOK === "verre" && VERRE[e.type]) || (LOOK === "clair" && CLAIR[e.type]) || SCENES[e.type])(ctx, { W, H, u, t: local, d, vertical, i, nom: script.nom ?? "", lien: script.lien ?? "" }, e); }
     catch (x) { console.warn("scène", e.type, x); }
     finally { if (sansHalo) try { delete ctx.shadowBlur; } catch { /* rien */ } ctx.restore(); }
     // Vague de couleur qui balaie l'écran à l'entrée de la scène (style Jiwa)
-    if (e.transition === "vague" && local < 0.7 && LOOK !== "verre") {
+    if (e.transition === "vague" && local < 0.7 && LOOK !== "verre" && LOOK !== "clair") {
       const q = eio(prog(local, 0, 0.7));
       ctx.save(); ctx.fillStyle = rgba(C, 1);
       if (LOOK === "pop") {
@@ -940,17 +1060,17 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       ctx.beginPath(); ctx.arc(W / 2, H / 2, (3 + k * 7) * u, 0, Math.PI * 2); ctx.fill(); ctx.fill(); ctx.restore();
     });
   }
-  if (LOOK === "nuit") {
+  if (LOOK === "nuit" || LOOK === "clair") {
     let de4 = 0;
     scenes.forEach((e, j) => {
       const d = dureeScene(e), loc = t - de4; de4 += d;
       const trace = (n, tete, queue) => {
-        if (tete - queue < 0.004 || ["logo", "aplat", "personnage"].includes(scenes[n]?.type)) return;
+        if (tete - queue < 0.004 || ["logo", "aplat", "personnage"].includes(scenes[n]?.type) || (LOOK === "clair" && (["rature", "image", "impact"].includes(scenes[n]?.type) || ["rature", "image"].includes(scenes[n + 1]?.type)))) return;
         const sens = n % 2 ? -1 : 1, y0 = H * (0.66 + 0.1 * ((n * 7) % 3 - 1)), P = [[-W * 0.05, y0], [W * 0.3, y0 + sens * H * 0.16], [W * 0.62, y0 - sens * H * 0.22], [W * 1.05, y0 - sens * H * 0.05]];
         const pt = (q) => { const m = 1 - q; return [m * m * m * P[0][0] + 3 * m * m * q * P[1][0] + 3 * m * q * q * P[2][0] + q * q * q * P[3][0], m * m * m * P[0][1] + 3 * m * m * q * P[1][1] + 3 * m * q * q * P[2][1] + q * q * q * P[3][1]]; };
-        palette(["couleur", "blanc", "noir"].includes(scenes[j].fond) ? scenes[j].fond : FOND);
+        palette(LOOK === "clair" ? "blanc" : ["couleur", "blanc", "noir"].includes(scenes[j].fond) ? scenes[j].fond : FOND);
         ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
-        ctx.strokeStyle = rgba(CV, 1); ctx.lineWidth = Math.max(2, 4 * u); ctx.lineCap = "round"; ctx.beginPath();
+        ctx.strokeStyle = rgba(LOOK === "clair" ? C : CV, 1); ctx.lineWidth = Math.max(2, (LOOK === "clair" ? 9 : 4) * u); ctx.lineCap = "round"; ctx.beginPath();
         for (let q = queue; q <= tete + 0.0001; q += 0.015) { const [x, y] = pt(Math.min(q, tete)); q === queue ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
         ctx.stroke(); ctx.restore();
       };
@@ -988,6 +1108,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
   if ((LOOK === "editorial" || LOOK === "minimal") && modeCour === "noir") modeCour = "blanc";
   if (MP) modeCour = MP[iCour];
   if (LOOK === "verre") modeCour = "noir";
+  if (LOOK === "clair") modeCour = "blanc";
   palette(modeCour); ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
   const derniere = iCour === scenes.length - 1;
   if (LOOK === "editorial" && !derniere) {

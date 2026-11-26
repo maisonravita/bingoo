@@ -98,6 +98,7 @@ export const LOOKS_VIDEO: Record<string, string> = {
   pop: "pop : la couleur de la marque partout, gros mots blancs, très rythmé (jeune, fun, sport, food)",
   editorial: "éditorial : papier crème, titres élégants à empattements en casse normale, calme et chic (artisan, mode, beauté, conseil)",
   minimal: "minimal : blanc pur, peu de mots, beaucoup d'air, la couleur seulement pour l'accent (tech, santé, services)",
+  clair: "clair : gris très clair et doux, petites phrases noires nettes avec un mot en couleur, tuile blanche, cartes pastel, un passage au noir pour le problème (« rature »), sobre comme une pub de logiciel (appli, logiciel, service, conseil, formation)",
   verre: "verre : interface sombre faite de capsules de verre et de lumière, chiffres qui montent, très soigné (appli, logiciel, tech, finance, objets connectés)",
 };
 const STRUCTURES: [string, string][] = [
