@@ -24,10 +24,12 @@ export function jouerMusique(ac, sortie, ambiance, duree, debut = ac.currentTime
   const tr = (graine % 7) - 3;
   const SUITES = [[0, 1, 2, 3], [2, 3, 0, 1], [0, 3, 1, 2], [1, 2, 3, 0]], suite = SUITES[(graine >>> 3) % 4];
   const MOTIFS = [[0, 1, 2, 1, 0, 2, 1, 2], [0, 2, 1, 2, 0, 1, 2, 1], [2, 1, 0, 1, 2, 0, 1, 0]], motifArp = MOTIFS[(graine >>> 5) % 3];
+  // Vidéo à bruitages : ils passent devant, la musique se fait plus discrète
+  const bruits = Array.isArray(coupes?.sons) && coupes.sons.length ? jouerBruitages(ac, sortie, coupes.sons, debut) : null;
   const master = ac.createGain(); master.connect(sortie);
   master.gain.setValueAtTime(0, debut);
-  master.gain.linearRampToValueAtTime(0.7, debut + 0.6);
-  master.gain.setValueAtTime(0.7, debut + duree - 1.6);
+  master.gain.linearRampToValueAtTime(bruits ? 0.4 : 0.7, debut + 0.6);
+  master.gain.setValueAtTime(bruits ? 0.4 : 0.7, debut + duree - 1.6);
   master.gain.linearRampToValueAtTime(0, debut + duree);
   const B = bruit(ac);
   const bpm = (ambiance === "douce" ? 88 : ambiance === "tech" ? 112 : 124) + ((graine >>> 8) % 5) - 2, temps = 60 / bpm, mesure = temps * 4;
@@ -98,7 +100,32 @@ export function jouerMusique(ac, sortie, ambiance, duree, debut = ac.currentTime
       for (let i = 0; i < 16; i++) note("square", hz(acc[motifArp[i % 8]] + 12), t0 + i * temps / 4, temps / 4 * 0.9, 0.035, { a: 0.005, filtre: 3200 });
     }
   }
-  return () => { try { master.disconnect(); } catch { /* déjà arrêtée */ } };
+  return () => { try { master.disconnect(); bruits?.disconnect(); } catch { /* déjà arrêtée */ } };
+}
+
+/** Bruitages calés sur l'image (allure « film ») : frappes de clavier, clic de souris, souffles, coups, cloches.
+ * `sons` : [{ t, son, f, g, d, monte }] ; tout est fabriqué ici, sans aucun enregistrement. */
+export function jouerBruitages(ac, sortie, sons, debut) {
+  const bus = ac.createGain(); bus.gain.value = 0.85; bus.connect(sortie); const blanc = bruit(ac);
+  const env = (t, pic, att, dec) => { const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, pic), t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + att + dec); g.connect(bus); return g; };
+  const souffleBruit = (t, d, pic, type, f0, f1, Q = 0.8, att = 0.002) => { const src = ac.createBufferSource(); src.buffer = blanc; src.loop = true; const fl = ac.createBiquadFilter(); fl.type = type; fl.Q.value = Q; fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1, t + d); src.connect(fl); fl.connect(env(t, pic, att, d)); src.start(t, Math.random() * 0.8); src.stop(t + att + d + 0.05); };
+  const sinus = (t, f0, f1, d, pic, att = 0.002, type = "sine") => { const o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + Math.min(d, 0.08)); o.connect(env(t, pic, att, d)); o.start(t); o.stop(t + att + d + 0.05); };
+  for (const x of sons) {
+    const t = debut + Math.max(0, x.t), g = x.g ?? 1;
+    if (x.son === "touche" || x.son === "espace" || x.son === "entree") { // un clic aigu, un « toc » grave, puis la touche qui remonte
+      const k = x.son === "entree" ? 1.5 : x.son === "espace" ? 1.15 : 1, grave = x.son === "entree" ? 105 : x.son === "espace" ? 120 : 170 + Math.random() * 60;
+      souffleBruit(t, 0.012, 0.22 * g * k, "bandpass", 3200 + Math.random() * 900, 2600, 1.2); sinus(t, grave * 1.6, grave, x.son === "touche" ? 0.03 : 0.055, 0.2 * g * k); souffleBruit(t, 0.025, 0.1 * g * k, "bandpass", 900, 700, 0.9); souffleBruit(t + 0.055 + Math.random() * 0.02, 0.008, 0.07 * g * k, "highpass", 3500, 3500);
+    } else if (x.son === "clic") { souffleBruit(t, 0.008, 0.3, "bandpass", 3400, 3000, 1.5); sinus(t, 900, 900, 0.008, 0.1); souffleBruit(t + 0.11, 0.008, 0.2, "bandpass", 2600, 2400, 1.5); }
+    else if (x.son === "pop") sinus(t, (x.f ?? 600) * 1.5, x.f ?? 600, 0.06, 0.5 * g);
+    else if (x.son === "tic") sinus(t, x.f ?? 2400, x.f ?? 2400, 0.012, 0.5 * g);
+    else if (x.son === "note") sinus(t, x.f ?? 880, x.f ?? 880, 0.3, 0.6 * g, 0.005, "triangle");
+    else if (x.son === "coup") { sinus(t, (x.f ?? 50) * 2.6, x.f ?? 50, 0.42, 0.9 * g); souffleBruit(t, 0.03, 0.12 * g, "lowpass", 1800, 400); }
+    else if (x.son === "bois") { sinus(t, 820, 820, 0.035, 0.5 * g); souffleBruit(t, 0.01, 0.18 * g, "bandpass", 2500, 2200, 1.2); }
+    else if (x.son === "cloche") [[1, 1, 0.35], [2.01, 0.5, 0.22], [3.02, 0.25, 0.14], [4.2, 0.12, 0.08]].forEach(([r, a, dd]) => sinus(t, (x.f ?? 880) * r, (x.f ?? 880) * r, (x.d ?? 1.4) * dd * 2.2, 0.9 * g * a, 0.004));
+    else if (x.son === "sifflet") { const o = ac.createOscillator(); o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(380, t + (x.d ?? 0.4)); const e = ac.createGain(); e.gain.setValueAtTime(0.0001, t); e.gain.linearRampToValueAtTime(0.5 * g, t + (x.d ?? 0.4)); e.gain.linearRampToValueAtTime(0.0001, t + (x.d ?? 0.4) + 0.02); o.connect(e); e.connect(bus); o.start(t); o.stop(t + (x.d ?? 0.4) + 0.05); }
+    else if (x.son === "souffle") { const d = x.d ?? 0.5; if (x.monte) souffleBruit(t, 0.02, 1.4 * g, "lowpass", 300, 7000, 0.7, d); else souffleBruit(t, d * 0.55, 1.2 * g, "lowpass", 2600, 500, 0.7, d * 0.45); }
+  }
+  return bus;
 }
 
 /** Écoute directe (aperçu) : renvoie une fonction pour arrêter. */
