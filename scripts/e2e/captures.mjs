@@ -122,33 +122,25 @@ if (CONSTRUIRE === "premier-client") {
     await bc.click(); await p.waitForTimeout(2500);
     const demande = await p.getByText(/Crée ton compte/).first().isVisible().catch(() => false);
     await etape("3-compte-demande", demande ? "✓ le compte est demandé à « Construire »" : "✗ pas de demande de compte");
-    // Formulaire d'inscription (fenêtre ou page)
-    const champMel = p.locator('input[type="email"]:visible').first(), champMdp = p.locator('input[type="password"]:visible').first();
-    await champMel.fill(mel).catch(() => console.log("✗ champ e-mail introuvable")); await champMdp.fill(mdp).catch(() => console.log("✗ champ mot de passe introuvable"));
-    const caseCgu = p.locator('input[type="checkbox"]:visible'); if (await caseCgu.count()) await caseCgu.first().check().catch(() => null);
-    await p.locator('button[type="submit"]:visible').first().click().catch(() => console.log("✗ bouton d'inscription introuvable"));
-    await p.waitForTimeout(5000);
-    const msg = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").match(/(Compte créé[^.]*\.|Confirme[^.]*\.|existe déjà[^.]*\.|erreur[^.]*\.|Password[^.]*\.|mot de passe[^.]{0,80}\.)/i)?.[0] ?? "");
-    await etape("4-inscription", `message : « ${msg || "aucun message"} » ; URL ${new URL(p.url()).hash}`);
-    const [uu] = await q(`select id, email_confirmed_at is not null conf, created_at from auth.users where email = ${lit(mel)}`);
+    // Fenêtre « Crée ton compte » : le visiteur (session anonyme) donne son adresse ; un lien part par e-mail
+    await p.locator('input[type="email"]:visible').first().fill(mel).catch(() => console.log("✗ champ e-mail introuvable"));
+    await p.getByRole("button", { name: "Créer mon compte", exact: true }).last().click().catch(() => console.log("✗ bouton « Créer mon compte » introuvable"));
+    await p.waitForTimeout(6000);
+    const msg = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").match(/(Regarde tes e-mails[^.]*\.[^.]*\.|C'est fait\.[^.]*\.|déjà un compte[^.]*\.|Choisis ton mot de passe[^.]*|[^.]{0,80}(erreur|invalid|rate limit)[^.]{0,80})/i)?.[0] ?? "");
+    await etape("4-inscription", `message : « ${msg || "aucun message"} »`);
+    const [uu] = await q(`select id, email, email_change, email_confirmed_at is not null conf, is_anonymous from auth.users where email = ${lit(mel)} or email_change = ${lit(mel)} limit 1`);
     uidPc = uu?.id ?? null;
-    console.log(uu ? `✓ compte créé dans la base (confirmé : ${uu.conf})` : "✗ aucun compte dans la base");
+    console.log(uu ? `✓ compte trouvé (adresse ${uu.email === mel ? "validée" : "en attente de confirmation"}, anonyme : ${uu.is_anonymous})` : "✗ aucun compte avec cette adresse dans la base");
     if (!uu) throw new Error("arrêt : pas de compte");
-    const [mm] = await q(`select w.id, w.plan, w.plan_status from members m join workspaces w on w.id = m.workspace_id where m.user_id = ${lit(uu.id)} limit 1`);
-    console.log(mm ? `   espace : formule ${mm.plan} (${mm.plan_status})` : "   pas encore d'espace (créé à la première connexion)");
-    // L'e-mail de confirmation part-il ? (Supabase → boîte de réception maisonravita.fr) : vérifié depuis Resend après le passage
     console.log("E-MAIL ATTENDU :", mel);
-    // Si la session n'est pas ouverte (confirmation exigée), on confirme comme le ferait le clic sur le lien, puis on se connecte par l'interface
-    const connecte = await p.evaluate((ref) => !!localStorage.getItem(`sb-${ref}-auth-token`), REF);
-    if (!connecte) {
-      if (!uu.conf) await adminAuth(`users/${uu.id}`, "PUT", { email_confirm: true });
-      await p.goto(`${SITE}/?c=${Date.now()}#/auth?mode=login`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(2000);
-      await p.locator('input[type="email"]:visible').first().fill(mel).catch(() => null); await p.locator('input[type="password"]:visible').first().fill(mdp).catch(() => null);
-      await p.locator('button[type="submit"]:visible').first().click().catch(() => null); await p.waitForTimeout(6000);
-      await etape("5-connexion", `connexion par l'interface : ${await p.evaluate((ref) => !!localStorage.getItem(`sb-${ref}-auth-token`), REF) ? "✓" : "✗"} (${new URL(p.url()).hash})`);
-    } else await etape("5-connexion", "✓ connecté directement après l'inscription");
+    // Le clic dans l'e-mail, rejoué : l'adresse est confirmée (même effet que le lien), puis la page est rechargée
+    if (uu.email !== mel) await adminAuth(`users/${uu.id}`, "PUT", { email: mel, email_confirm: true });
+    await p.reload({ waitUntil: "networkidle" }).catch(() => null); await p.waitForTimeout(5000);
+    await etape("5-connexion", `après confirmation : ${new URL(p.url()).hash}`);
+    const mdpVu = await p.locator('input[type="password"]:visible').count();
+    if (mdpVu) { await p.locator('input[type="password"]:visible').first().fill(mdp); await p.locator('button[type="submit"]:visible, button:has-text("Enregistrer"):visible').first().click().catch(() => null); await p.waitForTimeout(3000); await etape("5b-mot-de-passe", "mot de passe choisi"); }
     const [mm2] = await q(`select w.id, w.plan, w.plan_status from members m join workspaces w on w.id = m.workspace_id where m.user_id = ${lit(uu.id)} limit 1`);
-    console.log(mm2 ? `✓ espace créé : formule ${mm2.plan} (${mm2.plan_status})` : "✗ toujours pas d'espace après connexion");
+    console.log(mm2 ? `✓ espace : formule ${mm2.plan} (${mm2.plan_status})` : "✗ pas d'espace");
     // Retour à l'idée : l'aperçu doit être encore là, puis « Construire » mène au paiement
     await p.goto(`${SITE}/?c=${Date.now()}#/explorer/idee`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(8000);
     await etape("6-retour-idee", "retour à l'idée une fois connecté");
