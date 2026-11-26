@@ -124,7 +124,7 @@ if (CONSTRUIRE === "premier-client") {
     await etape("3-compte-demande", demande ? "✓ le compte est demandé à « Construire »" : "✗ pas de demande de compte");
     // Fenêtre « Crée ton compte » : le visiteur (session anonyme) donne son adresse ; un lien part par e-mail
     await p.locator('input[type="email"]:visible').first().fill(mel).catch(() => console.log("✗ champ e-mail introuvable"));
-    await p.getByRole("button", { name: "Créer mon compte", exact: true }).last().click().catch(() => console.log("✗ bouton « Créer mon compte » introuvable"));
+    await p.locator('form:has(input[type="email"]) button:has-text("Créer mon compte")').first().click({ timeout: 8000 }).catch(async () => { console.log("   (clic refusé, envoi par Entrée)"); await p.locator('input[type="email"]:visible').first().press("Enter").catch(() => console.log("✗ envoi impossible")); });
     await p.waitForTimeout(6000);
     const msg = await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").match(/(Regarde tes e-mails[^.]*\.[^.]*\.|C'est fait\.[^.]*\.|déjà un compte[^.]*\.|Choisis ton mot de passe[^.]*|[^.]{0,80}(erreur|invalid|rate limit)[^.]{0,80})/i)?.[0] ?? "");
     await etape("4-inscription", `message : « ${msg || "aucun message"} »`);
