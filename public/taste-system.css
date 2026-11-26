@@ -1352,9 +1352,9 @@ main > .photo-band--hero:first-child > .photo-band__text { padding-top: calc(var
 .nav.nav--sur-photo .nav__link, .nav.nav--sur-photo .nav__logo, .nav.nav--sur-photo .nav__toggle { color: #fff !important; opacity: 1; text-shadow: 0 1px 10px rgb(0 0 0 / .25); }
 .nav.nav--sur-photo .btn--primary { background: rgb(255 255 255 / .94); color: #121212; border-color: transparent; }
 .nav.nav--sur-photo .btn--secondary { color: #fff; border-color: rgb(255 255 255 / .5); background: transparent; }
-.btn.btn--clair { background: #F4F0E8; color: #15130F; border: 1px solid transparent; border-radius: 14px; font-weight: 600; box-shadow: 0 10px 30px -12px rgb(0 0 0 / .45); }
+.btn.btn--clair { background: #F4F0E8 !important; color: #15130F !important; border: 1px solid transparent; border-radius: 14px; font-weight: 600; box-shadow: 0 10px 30px -12px rgb(0 0 0 / .45); }
 .btn.btn--clair:hover { background: #fff; }
-.btn.btn--verre { background: rgb(255 255 255 / .1); color: #fff; border: 1px solid rgb(255 255 255 / .28); border-radius: 999px; backdrop-filter: blur(10px); }
+.btn.btn--verre { background: rgb(255 255 255 / .1) !important; color: #fff !important; border: 1px solid rgb(255 255 255 / .28); border-radius: 999px; backdrop-filter: blur(10px); }
 .btn.btn--verre:hover { background: rgb(255 255 255 / .18); }
 @keyframes compo-zoom { from { transform: scale(1.08); } to { transform: scale(1); } }
 @keyframes compo-monte { from { opacity: 0; transform: translateY(28px); filter: blur(6px); } }

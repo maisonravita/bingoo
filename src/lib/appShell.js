@@ -947,7 +947,7 @@ const MOD = SITE.modele ?? "vitrine";
 // le temps de la page publique, puis on monte les données vivantes dans les marqueurs data-bingoo (prestations, horaires,
 // formulaires, adresse, réalisations). Les mentions légales et l'accès gérant sont toujours ajoutés par Bingoo!.
 // Version dans l'adresse : une correction de la feuille arrive tout de suite, sans attendre la fin du cache
-const TASTE_CSS = "https://bingoo.fr/taste-system.css?v=20261126e";
+const TASTE_CSS = "https://bingoo.fr/taste-system.css?v=20261126f";
 function nettoyerDom(racine) {
   racine.querySelectorAll("script,iframe,object,embed,form,link,meta,base").forEach((x) => x.remove());
   racine.querySelectorAll("*").forEach((el) => { for (const a of [...el.attributes]) if (/^on/i.test(a.name) || (/^(href|src)$/i.test(a.name) && /^\\s*(javascript|vbscript|data:text)/i.test(a.value))) el.removeAttribute(a.name); });
@@ -1065,7 +1065,8 @@ function SitePageGeneree({ onAuth, saas }) {
     el.querySelectorAll("main > section, main > .section").forEach((sec) => {
       const couvre = (n) => getComputedStyle(n).position === "absolute" && n.offsetWidth >= sec.offsetWidth * 0.8 && n.offsetHeight >= sec.offsetHeight * 0.6;
       const img = [...sec.querySelectorAll("img")].find(couvre);
-      if (!img) return;
+      // Les premiers écrans de composition (cinéma, mot géant…) ont déjà leur voile et leurs couleurs dans le kit
+      if (!img || sec.matches(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento")) return;
       sec.classList.remove("ground-brand", "ground-surface", "ground-inverse");
       [...sec.querySelectorAll("div, span")].filter((n) => n !== img && !n.textContent.trim() && !n.querySelector("img") && couvre(n)).forEach((n) => { n.style.display = "none"; });
       for (const [k, v] of [["--ink", "#ffffff"], ["--muted", "rgba(255,255,255,.84)"], ["--accent", "#ffffff"], ["--accent-ink", "#111111"], ["--action", "#ffffff"], ["--action-ink", "#111111"], ["--line", "rgba(255,255,255,.3)"], ["--line-strong", "rgba(255,255,255,.5)"]]) sec.style.setProperty(k, v);
