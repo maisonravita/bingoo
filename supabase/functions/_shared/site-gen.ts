@@ -190,6 +190,10 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
     budget();
   }
 
+  // Un marqueur de données (prestations, horaires, adresse, réalisations) n'apparaît qu'une fois : les suivants sont retirés
+  { const vus = new Set<string>();
+    for (const id of ids) { const h = ecrites.get(id); if (!h) continue;
+      ecrites.set(id, h.replace(/<div\b[^>]*data-bingoo="(services|horaires|adresse|realisations)"[^>]*>\s*<\/div>/gi, (m, k) => { if (vus.has(k)) { journal.push(`Marqueur ${k} en double retiré (${id})`); return ""; } vus.add(k); return m; })); } }
   // 5. Assemblage (marqueurs connus seulement)
   const sections = ids.filter((id) => ecrites.has(id)).map((id) => ({ id, html: ecrites.get(id)!.replace(/data-bingoo="([a-z]+)"/g, (m, k) => (k in MARQUEURS_DONNEES ? m : "")) }));
   const mesure: MesurePage = { modele: Object.keys(compteur.modeles).join(", "), cout: Math.round((compteur.cout + imagesEur) * 1e4) / 1e4, images_eur: imagesEur,

@@ -52,8 +52,8 @@ const PRIX_DETOURAGE_EUR = () => (Number(Deno.env.get("FAL_PRIX_DETOURAGE_USD") 
 /** Hauteur (0 à 1) où commence le sujet détouré : le haut du premier rang de pixels opaques assez large */
 async function hautDuSujet(bin: Uint8Array): Promise<number | null> {
   try {
-    const { PNG } = await import("npm:pngjs@7.0.0");
-    const png = PNG.sync.read(bin as any); const { width: w, height: h, data } = png;
+    const { PNG } = await import("npm:pngjs@7.0.0"); const { Buffer } = await import("node:buffer");
+    const png = PNG.sync.read(Buffer.from(bin)); const { width: w, height: h, data } = png;
     for (let y = 0; y < h; y += 4) { let n = 0; for (let x = 0; x < w; x += 4) if (data[(y * w + x) * 4 + 3] > 128) n++; if (n > (w / 4) * 0.06) return y / h; }
     return 1;
   } catch (x) { console.error("hautDuSujet", x); return null; }
