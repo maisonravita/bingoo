@@ -1,0 +1,75 @@
+{
+  "duree_s": 123,
+  "app": {
+    "slug": "cabinet-morel-321c",
+    "statut": "pret",
+    "version": 2,
+    "verif": {
+      "at": "2026-11-26T18:14:51.323Z",
+      "ok": true,
+      "phase": "fini",
+      "reste": [],
+      "essais": {},
+      "mesure": {
+        "ok": true,
+        "fin": "2026-11-26T18:14:50.809Z",
+        "cout": 0,
+        "debut": "2026-11-26T18:14:25.276Z",
+        "ecrans": 4,
+        "entree": "site",
+        "essais": 0,
+        "modele": "site",
+        "famille": "gestion",
+        "premier": {
+          "ko": 0,
+          "ok": true,
+          "testes": 4
+        }
+      },
+      "repare": [],
+      "journal": [
+        {
+          "t": "Les 4 écrans sont écrits. Je les teste un par un, comme un vrai utilisateur.",
+          "at": "2026-11-26T18:14:25.276Z",
+          "type": "info"
+        },
+        {
+          "t": "Test n° 1 : les 4 écrans fonctionnent, avec leurs données et leurs boutons.",
+          "at": "2026-11-26T18:14:50.809Z",
+          "type": "ok"
+        },
+        {
+          "t": "Tout est propre : ton espace gérant (4 écrans) a été testé et fonctionne. Ton site est prêt.",
+          "at": "2026-11-26T18:14:50.809Z",
+          "type": "ok"
+        }
+      ],
+      "version": 2,
+      "passages": 1,
+      "dernieres": {},
+      "resultats": [
+        {
+          "id": "accueil",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "demandes",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "services",
+          "ok": true,
+          "erreur": null
+        },
+        {
+          "id": "infos",
+          "ok": true,
+          "erreur": null
+        }
+      ],
+      "en_reparation": []
+    }
+  }
+}

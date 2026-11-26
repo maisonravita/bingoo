@@ -1,0 +1,16 @@
+<title>Cabinet Morel · Avocate en droit du travail à Paris</title>
+<meta name="description" content="Cabinet Morel accompagne les salariés en conflit avec leur employeur : licenciement, rupture conventionnelle, prud&#39;hommes, depuis le 9e arrondissement de Pari">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Cabinet Morel">
+<meta property="og:title" content="Cabinet Morel · Avocate en droit du travail à Paris">
+<meta property="og:description" content="Cabinet Morel accompagne les salariés en conflit avec leur employeur : licenciement, rupture conventionnelle, prud&#39;hommes, depuis le 9e arrondissement de Pari">
+<meta property="og:url" content="https://www.bingoo.fr/s/cabinet-morel-321c">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=cabinet-morel-321c&amp;v=13-1E40AF">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=cabinet-morel-321c&amp;v=13-1E40AF">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cabinet Morel · Avocate en droit du travail à Paris">
+<meta name="twitter:description" content="Cabinet Morel accompagne les salariés en conflit avec leur employeur : licenciement, rupture conventionnelle, prud&#39;hommes, depuis le 9e arrondissement de Pari">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Cabinet Morel","description":"Cabinet Morel accompagne les salariés en conflit avec leur employeur : licenciement, rupture conventionnelle, prud'hommes, depuis le 9e arrondissement de Paris.","url":"https://www.bingoo.fr/s/cabinet-morel-321c","image":"https://www.bingoo.fr/api/og?slug=cabinet-morel-321c&v=13-1E40AF","telephone":"01 42 00 00 00","address":"22 rue de Châteaudun, 75009 Paris","areaServed":"Paris","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":"Monday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"09:00","closes":"18:00"}],"makesOffer":[{"@type":"Offer","name":"Premier rendez-vous","description":"Un entretien pour analyser votre situation de salarié et identifier vos droits et recours.","price":90,"priceCurrency":"EUR"},{"@type":"Offer","name":"Contestation de licenciement","description":"Analyse de la procédure et de la cause du licenciement, et défense devant le conseil de prud'hommes."},{"@type":"Offer","name":"Négociation de rupture conventionnelle","description":"Accompagnement pour préparer et négocier les conditions de votre départ avec votre employeur."},{"@type":"Offer","name":"Procédure devant les prud'hommes","description":"Représentation et conseil tout au long de la procédure prud'homale, du dépôt de la requête à l'audience."}]}</script>

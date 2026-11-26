@@ -1,0 +1,20 @@
+{
+  "gen": {
+    "at": "2026-11-26T18:14:22.302Z",
+    "cout": 0.2551,
+    "appels": 4,
+    "entree": 100476,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 5447,
+    "duree_s": 40,
+    "journal": [
+      "Premier écran : composition Moitié",
+      "Plan : hero, cabinet, domaines, deroulement, atmosphere, faq, contact",
+      "Images : 2 générée(s), 0.055 €",
+      "Sections : cabinet=liste, deroulement=etapes, atmosphere=duo"
+    ],
+    "images_eur": 0.0552,
+    "corrections": 0
+  },
+  "sections": 8
+}
