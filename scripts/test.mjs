@@ -25,7 +25,7 @@ export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
 export { alignerCode, couvrirDemo } from "./${S}/contrat-donnees.ts";
-export { controlerSection, doublonsServices } from "./${S}/gen-nettoyage.ts";
+export { controlerSection, doublonsServices, sujetDejaTraite } from "./${S}/gen-nettoyage.ts";
 export { choisirComposition, choisirSections } from "./${S}/gen-compositions.ts";
 export { modeleDe, specReservation, specDevis, specEcriture, specCrm, specProjets, specSupport, specBoutique, specFormation, specRecrutement, specReseaux, specFormulaires, specNotes } from "./${S}/modeles.ts";
 `;
@@ -350,6 +350,12 @@ await test("sections du bas de page : jamais deux voisines identiques, adresse j
     if (c.visite && c.visite.mise === "recit") throw new Error("adresse dans un récit");
     if (c.vins?.mise !== "liste") throw new Error("prestations hors liste");
   }
+});
+await test("deux sections sur le même sujet : signalé, pas pour le nom, la ville ou le métier", () => {
+  const prec = [{ id: "paysage", html: "<section><h2>Une dégustation à la cave</h2></section>" }];
+  assert.equal(T.sujetDejaTraite("degustations", "<section><h2>Les dégustations au domaine</h2></section>", prec, "Domaine des Trois Collines Ménerbes Vigneron").length, 1);
+  assert.equal(T.sujetDejaTraite("vins", "<section><h2>Trois couleurs, un même sol</h2></section>", prec, "Domaine").length, 0);
+  assert.equal(T.sujetDejaTraite("x", "<section><h2>Le Luberon autrement</h2></section>", [{ id: "a", html: "<h2>Vins du Luberon</h2>" }], "Domaine Luberon").length, 0);
 });
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");

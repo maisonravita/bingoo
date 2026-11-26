@@ -13,7 +13,7 @@ import { detourer, estAlimentaire, imagesPage } from "./gen-images.ts";
 import { choisirComposition, choisirSections, consigneComposition, consigneSections, controlerCompo, estSectionSignature, nettoyerHeroCompo } from "./gen-compositions.ts";
 import { controlerSection, nettoyer, remplacerTextePage } from "./gen-nettoyage.ts";
 export { controlerSection, nettoyer, remplacerTextePage };
-import { doublonsServices } from "./gen-nettoyage.ts";
+import { doublonsServices, sujetDejaTraite } from "./gen-nettoyage.ts";
 
 export const PLAFOND_EUR = 0.5;
 
@@ -169,7 +169,7 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
   let corrections = 0;
   const ids = ["nav", ...plan.sections.map((s) => s.id)];
   for (let essai = 1; essai <= 3; essai++) {
-    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h))), ...imageDejaVue(id)] : ["Section manquante."] })).filter((x) => x.pbs.length);
+    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h))), ...imageDejaVue(id), ...(essai < 3 ? sujetDejaTraite(id, ecrites.get(id)!, ids.slice(0, ids.indexOf(id)).filter((k) => ecrites.has(k)).map((k) => ({ id: k, html: ecrites.get(k)! })), `${e.nom} ${e.ville ?? ""} ${e.metier ?? ""}`) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
     if (!fautives.length) break;
     journal.push(`Essai ${essai} : ${fautives.map((f) => `${f.id} (${f.pbs[0].slice(0, 60)})`).join(" ; ")}`);
     // Temps : une fonction a une durée limitée ; passé 110 s, plus de réécriture (retrait des sections fautives ou secours)

@@ -71,3 +71,24 @@ export function doublonsServices(html: string, titres: string[], marqueurAilleur
   const vus = titres.map((x) => String(x ?? "").trim().toLowerCase()).filter((x) => x.length > 4 && t.includes(x));
   return vus.length >= 2 ? [`Les prestations (${vus.slice(0, 3).join(", ")}) sont déjà affichées par le marqueur services : ne les réécris pas à la main, parle d'autre chose ou retire la liste.`] : [];
 }
+
+// ---------------------------------------------------------------- Deux sections sur le même sujet
+const MOTS_VIDES = new Set(["votre", "vos", "notre", "nos", "avec", "pour", "dans", "sans", "chez", "tout", "tous", "toutes", "comment", "pourquoi", "avant", "apres", "entre", "chaque", "cette", "votre", "questions", "question", "contact", "parlons", "projet", "demande", "demandez", "prenons", "rendez", "ecrivez", "appelez"]);
+const racine = (m: string) => m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/(aux|eaux|s|x)$/, "");
+/** Mots forts d'un titre h2 (6 lettres ou plus, hors mots vides et hors nom, ville et métier du membre) */
+export function motsDuTitre(html: string, exclus: string): Set<string> {
+  const h2 = (html.match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/i)?.[1] ?? "").replace(/<[^>]+>/g, " ");
+  const ex = new Set((exclus.match(/[A-Za-zÀ-ÿ]{6,}/g) ?? []).map(racine));
+  return new Set((h2.match(/[A-Za-zÀ-ÿ'’]{6,}/g) ?? []).map((m) => racine(m.replace(/^[a-z]['’]/i, ""))).filter((m) => m.length >= 6 && !MOTS_VIDES.has(m) && !ex.has(m)));
+}
+/** Le titre de cette section reprend le sujet d'une section précédente */
+export function sujetDejaTraite(id: string, html: string, precedentes: { id: string; html: string }[], exclus: string): string[] {
+  if (/<footer\b/i.test(html) || /faq|question/.test(id)) return [];
+  const ici = motsDuTitre(html, exclus);
+  for (const p of precedentes) {
+    if (/<footer\b/i.test(p.html) || /faq|question|hero|nav/.test(p.id)) continue;
+    const commun = [...motsDuTitre(p.html, exclus)].find((m) => ici.has(m));
+    if (commun) return [`Cette section reprend le sujet de la section « ${p.id} » (« ${commun} ») : traite un autre aspect du brief, avec un titre différent.`];
+  }
+  return [];
+}
