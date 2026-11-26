@@ -15,6 +15,17 @@ const lire = (k) => { try { return JSON.parse(localStorage.getItem(k) ?? "null")
 const IDEES = ["Ajoute mon logo", "Plus dynamique", "Fond blanc", "Accroche plus forte", "Ajoute un mot géant qui claque", "Mets-la en bleu marine", "Termine par mon site"];
 const EXEMPLES = ["Une vidéo pour présenter mon salon de barbier à Lyon", "Le teaser de l'ouverture de ma boulangerie le 3 décembre", "Une pub pour mon coaching sportif en ligne"];
 
+// La vidéo montre les écrans du SaaS du membre seulement si la demande parle de lui (son nom ou son sujet) :
+// une pub pour un barbier ne doit pas montrer les écrans d'un logiciel de rendez-vous de thérapeutes
+const motsForts = (t) => new Set(String(t ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z]{5,}/g)?.filter((m) => !["video", "presente", "presenter", "pour", "notre", "votre", "application", "logiciel", "outil", "mon", "plus", "avec", "faire"].includes(m)) ?? []);
+function parleDe(texte, app) {
+  if (!app || !String(texte ?? "").trim()) return false;
+  const t = motsForts(texte), nom = String(app.spec?.nom ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (nom.length >= 3 && String(texte).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(nom)) return true;
+  if (/\b(mon|ma|notre)\s+(saas|logiciel|appli|application|outil)\b/i.test(texte)) return true;
+  const sujet = motsForts([app.spec?.pitch, app.spec?.slogan, app.spec?.cible_courte, app.spec?.cible].filter(Boolean).join(" "));
+  return [...t].filter((m) => sujet.has(m)).length >= 2;
+}
 export default function Motion() {
   const { ws } = useWs();
   // « Fait avec Bingoo! » sur les vidéos, sauf pour l'offre Lancer Pro (marque blanche)
@@ -33,7 +44,7 @@ export default function Motion() {
   const canvas = useRef(null), t0 = useRef(performance.now()), bas = useRef(null), lance = useRef(false), fichier = useRef(null);
   const [logoImg, setLogoImg] = useState(null), [envoiLogo, setEnvoiLogo] = useState(false);
   // Son SaaS ou son site construit par Bingoo! : ses vrais écrans peuvent entrer dans la vidéo
-  const [monApp, setMonApp] = useState(undefined), [avecProduit, setAvecProduit] = useState(true); // undefined : pas encore chargé
+  const [monApp, setMonApp] = useState(undefined), [avecProduit, setAvecProduit] = useState(null); // undefined : pas encore chargé ; null : Bingoo! décide
   useEffect(() => {
     if (!ws?.id) return;
     supabase.from("saas_apps").select("id, slug, spec, version").eq("workspace_id", ws.id).eq("statut", "pret").order("at", { ascending: false }).limit(1)
@@ -204,7 +215,7 @@ export default function Motion() {
     const n = fil.length;
     setFil((l) => [...l, { moi: t, etat: "encours", creer }]); setSaisie(""); setBusy(true);
     try {
-      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && avecProduit ? { app_id: monApp.id } : {}), ...(styleVideo ? { look: styleVideo } : {}), photos: medias.filter((m) => m.type === "photo").map((m) => m.url), videos: medias.filter((m) => m.type === "video").map((m) => m.url) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
+      const v = creer ? await fn("r/video-creer", { workspace_id: ws.id, texte: t, format, ...(monApp && (avecProduit ?? parleDe(t, monApp)) ? { app_id: monApp.id } : {}), ...(styleVideo ? { look: styleVideo } : {}), photos: medias.filter((m) => m.type === "photo").map((m) => m.url), videos: medias.filter((m) => m.type === "video").map((m) => m.url) }) : await fn("r/video-retouche", { workspace_id: ws.id, video_id: sel.id, demande: t, format });
       setVideos((l) => [v, ...(l ?? [])]); setSel(v); setLecture(true); if (creer) { setMedias([]); try { localStorage.removeItem("bingoo-style-video"); } catch { /* stockage indisponible */ } }
       const lm = creer ? memoLogo() : null; if (lm?.url) await poserLogo(v, lm).catch(() => null);
       setFil((l) => l.map((x, k) => (k === n ? { ...x, etat: "ok", note: v.script?.note } : x)));
@@ -256,7 +267,7 @@ export default function Motion() {
         <form onSubmit={(e) => { e.preventDefault(); envoyer(); }} className="border-t border-line p-3">
           {sel && !busy && !saisie && <div className="mb-1.5 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">{IDEES.map((x) => <button key={x} type="button" onClick={() => setSaisie(x)} className="shrink-0 rounded-full border border-line bg-white px-3 py-1 text-[12px] font-medium text-ink-soft hover:text-ink">{x}</button>)}</div>}
           {monApp && !sel && <label className="mb-1.5 flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-[#FCFBF9] px-3 py-2 text-[13px]">
-            <input type="checkbox" checked={avecProduit} onChange={(e) => setAvecProduit(e.target.checked)} className="h-4 w-4 accent-[#E8571C]" />
+            <input type="checkbox" checked={avecProduit ?? parleDe(saisie, monApp)} onChange={(e) => setAvecProduit(e.target.checked)} className="h-4 w-4 accent-[#E8571C]" />
             <span>Montrer les vrais écrans de <b>{monApp.spec?.nom ?? "mon SaaS"}</b> dans la vidéo</span>
           </label>}
           <div className="rounded-2xl border border-line bg-[#FCFBF9] p-2 focus-within:border-ink/30">

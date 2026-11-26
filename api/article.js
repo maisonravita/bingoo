@@ -25,25 +25,50 @@ function md(t) {
   return out.join("\n");
 }
 
-function page(app, titre, description, canon, corps, ld = null) {
-  const c = /^#[0-9a-f]{6}$/i.test(app.couleur || "") ? app.couleur : "#4F46E5";
+// Le blog prend l'allure du site : couleurs et polices de son système de design, son logo, sa photo d'en-tête
+const hex = (x, d) => (/^#[0-9a-f]{6}$/i.test(x || "") ? x : d);
+const policeOk = (p) => (typeof p === "string" && /^[A-Za-z0-9 ]{2,40}$/.test(p) ? p : null);
+function page(app, titre, description, canon, corps, o = {}) {
+  const dc = app.design?.couleurs ?? {}, dp = app.design?.polices ?? {};
+  const c = hex(dc.primary, hex(app.couleur, "#4F46E5")), surC = hex(dc.on_primary, "#FFFFFF");
+  const fond = hex(dc.background, "#FAFAF7"), encre = hex(dc.foreground, "#14161B"), doux = hex(dc.muted_foreground, "#5B6270"), carte = hex(dc.card, "#FFFFFF");
+  const ligne = hex(dc.border, "#E6E4DE");
+  const fTitres = policeOk(dp.titres) || "Fraunces";
+  // Le texte long se lit dans une police de lecture : une police d'affiche (Playfair, Bebas…) passe la main à Inter
+  const fTexte = policeOk(dp.texte) && !/display|bebas|oswald|anton|playfair|abril|serif display/i.test(dp.texte) ? dp.texte : "Inter";
+  const polices = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fTitres)}:wght@500;600;700&family=${encodeURIComponent(fTexte)}:wght@400;600;700&display=swap`;
   const accueil = app.domaine ? `https://${app.domaine}/` : `${SITE}/#/app/${app.slug}`;
-  // Un site : le bouton du commerçant (« Réserver », « Demander un devis ») ; un SaaS : l'essai gratuit
   const site = app.type === "site", bouton = site ? (app.cta || app.site?.cta || "Me contacter") : "Essai gratuit", bouton2 = site ? bouton : "Essayer gratuitement";
+  const logo = /^https:\/\//.test(app.logo || "") ? `<img src="${esc(app.logo)}" alt="" style="height:30px;width:auto">` : `<span class="l">${esc(String(app.nom || "S")[0])}</span>`;
+  const ld = o.ld, image = /^https:\/\//.test(o.image || "") ? o.image : null;
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(titre)}</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${canon}">
-<meta property="og:title" content="${esc(titre)}"><meta property="og:description" content="${esc(description)}"><meta property="og:type" content="article">
+<meta property="og:title" content="${esc(titre)}"><meta property="og:description" content="${esc(description)}"><meta property="og:type" content="article">${image ? `<meta property="og:image" content="${esc(image)}">` : ""}
 ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, "\\u003c")}</script>` : ""}
-<style>*{box-sizing:border-box}body{margin:0;background:#F8FAFC;color:#0F172A;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65}
-.w{max-width:760px;margin:0 auto;padding:24px 16px 64px}header{display:flex;justify-content:space-between;align-items:center}header a{text-decoration:none;color:inherit;font-weight:800;font-size:18px;display:flex;gap:8px;align-items:center}
-.l{width:30px;height:30px;border-radius:9px;background:${c};color:#fff;display:grid;place-items:center}h1{font-size:clamp(28px,5vw,40px);line-height:1.1;letter-spacing:-.02em;margin:36px 0 10px}
-h2{font-size:22px;margin:30px 0 8px}h3{font-size:18px;margin:22px 0 6px}p,li{font-size:17px}.r{color:#64748B}a.b{display:inline-block;background:${c};color:#fff;text-decoration:none;font-weight:700;border-radius:12px;padding:12px 18px}
-.cta{margin-top:36px;background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:22px}.art{display:block;background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:16px;margin:10px 0;text-decoration:none;color:inherit}
-footer{margin-top:40px;color:#94A3B8;font-size:13px}</style></head><body><div class="w">
-<header><a href="${accueil}"><span class="l">${esc(String(app.nom || "S")[0])}</span>${esc(app.nom)}</a><a class="b" href="${accueil}" style="font-size:14px;padding:9px 14px">${esc(bouton)}</a></header>
-${corps}
-<div class="cta"><b>${esc(app.nom)}</b><p class="r" style="margin:4px 0 14px">${esc(app.pitch)}</p><a class="b" href="${accueil}">${esc(bouton2)}</a></div>
-<footer>© ${new Date().getFullYear()} ${esc(app.nom)}</footer></div></body></html>`;
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${polices}">
+<style>*{box-sizing:border-box}body{margin:0;background:${fond};color:${encre};font-family:"${fTexte}",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.7;-webkit-font-smoothing:antialiased}
+.tete{position:sticky;top:0;z-index:5;background:color-mix(in srgb,${fond} 88%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid ${ligne}}
+.tete .in{max-width:1080px;margin:0 auto;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:16px}
+.tete a.m{text-decoration:none;color:inherit;font-family:"${fTitres}",serif;font-weight:600;font-size:20px;display:flex;gap:10px;align-items:center;letter-spacing:-.01em}
+.l{width:30px;height:30px;border-radius:9px;background:${c};color:${surC};display:grid;place-items:center;font-size:15px}
+a.b{display:inline-block;background:${c};color:${surC};text-decoration:none;font-weight:600;border-radius:999px;padding:12px 20px}
+.w{max-width:720px;margin:0 auto;padding:0 20px 72px}
+.sur{margin:56px 0 0;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:${c};font-weight:600}
+h1{font-family:"${fTitres}",serif;font-weight:600;font-size:clamp(34px,5.4vw,56px);line-height:1.06;letter-spacing:-.025em;margin:14px 0 18px;text-wrap:balance}
+.chapo{font-size:20px;line-height:1.55;color:${doux};margin:0 0 26px}
+.meta{display:flex;gap:14px;align-items:center;font-size:14px;color:${doux};padding-bottom:26px;border-bottom:1px solid ${ligne}}
+.cover{max-width:1080px;margin:34px auto 0;padding:0 20px}.cover img{width:100%;aspect-ratio:21/9;object-fit:cover;border-radius:22px;display:block}
+.corps{margin-top:30px}.corps>p:first-of-type::first-letter{font-family:"${fTitres}",serif;float:left;font-size:64px;line-height:.9;padding:6px 10px 0 0;color:${c}}
+h2{font-family:"${fTitres}",serif;font-weight:600;font-size:clamp(24px,3vw,30px);line-height:1.2;letter-spacing:-.015em;margin:44px 0 10px}
+h3{font-family:"${fTitres}",serif;font-size:21px;margin:28px 0 6px}p,li{font-size:18px}ul{padding-left:22px}li{margin:6px 0}li::marker{color:${c}}b{font-weight:700}
+.r{color:${doux}}
+.cta{margin-top:56px;background:${c};color:${surC};border-radius:24px;padding:30px 30px 32px}.cta h2{margin:0 0 6px;color:${surC}}.cta p{margin:0 0 20px;opacity:.88}.cta a.b{background:${surC};color:${c}}
+.art{display:block;background:${carte};border:1px solid ${ligne};border-radius:18px;padding:22px 24px;margin:14px 0;text-decoration:none;color:inherit;transition:transform .2s}.art:hover{transform:translateY(-2px)}.art b{font-family:"${fTitres}",serif;font-size:22px;font-weight:600;display:block;margin-bottom:4px}
+footer{max-width:720px;margin:0 auto;padding:0 20px 40px;color:${doux};font-size:13px}</style></head><body>
+<header class="tete"><div class="in"><a class="m" href="${accueil}">${logo}${esc(app.nom)}</a><a class="b" href="${accueil}" style="font-size:14px;padding:10px 16px">${esc(bouton)}</a></div></header>
+${o.avant ?? ""}<main class="w">${corps}
+<section class="cta"><h2>${esc(app.nom)}</h2><p>${esc(app.pitch)}</p><a class="b" href="${accueil}">${esc(bouton2)}</a></section></main>
+<footer>© ${new Date().getFullYear()} ${esc(app.nom)}</footer></body></html>`;
 }
 
 export default async function handler(req, res) {
@@ -63,16 +88,23 @@ export default async function handler(req, res) {
       const pub = surDomaine ? await rpc("saas_app_par_domaine", { p_domaine: host }) : await rpc("saas_app_public", { p_slug: appCle });
       if (!pub) { res.statusCode = 404; return res.end("Introuvable"); }
       const app = { ...pub.spec, slug: pub.slug, domaine: pub.domaine };
-      const corps = `<h1>Le blog de ${esc(app.nom)}</h1><p class="r">${esc(app.pitch)}</p>${(pub.articles || []).map((a) => `<a class="art" href="${base(a.slug)}"><b>${esc(a.titre)}</b><div class="r">${esc(a.resume)}</div></a>`).join("") || "<p>Aucun article pour l'instant.</p>"}`;
-      return res.end(page(app, `Blog · ${app.nom}`, app.pitch || "", surDomaine ? `https://${host}/blog` : `${SITE}/a/${appCle}`, corps));
+      const corps = `<p class="sur">Le blog</p><h1>${esc(app.nom)}</h1><p class="chapo">${esc(app.pitch)}</p>${(pub.articles || []).map((a) => `<a class="art" href="${base(a.slug)}"><b>${esc(a.titre)}</b><div class="r">${esc(a.resume)}</div></a>`).join("") || "<p>Aucun article pour l'instant.</p>"}`;
+      const img = app.site?.page?.images?.PHOTO_1?.url || app.site?.page?.images?.IMG_1?.url;
+      return res.end(page(app, `Blog · ${app.nom}`, app.pitch || "", surDomaine ? `https://${host}/blog` : `${SITE}/a/${appCle}`, corps, { image: img }));
     }
     const d = await rpc("saas_app_article", { p_slug: appCle, p_article: art });
     if (!d) { res.statusCode = 404; return res.end("Article introuvable"); }
     const a = d.article, app = d.app;
     const canon = app.domaine ? `https://${app.domaine}/blog/${a.slug}` : `${SITE}/a/${app.slug}/${a.slug}`;
-    const corps = `<h1>${esc(a.titre)}</h1><p class="r">${esc(a.resume)}</p>${md(a.contenu)}`;
+    const mots = String(a.contenu ?? "").split(/\s+/).length, date = a.at ? new Date(a.at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "";
+    const corps = `<p class="sur">Le blog de ${esc(app.nom)}</p><h1>${esc(a.titre)}</h1><p class="chapo">${esc(a.resume)}</p><div class="meta">${date ? `<span>${esc(date)}</span><span>·</span>` : ""}<span>${Math.max(1, Math.round(mots / 220))} min de lecture</span></div>`;
+    const avantCorps = /^https:\/\//.test(app.image || "") ? `<div class="cover"><img src="${esc(app.image)}" alt=""></div>` : "";
     const ld = { "@context": "https://schema.org", "@type": "Article", headline: a.titre, description: a.resume || "", datePublished: a.at || undefined, mainEntityOfPage: canon, publisher: { "@type": "Organization", name: app.nom }, keywords: (a.mots_cles || []).join(", ") };
-    return res.end(page(app, a.titre, a.resume || "", canon, corps, ld));
+    // Avec une photo : le titre, puis la photo pleine largeur, puis le texte ; sans photo : tout dans la colonne de lecture
+    const html = avantCorps
+      ? page(app, a.titre, a.resume || "", canon, `<div class="corps">${md(a.contenu)}</div>`, { ld, image: app.image, avant: `<div class="w" style="padding-bottom:0">${corps}</div>${avantCorps}` })
+      : page(app, a.titre, a.resume || "", canon, `${corps}<div class="corps">${md(a.contenu)}</div>`, { ld });
+    return res.end(html);
   } catch (e) {
     res.statusCode = 500;
     return res.end("Erreur");
