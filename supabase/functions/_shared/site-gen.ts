@@ -181,7 +181,7 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
   let corrections = 0;
   const ids = ["nav", ...plan.sections.map((s) => s.id)];
   for (let essai = 1; essai <= 3; essai++) {
-    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...(id === "hero" || /faq|question/.test(id) ? [] : doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h)))), ...imageDejaVue(id), ...(essai < 3 ? sujetDejaTraite(id, ecrites.get(id)!, ids.slice(0, ids.indexOf(id)).filter((k) => ecrites.has(k)).map((k) => ({ id: k, html: ecrites.get(k)! })), `${e.nom} ${e.ville ?? ""} ${e.metier ?? ""}`) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
+    const fautives = ids.map((id) => ({ id, pbs: ecrites.has(id) ? [...controlerSection(id, ecrites.get(id)!, `${e.brief} ${donnees}`), ...(compo && id === "hero" ? controlerCompo(compo, ecrites.get(id)!) : []), ...(id === "hero" || /faq|question/.test(id) ? [] : doublonsServices(ecrites.get(id)!, (e.services ?? []).map((x: any) => x?.titre), [...ecrites].some(([k, h]) => k !== id && /data-bingoo="services"/.test(h)))), ...imageDejaVue(id), ...(essai <= 3 ? sujetDejaTraite(id, ecrites.get(id)!, ids.slice(0, ids.indexOf(id)).filter((k) => ecrites.has(k)).map((k) => ({ id: k, html: ecrites.get(k)! })), `${e.nom} ${e.ville ?? ""} ${e.metier ?? ""}`) : [])] : ["Section manquante."] })).filter((x) => x.pbs.length);
     if (!fautives.length) break;
     journal.push(`Essai ${essai} : ${fautives.map((f) => `${f.id} (${f.pbs[0].slice(0, 60)})`).join(" ; ")}`);
     // Temps : une fonction a une durée limitée ; passé 110 s, plus de réécriture (retrait des sections fautives ou secours)
@@ -193,6 +193,12 @@ ${avecNav ? "Le header : header.nav avec le logo (le nom), les mots du plan vers
       // adresse, prestations) et on retire l'autre, si elle n'en porte pas (jamais le premier écran)
       const retirer = (id: string) => { ecrites.delete(id); plan.sections = plan.sections.filter((s) => s.id !== id); journal.push(`Section ${id} retirée (doublon)`); };
       const donnees = (id: string) => /data-bingoo="(services|horaires|adresse|realisations|contact|inscription)"|<form\b/.test(ecrites.get(id) ?? "");
+      // Adresse ou horaires réécrits à la main à côté de leur bloc : les lignes en double sont retirées (le bloc les affiche)
+      for (const f of fautives) if (ecrites.has(f.id) && f.pbs.some((p) => /déjà affichée? par le marqueur (horaires|:)/.test(p))) {
+        const avant = ecrites.get(f.id)!;
+        const apres = avant.replace(/<(li|p)\b[^>]*>((?:(?!<\/\1>)[\s\S])*?)<\/\1>/gi, (m, _t, inner) => { const t = String(inner).replace(/<[^>]+>/g, " "); return t.trim().length < 110 && (/\b\d{5}\b/.test(t) || /(lundi|mardi|mercredi|jeudi|vendredi|samedi)[^.]{0,40}\d{1,2}\s*h/i.test(t)) ? "" : m; });
+        if (apres !== avant) { ecrites.set(f.id, apres); journal.push(`Adresse ou horaires en double retirés (${f.id})`); }
+      }
       for (const f of fautives) {
         if (!ecrites.has(f.id) || plan.sections.length <= 4) continue;
         const autre = f.pbs.map((p) => p.match(/^(?:Cette section reprend|Ce titre commence|Cette section dit presque)[^«]*section « ([a-z0-9_-]+) »/)?.[1]).find(Boolean);
