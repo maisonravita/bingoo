@@ -1314,6 +1314,7 @@ if (CONSTRUIRE === "spec") {
       const f = p2.frames().find((x) => x !== p2.mainFrame());
       // Le premier écran tel qu'un visiteur le voit (avant d'agrandir la fenêtre pour la capture pleine page)
       await p2.screenshot({ path: `${DOSSIER}/${nom}-haut.png` }).catch(() => null);
+      if (f) console.log("En-tête :", JSON.stringify(await f.evaluate(() => { const n = document.querySelector(".nav"), l = document.querySelector(".nav__link"), h = document.querySelector("main section"); return { nav: n?.className, lien: l && getComputedStyle(l).color, fond: n && getComputedStyle(n).backgroundColor, hero: h?.className, scroll: scrollY, compo: !!window.__bingooNavHaut }; }).catch((e) => String(e))));
       if (f) { const h = await f.evaluate(() => document.body.scrollHeight).catch(() => 0); if (h > vp.height) await p2.setViewportSize({ width: vp.width, height: Math.min(h + 80, 9000) }); await p2.waitForTimeout(1500); }
       await p2.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom); await c2.close();
     }
