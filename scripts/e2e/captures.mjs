@@ -221,7 +221,7 @@ if (CONSTRUIRE === "video-produit") {
   const scen = await page.evaluate(() => document.body.innerText).catch(() => ""); console.log("Page :", scen.replace(/\s+/g, " ").slice(0, 700));
   // Son logo (dessiné à la volée, fond transparent) envoyé avec le trombone
   const logo = await page.evaluate(() => { const c = document.createElement("canvas"); c.width = 520; c.height = 200; const g = c.getContext("2d"); g.fillStyle = "#0F3D2E"; g.beginPath(); g.arc(100, 100, 90, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "800 90px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("L", 100, 106); g.fillStyle = "#0F3D2E"; g.font = "800 84px sans-serif"; g.textAlign = "left"; g.fillText("Lame", 210, 106); return c.toDataURL("image/png").split(",")[1]; });
-  await page.locator('input[type="file"]').setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from(logo, "base64") }).catch((e) => console.log("✗ logo", e.message));
+  await page.locator('input[type="file"]').first().setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from(logo, "base64") }).catch((e) => console.log("✗ logo", e.message));
   await page.getByText("Ton logo est dans la vidéo").waitFor({ timeout: 60000 }).then(() => console.log("✓ Logo posé")).catch(() => console.log("✗ logo non posé"));
   for (const k of [20, 21, 22, 23]) { await page.waitForTimeout(3100); await page.screenshot({ path: `${DOSSIER}/motion-${k}.png` }).catch(() => null); }
   // Une retouche dans la discussion
@@ -1216,7 +1216,7 @@ if (CONSTRUIRE === "spec") {
     await page.locator("#copie-nom").fill(process.env.NOM_COPIE || "Agendo").catch(() => null);
     // Un logo (dessiné à la volée) envoyé comme le ferait le membre
     const png = await page.evaluate(() => { const c = document.createElement("canvas"); c.width = c.height = 256; const g = c.getContext("2d"); g.fillStyle = "#0F766E"; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill(); g.fillStyle = "#fff"; g.font = "bold 150px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("A", 128, 140); return c.toDataURL("image/png").split(",")[1]; });
-    await page.locator('input[type="file"]').setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") }).catch((e) => console.log("✗ logo", e.message));
+    await page.locator('input[type="file"]').first().setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") }).catch((e) => console.log("✗ logo", e.message));
     await page.getByAltText("Ton logo").waitFor({ timeout: 30000 }).catch(() => console.log("✗ logo non affiché"));
     await page.screenshot({ path: `${DOSSIER}/copie-resultat.png`, fullPage: true }).catch(() => null);
     await page.getByRole("button", { name: /^Construire / }).first().click().catch((e) => console.log("✗ bouton Construire", e.message));
