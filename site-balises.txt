@@ -1,0 +1,16 @@
+<title>Studio Souffle · Studio de yoga et pilates à Strasbourg</title>
+<meta name="description" content="Des cours de yoga et de pilates pour adultes, débutants compris, en groupes de 8 personnes au plus, au 11 rue des Juifs à Strasbourg.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Studio Souffle">
+<meta property="og:title" content="Studio Souffle · Studio de yoga et pilates à Strasbourg">
+<meta property="og:description" content="Des cours de yoga et de pilates pour adultes, débutants compris, en groupes de 8 personnes au plus, au 11 rue des Juifs à Strasbourg.">
+<meta property="og:url" content="https://www.bingoo.fr/s/studio-souffle-6m1z">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=studio-souffle-6m1z&amp;v=14-2563EB">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=studio-souffle-6m1z&amp;v=14-2563EB">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Studio Souffle · Studio de yoga et pilates à Strasbourg">
+<meta name="twitter:description" content="Des cours de yoga et de pilates pour adultes, débutants compris, en groupes de 8 personnes au plus, au 11 rue des Juifs à Strasbourg.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Studio Souffle","description":"Des cours de yoga et de pilates pour adultes, débutants compris, en groupes de 8 personnes au plus, au 11 rue des Juifs à Strasbourg.","url":"https://www.bingoo.fr/s/studio-souffle-6m1z","image":"https://www.bingoo.fr/api/og?slug=studio-souffle-6m1z&v=14-2563EB","telephone":"03 88 00 00 00","address":"11 rue des Juifs, 67000 Strasbourg","areaServed":"Strasbourg","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":"Monday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"09:00","closes":"18:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Saturday","opens":"09:00","closes":"18:00"}],"makesOffer":[{"@type":"Offer","name":"Cours de yoga à l'unité","description":"Un cours de yoga au studio, réservé à l'avance par formulaire ou par téléphone.","price":18,"priceCurrency":"EUR"},{"@type":"Offer","name":"Cours de pilates à l'unité","description":"Un cours de pilates en petit groupe, avec correction individuelle des postures.","price":18,"priceCurrency":"EUR"},{"@type":"Offer","name":"Carte de 10 cours","description":"Dix cours de yoga ou de pilates à utiliser à votre rythme.","price":150,"priceCurrency":"EUR"}]}</script>

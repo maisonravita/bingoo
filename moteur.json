@@ -1,0 +1,23 @@
+{
+  "gen": {
+    "at": "2026-11-26T20:06:31.534Z",
+    "cout": 0.3294,
+    "appels": 6,
+    "entree": 154407,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 6187,
+    "duree_s": 49,
+    "journal": [
+      "Premier écran : composition Moitié",
+      "Plan : hero, studio, ambiance, deroulement, tarifs, photo-matiere, venir, questions",
+      "Images : 3 générée(s), 0.083 €",
+      "Sections : studio=recit, ambiance=duo, deroulement=etapes, tarifs=liste, photo-matiere=manifeste",
+      "Essai 1 : tarifs (Cette section reprend le sujet de la section « deroulement ») ; photo-matiere (Ce titre répète une formule déjà utilisée en haut de la page)",
+      "Essai 2 : photo-matiere (Texte : « au cœur de » (« : venez respirer un peu au cœur de)",
+      "Essai 3 : photo-matiere (Texte : « au cœur de » (« us Venez respirer un peu au cœur d)"
+    ],
+    "images_eur": 0.0828,
+    "corrections": 3
+  },
+  "sections": 8
+}
