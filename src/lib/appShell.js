@@ -201,9 +201,13 @@ async function verifCall(action, b) {
   if (VAPPELS[action] != null) VAPPELS[action]++; else if (!/^(list|get|public-info)$/.test(action)) VAPPELS.autre++;
   if (action === "public-list") action = "list"; else if (action === "public-add") action = "add"; else if (action === "public-ia") action = "ia"; else if (action === "public-info") return { nom: "Atelier Exemple" };
   const L = VSTORE[b.col] ??= [];
-  if (action === "list") return L.filter((x) => Object.entries(b.where ?? {}).every(([k, v]) => String(x[k]) === String(v))).slice().reverse();
+  // Données partagées (place de marché, communauté) et transactions entre deux membres : comme sur le serveur, une partie des
+  // fiches est « à moi » (_moi) ou « reçue » (_recu), sinon les écrans « Mes annonces » ou « Demandes reçues » paraîtraient vides
+  const regle = (S.collections ?? []).find((c) => c.nom === b.col);
+  const marquer = (x, i) => regle?.partage === true ? { _moi: i % 2 === 0, _auteur: i % 2 === 0 ? "Camille" : ["Léa", "Hugo", "Nora"][i % 3], _auteur_id: i % 2 === 0 ? "v" : "u" + (i % 3), ...x } : regle?.partage === "parties" ? { _recu: i % 2 === 1, ...x } : x;
+  if (action === "list") return L.map(marquer).filter((x) => Object.entries(b.where ?? {}).every(([k, v]) => String(x[k]) === String(v))).slice().reverse();
   if (action === "get") { const r = L.find((x) => x.id === b.id); if (!r) throw new Error("Élément introuvable"); return r; }
-  if (action === "add") { const r = { ...b.data, id: "v" + (++VSEQ), created_at: new Date().toISOString(), updated_at: null }; L.push(r); return r; }
+  if (action === "add") { const r = { ...b.data, id: "v" + (++VSEQ), created_at: new Date().toISOString(), updated_at: null, ...(regle?.partage === true ? { _moi: true, _auteur: "Camille", _auteur_id: "v" } : regle?.partage === "parties" ? { _recu: false } : {}) }; L.push(r); return r; }
   if (action === "update") { const r = L.find((x) => x.id === b.id); if (r) Object.assign(r, b.data, { updated_at: new Date().toISOString() }); return r ?? {}; }
   if (action === "remove") { VSTORE[b.col] = L.filter((x) => x.id !== b.id); return { ok: true }; }
   if (action === "ia") return { resultat: b.json ? {} : "Texte d'essai rédigé par l'IA." };
