@@ -7,6 +7,9 @@ import { gmailSend, outlookSend } from "./oauth.ts";
 export async function resend(path: string, method = "GET", body?: unknown, extra: Record<string, string> = {}) {
   const key = env("RESEND_API_KEY");
   if (!key) throw new HttpError(500, "Clé RESEND_API_KEY manquante dans les secrets Supabase");
+  // Les robots de test ne consomment pas le quota d'e-mails (100 par jour, envois ET réceptions) des vrais clients
+  const dest = (body as any)?.to; const tous = (Array.isArray(dest) ? dest : dest ? [dest] : []).map((x: unknown) => String(x).toLowerCase());
+  if (method === "POST" && /^\/emails/.test(path) && tous.length && tous.every((x: string) => /(^|<)robot[-+.][^@]*@maisonravita\.fr>?$/.test(x)) && env("ROBOT_EMAILS") !== "oui") return { ok: true, status: 200, data: { id: "robot-non-envoye" } };
   const res = await fetch(`https://api.resend.com${path}`, {
     method, headers: { Authorization: `Bearer ${key}`, "content-type": "application/json", ...extra },
     body: body ? JSON.stringify(body) : undefined,

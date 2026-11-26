@@ -200,7 +200,7 @@ hero-moitie__faits n'a que des faits du brief (ville, horaires, téléphone, sp�
   },
   arche: {
     id: "arche", nom: "Arche", photo: true,
-    image: "IMG_1 is a vertical photograph framed for an arch-shaped window: a serene interior, a treatment room, a garden, a pool, a terrace or a natural texture tied to the activity, soft diffused light, pastel and natural tones, one clear subject in the centre, calm and luxurious, full-frame camera, 35mm lens, no text.",
+    image: "IMG_1 is a vertical photograph framed for an arch-shaped window: the activity's OWN place or tools (for a hair salon: a styling chair and mirror; for a spa: a treatment room; for a yoga studio: mats in a calm room; a pool or a villa ONLY for a hotel or a spa that has one), soft diffused light, pastel and natural tones, one clear subject in the centre, calm and luxurious, full-frame camera, 35mm lens, no text.",
     structure: `<section id="hero" class="hero hero-arche">
   <span class="t-label hero-arche__label">(métier · ville)</span>
   <h1 class="hero-arche__titre"><span>(2 à 3 mots)</span><span>(2 à 3 mots)</span></h1>
