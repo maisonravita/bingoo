@@ -1007,7 +1007,9 @@ const CLAIR = {
 };
 // ── Allure « aura » : du blanc, du texte noir, et un seul effet signature : un dégradé irisé (la couleur de la marque qui
 // glisse vers l'orangé, le violet et le bleu) qui remplit les grands mots, les boutons, les halos et les barres.
-const irise = () => { const h = teinteDe(C); return [h, h + 35, h - 70, h - 115].map((x) => `hsl(${(x + 720) % 360},96%,62%)`); };
+// Toujours la même famille (rose vif, orangé, violet, bleu) : c'est la signature de l'allure ; la teinte de la marque
+// prend la place de celle qui lui ressemble le plus
+const irise = () => { const h = teinteDe(C), base = [335, 18, 262, 222], ec = (a, b) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b)); let k = 0; base.forEach((x, i) => { if (ec(x, h) < ec(base[k], h)) k = i; }); base[k] = h; return base.map((x) => `hsl(${x},96%,62%)`); };
 function degradeAura(ctx, x0, x1, t, incl = 0) {
   const L = Math.max(1, x1 - x0), ph = (t * 0.22) % 1, g = ctx.createLinearGradient(x0 - L * ph, -incl, x0 - L * ph + 2 * L, incl), c = irise();
   for (let k = 0; k <= 8; k++) g.addColorStop(k / 8, c[k % 4]); return g;

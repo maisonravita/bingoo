@@ -264,7 +264,7 @@ Choisis aussi "look", l'allure visuelle qui colle le mieux à l'activité, parmi
 ALLURE IMPOSÉE « clair » : une pub sobre de logiciel ou de service, qui raconte « tout est éparpillé → on rassemble ». Ces consignes passent avant la construction demandée plus haut. 8 scènes, dans CET ordre :
 1) « mots » de 3 à 5 mots qui pose le constat sans le finir (ex. « Aujourd'hui, ton travail est ») ;
 2) « impact » : UN seul mot qui le finit (ex. « Partout. ») ;
-3) « pilules » : 3 items, les outils ou endroits où tout est dispersé aujourd'hui (1 ou 2 mots chacun), chacun avec une "icone" DIFFÉRENTE et parlante, sans "texte" ;
+3) « pilules » : 3 items, les outils ou endroits où tout est dispersé aujourd'hui (1 ou 2 mots chacun, des noms COMMUNS comme « Un tableur », « Des messages », « Un carnet » : jamais le nom d'une marque ou d'une appli existante), chacun avec une "icone" DIFFÉRENTE et parlante, sans "texte" ;
 4) « mots » de 3 ou 4 mots : la conséquence, avec un "accent" ;
 5) « rature » : texte_avant vide ou d'un mot, barre = ce qu'on y perd en 2 à 4 mots, texte = un mot ;
 6) « telephone » { items: 4 { icone (toutes différentes), texte (1 mot) } } : ce qui s'accumule sur le téléphone ;
