@@ -244,6 +244,7 @@ export default function Motion() {
           {sel && <button onClick={() => { setSel(null); setFil([]); }} disabled={busy} className="rounded-lg border border-line px-2.5 py-1.5 text-[12.5px] font-semibold text-ink-soft hover:text-ink">Nouvelle vidéo</button>}
         </div>
         <div ref={bas} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 text-[14px]">
+          {(!ws?.plan || ws.plan === "essai") && <div className="rounded-xl border border-[#E8571C]/30 bg-[#FFF4EE] p-3 text-[13px]"><b>Les vidéos sont dans les formules.</b> Essentiel : 5 vidéos par mois. Pro : 20 par mois. <button onClick={() => nav("/abonnement")} className="font-semibold text-[#E8571C] underline">Voir les formules</button></div>}
           {!sel && !fil.length && <div className="rounded-2xl bg-[#F7F5F1] p-4">
             <p className="font-semibold">Décris ta vidéo en une phrase.</p>
             <p className="mt-1 text-ink-soft">Pour quoi, pour qui : Bingoo! écrit le scénario, choisit les couleurs et l'anime tout de suite. 20 secondes, en vertical, carré ou paysage, avec une musique libre de droits.</p>

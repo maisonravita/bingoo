@@ -1583,7 +1583,7 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     const { ask } = await import("../_shared/core.ts");
     const reponse = await ask(`Question du membre : « ${question} »\n\nSon compte : ${contexte}`, { fast: true, maxTokens: 500, cacheSystem: true, system: `Tu es l'assistance de Bingoo! (bingoo.fr), en français, en tutoyant, en 2 à 5 phrases simples, concrètes, sans jargon.
 Bingoo! crée pour des commerçants, artisans et indépendants : des sites, des SaaS et apps, des vidéos motion design, et aide à trouver les premiers clients.
-Offres : Gratuit (premier outil ou jeu, 1 vidéo par mois) ; Essentiel 9,99 € HT/mois (1 site ou SaaS en ligne, 30 modifications, 5 vidéos par mois) ; Pro 24,99 € HT/mois (jusqu'à 3 sites ou SaaS, nom de domaine, sans badge, 100 modifications, 20 vidéos par mois). Pack de démarrage 9,99 € une fois. Crédits : 1 par modification en plus, 2 par vidéo en plus, 30 un autre site, 60 un autre SaaS. Les anciennes formules (Site, Lancer, Lancer Pro, Vidéo) restent valables pour ceux qui les ont.
+Offres : Gratuit (premier outil ou jeu, offert une seule fois ; pas de vidéo gratuite) ; Essentiel 9,99 € HT/mois (1 site ou SaaS en ligne, 30 modifications, 5 vidéos par mois) ; Pro 24,99 € HT/mois (jusqu'à 3 sites ou SaaS, nom de domaine, sans badge, 100 modifications, 20 vidéos par mois). Pack de démarrage 9,99 € une fois. Crédits : 1 par modification en plus, 2 par vidéo en plus, 30 un autre site, 60 un autre SaaS. Les anciennes formules (Site, Lancer, Lancer Pro, Vidéo) restent valables pour ceux qui les ont.
 Ce qu'il faut savoir :
 - L'atelier (menu Mon SaaS ou Atelier) : on écrit ce qu'on veut changer, Bingoo! le fait. Gratuit et sans limite : modifier un texte (clic sur le texte), remplacer une image (outil Image), choisir les polices (outil Police), réordonner les sections (outil Sections). Les autres demandes comptent dans les modifications du mois (30 en Essentiel, 100 en Pro), puis 1 crédit chacune.
 - Tu ne paies jamais nos erreurs : un défaut trouvé par le test de Bingoo! est corrigé gratuitement, et une modification annulée dans les 48 h (« Pas ce que tu voulais ? Annule ») est rendue.
@@ -1804,11 +1804,8 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     if (texte.length < 8) throw new HttpError(400, "Décris ta vidéo en une phrase : pour quoi, pour qui");
     const format = ["paysage", "carre"].includes(b.format) ? b.format : "vertical";
     await quota(ws.id, "video_libre", 15);
-    // Offre gratuite (visiteur ou compte gratuit) : une vidéo par mois, dans la même enveloppe de 2 centimes que les aperçus
-    if (ws.plan === "essai") {
-      const { count } = await admin.from("saas_videos").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("at", monthStart());
-      if ((count ?? 0) >= 1) throw new HttpError(402, "Tu as déjà ta vidéo gratuite du mois. Pour en créer d'autres et la retoucher, choisis une offre dans Abonnement.");
-    }
+    // 28 nov. 2026 : plus de vidéo gratuite (le gratuit = le premier outil, une seule fois)
+    if (ws.plan === "essai") throw new HttpError(402, "Les vidéos motion design sont comprises dans Essentiel (5 par mois) et Pro (20 par mois). Choisis une formule dans Abonnement.");
     // Formules payantes : les vidéos du mois sont comprises ; au-delà, COUT_CREDITS.video crédits la vidéo (rendus si elle échoue)
     const parCredit = ws.plan !== "essai" && !(await videoComprise(ws.id, ws.plan));
     if (parCredit) await creditsDepenser(ws.id, COUT_CREDITS.video, "Vidéo en plus");
