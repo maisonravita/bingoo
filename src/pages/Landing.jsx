@@ -204,7 +204,7 @@ export const VITRINE = [
 const VIDEOS_RANGS = [
   [["bingoo-prisme", "Bingoo!", "Créateur d'applis · style prisme", "prisme"], ["bingoo-declic", "Bingoo!", "Du chaos à l'ordre · style déclic", "declic"], ["atelio", "Atelio", "Assistant IA pour salons · style lueur", "lueur"], ["trame-film", "Trame", "Logiciel pour artisans · style film", "film"], ["kilo", "Kilo", "Appli de course · style interface", "verre"], ["fournil", "Boulangerie artisanale", "Rennes · style éditorial, avec images", "editorial"], ["relais", "Relais", "Marketing · style aura, plans animés", "aura"], ["nid", "Nid", "Conciergerie · style clair", "clair"], ["brulerie", "Brûlerie Nord", "Torréfacteur · style deux tons", "pop"], ["pointa", "Pointa", "Logiciel pour cabinets · vrais écrans", ""]],
 ];
-const NOMS_STYLES = { film: "film", verre: "interface", lueur: "lueur", prisme: "prisme", declic: "déclic", clair: "clair", aura: "aura", nuit: "nuit", pop: "deux tons", editorial: "éditorial", minimal: "minimal" };
+const NOMS_STYLES = { film: "film", verre: "interface", lueur: "lueur", prisme: "prisme", declic: "déclic", relief: "relief", clair: "clair", aura: "aura", nuit: "nuit", pop: "deux tons", editorial: "éditorial", minimal: "minimal" };
 // Une vidéo ne tourne que quand elle est à l'écran (les bandes en contiennent une trentaine)
 function VideoCarte({ f, nom, quoi, style: look = "", cachee, partir }) {
   const forme = "9/16";

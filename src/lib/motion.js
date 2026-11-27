@@ -92,7 +92,7 @@ function plaqueLogo(ctx, cx, cy, hauteur, u, ombre = true, image = true) {
 let F = "system-ui", C = [79, 70, 229], CV = C, NOIR = true, INK = "#fff", INK2 = (a) => `rgba(255,255,255,${a})`;
 // Quatre allures pour que deux vidéos ne se ressemblent pas : nuit (sombre, capitales grasses), pop (couleur de la marque
 // partout), editorial (crème, titres à empattements, casse normale, sans halo), minimal (blanc pur, sobre, sans halo)
-export const LOOKS = ["nuit", "pop", "editorial", "minimal", "verre", "clair", "aura", "film", "lueur", "prisme", "declic"];
+export const LOOKS = ["nuit", "pop", "editorial", "minimal", "verre", "clair", "aura", "film", "lueur", "prisme", "declic", "relief"];
 let LOOK = "nuit";
 // Les vrais écrans du SaaS ou du site du membre (captures de son produit), par titre : { titre: image }
 let ECRANS = {}, ECRANS_L = [];
@@ -131,6 +131,8 @@ function fond(ctx, W, H, t, u) {
     g.addColorStop(0, rgba(mix(C, [170, 165, 200], 0.55), 0.34)); g.addColorStop(0.5, rgba(mix(C, [120, 115, 150], 0.6), 0.1)); g.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     return;
   }
+  // Relief : ciel clair, du blanc bleuté en haut au bleu pâle en bas
+  if (LOOK === "relief") { ciel(ctx, W, H); return; }
   // Déclic : papier clair, une lueur bleue très douce en bas (le noir et le bleu du début sont peints par leurs scènes)
   if (LOOK === "declic") {
     ctx.fillStyle = PAPIER; ctx.fillRect(0, 0, W, H);
@@ -1446,6 +1448,101 @@ const DECLIC = {
   },
 };
 
+// ── Allure « relief » : une pub en 3D douce sur un ciel clair. Un téléphone au centre, des icônes d'applis qui tournent autour
+// sur des orbites ; le téléphone tombe, des blocs de couleur montent comme une ville ; ils s'aplatissent en un damier qu'une
+// vague de lumière traverse, des icônes flottent ; la marque tourne comme une pièce et se pose avec sa phrase.
+const PAL_APPS = [[47, 107, 255], [22, 163, 110], [245, 166, 35], [234, 72, 72], [124, 77, 255], [0, 168, 200]];
+const ICONES_R = ["agenda", "message", "panier", "etoile", "horloge", "euro", "graphique", "coeur"];
+function ciel(ctx, W, H) { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#F1F6FC"); g.addColorStop(1, "#D2E2F4"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+function tuileApp(ctx, cx, cy, T, k, nomIc, u, { a = 1, ang = 0 } = {}) {
+  if (a <= 0 || T < 2) return; const c = PAL_APPS[k % PAL_APPS.length];
+  ctx.save(); ctx.globalAlpha *= a; ctx.translate(cx, cy); ctx.rotate(ang); ctx.shadowColor = "rgba(20,40,80,.22)"; ctx.shadowBlur = T * 0.35; ctx.shadowOffsetY = T * 0.12;
+  const g = ctx.createLinearGradient(0, -T / 2, 0, T / 2); g.addColorStop(0, rgba(mix(c, [255, 255, 255], 0.18), 1)); g.addColorStop(1, rgba(mix(c, [0, 0, 0], 0.12), 1));
+  rond(ctx, -T / 2, -T / 2, T, T, T * 0.24); ctx.fillStyle = g; ctx.fill(); ctx.shadowColor = "transparent";
+  icone(ctx, ICONES[nomIc] ? nomIc : ICONES_R[k % ICONES_R.length], 0, 0, T * 0.56, "#fff", 2.3); ctx.restore();
+}
+function iconesDe(e) { const l = (e.items ?? []).map((x) => x?.icone).filter((x) => ICONES[x]); return [...l, ...ICONES_R].slice(0, 8); }
+// Des blocs posés sur un damier, vus par une caméra (perspective simple, peints du fond vers l'avant)
+function blocs(ctx, W, H, u, { cols = 13, rows = 9, z0 = 3, haut, lum = () => 0, cam, base, monte = 0 }) {
+  const { x: cx, y: cy, z: cz, pitch, yaw = 0 } = cam, f = cam.f ?? Math.max(W, H) * 0.62, cp = Math.cos(pitch), sp = Math.sin(pitch), cyw = Math.cos(yaw), syw = Math.sin(yaw);
+  const P = (X, Y, Z) => { const dx = X - cx, dy = Y - cy - monte, dz = Z - cz, x1 = dx * cyw - dz * syw, z1 = dx * syw + dz * cyw, y2 = dy * cp + z1 * sp, z2 = -dy * sp + z1 * cp; return z2 < 0.15 ? null : [W / 2 + (f * x1) / z2, H / 2 - (f * y2) / z2, z2]; };
+  const cel = []; for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) { const X = i - (cols - 1) / 2, Z = z0 + j, p = P(X, 0, Z); if (p) cel.push({ i, j, X, Z, d: p[2] }); }
+  cel.sort((a, b) => b.d - a.d || Math.abs(b.X - cx) - Math.abs(a.X - cx));
+  const g = 0.07, poly = (pts, col) => { if (pts.some((p) => !p)) return; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); };
+  for (const { i, j, X, Z, d } of cel) {
+    const h = Math.max(0.02, haut(i, j)), l = lum(i, j), x0 = X - 0.5 + g, x1 = X + 0.5 - g, za = Z - 0.5 + g, zb = Z + 0.5 - g, brume = clamp((d - 4) / 12) * 0.55;
+    const teinte = (k) => rgba(mix(mix(k, [222, 234, 248], brume), [255, 255, 255], 0), 1);
+    const top = mix(base, [255, 255, 255], 0.2 + l * 0.6), front = mix(base, [0, 0, 0], 0.3), cote = mix(base, [0, 0, 0], 0.45);
+    if (cx < x0) poly([P(x0, 0, za), P(x0, h, za), P(x0, h, zb), P(x0, 0, zb)], teinte(cote));
+    if (cx > x1) poly([P(x1, 0, za), P(x1, h, za), P(x1, h, zb), P(x1, 0, zb)], teinte(cote));
+    poly([P(x0, 0, za), P(x1, 0, za), P(x1, h, za), P(x0, h, za)], teinte(front));
+    poly([P(x0, h, za), P(x1, h, za), P(x1, h, zb), P(x0, h, zb)], teinte(top));
+  }
+}
+const villeH = (i, j, t) => { const a = alea(i * 13 + j * 7 + 3); return (j < 4 ? 0.3 + a * 0.95 : 0.2 + a * 0.5) * (1 + 0.12 * Math.sin(t * 1.6 + i * 0.9 + j)); };
+function marque(ctx, cx, cy, T, tourne, u, nom) {
+  // la marque du membre (son logo, sinon l'initiale), qui peut tourner comme une pièce (tourne = largeur apparente 0..1)
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(Math.max(0.04, tourne), 1);
+  if (LOGO?.width) { const k = Math.min(T / LOGO.width, T / LOGO.height); ctx.drawImage(LOGO, (-LOGO.width * k) / 2, (-LOGO.height * k) / 2, LOGO.width * k, LOGO.height * k); }
+  else { const g = ctx.createLinearGradient(-T / 2, -T / 2, T / 2, T / 2); g.addColorStop(0, rgba(mix(C, [255, 255, 255], 0.15), 1)); g.addColorStop(1, rgba(mix(C, [0, 0, 0], 0.15), 1)); ctx.fillStyle = g; ctx.font = `800 ${T}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(nom || "B")[0], 0, T * 0.06); }
+  ctx.restore();
+}
+const RELIEF = {
+  // 1) Le téléphone au centre, des icônes qui tournent autour sur deux orbites ; la caméra s'approche doucement
+  telephone(ctx, s, e) {
+    const { W, H, u, t, d, nom, vertical } = s, ics = iconesDe(e), k = 1 + eo(prog(t, 0, d)) * 0.18, oy = H * (vertical ? 0.56 : 0.62);
+    ctx.save(); ctx.translate(W / 2, H * 0.45); ctx.scale(k, k); ctx.translate(-W / 2, -H * 0.45);
+    const orb = [[W * (vertical ? 0.42 : 0.3), 0.9], [W * (vertical ? 0.58 : 0.46), -0.6]];
+    orb.forEach(([rx]) => { ctx.strokeStyle = "rgba(60,80,110,.22)"; ctx.lineWidth = 1.5 * u; ctx.beginPath(); ctx.ellipse(W / 2, oy, rx, rx * 0.26, 0, 0, 7); ctx.stroke(); });
+    const pos = ics.map((n, i) => { const [rx, v] = orb[i % 2], an = (i / ics.length) * Math.PI * 2 + t * 0.45 * v; return { n, i, x: W / 2 + Math.cos(an) * rx, y: oy + Math.sin(an) * rx * 0.26 - 40 * u, z: Math.sin(an) }; });
+    const T = (vertical ? 82 : 70) * u, tel = () => {
+      const pw = W * (vertical ? 0.46 : 0.24), ph = pw * 2.05, px = W / 2 - pw / 2, py = H * 0.06;
+      ctx.save(); ctx.shadowColor = "rgba(10,20,40,.35)"; ctx.shadowBlur = 50 * u; rond(ctx, px, py, pw, ph, pw * 0.16); ctx.fillStyle = "#121214"; ctx.fill(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = rgba(mix(C, [255, 200, 120], 0.5), 0.55); ctx.lineWidth = 2 * u; ctx.stroke();
+      rond(ctx, px + pw * 0.04, py + pw * 0.04, pw * 0.92, ph - pw * 0.08, pw * 0.13); ctx.fillStyle = "#08080A"; ctx.fill();
+      rond(ctx, W / 2 - pw * 0.15, py + pw * 0.08, pw * 0.3, pw * 0.07, pw * 0.035); ctx.fillStyle = "#000"; ctx.fill();
+      ctx.fillStyle = "#F2F2F2"; ctx.font = `500 ${pw * 0.11}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(nom, W / 2, py + ph * 0.42);
+      tuileApp(ctx, W / 2, py + ph * 0.52, pw * 0.13, 0, ics[0], u); ctx.restore();
+    };
+    pos.filter((p) => p.z < 0).forEach((p) => tuileApp(ctx, p.x, p.y, T * (0.85 + p.z * 0.1), p.i, p.n, u));
+    tel();
+    pos.filter((p) => p.z >= 0).forEach((p) => tuileApp(ctx, p.x, p.y, T * (1 + p.z * 0.12), p.i, p.n, u));
+    ctx.restore();
+  },
+  // 2) Le téléphone tombe, le nom apparaît, des blocs montent comme une ville ; le nom se replie en marque qui tourne
+  cartes(ctx, s, e) {
+    const { W, H, u, t, d, nom, vertical } = s, ics = iconesDe(e), chute = eio(prog(t, 0.12, 0.62)), r = eo(prog(t, 0.68, 1.3));
+    blocs(ctx, W, H, u, { cols: vertical ? 7 : 11, rows: 7, z0: 3, haut: (i, j) => villeH(i, j, t), cam: { x: 0, y: 2.0, z: 0.2 + t * 0.3, pitch: 0.16 }, base: C, monte: (1 - r) * 3.5 });
+    const spots = [[0.12, 0.2], [0.86, 0.16], [0.2, 0.48], [0.9, 0.45], [0.08, 0.68], [0.72, 0.62], [0.5, 0.1], [0.95, 0.72]];
+    spots.forEach(([fx, fy], k) => tuileApp(ctx, W * fx + Math.sin(t * 1.3 + k) * 6 * u, H * fy + Math.cos(t * 1.1 + k) * 6 * u, (vertical ? 70 : 54) * u * (0.8 + alea(k) * 0.4), k, ics[k], u, { a: eo(prog(t, 0.1 + k * 0.03, 0.4 + k * 0.03)), ang: (alea(k + 4) - 0.5) * 0.4 }));
+    const an = eo(prog(t, 0.15, 0.4)) * (1 - eio(prog(t, 1.25, 1.45))), ty = H * (vertical ? 0.3 : 0.34);
+    if (an > 0) { ctx.save(); ctx.globalAlpha *= an; ctx.fillStyle = "#2A2D34"; ctx.font = `500 ${(vertical ? 74 : 64) * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; serre(ctx, "-0.01em"); ctx.fillText(nom, W / 2, ty); serre(ctx, "0em"); ctx.restore(); }
+    const m = prog(t, 1.35, 1.75); if (m > 0) marque(ctx, W / 2, ty, (vertical ? 90 : 76) * u, Math.abs(Math.cos((1 - eo(m)) * Math.PI * 2.5)), u, nom);
+    if (chute < 1) { const pw = W * (vertical ? 0.46 : 0.24) * 1.12, ph = pw * 2.05, px = W / 2 - pw / 2, py = H * 0.06 + chute * H; ctx.save(); flou(ctx, chute * 14 * u); rond(ctx, px, py, pw, ph, pw * 0.16); ctx.fillStyle = "#121214"; ctx.fill(); ctx.restore(); }
+  },
+  // 3) Les blocs s'aplatissent en damier ; une vague de lumière le traverse ; la marque flotte, la caméra tourne vers la droite
+  pilules(ctx, s, e) {
+    const { W, H, u, t, d, nom, vertical } = s, ics = iconesDe(e), plat = eo(prog(t, 0, 0.1)), pan = eio(prog(t, 2.0, d)), haus = eo(prog(t, 0, 0.18));
+    const onde = (i, j) => { const dx = i - 4, dz = j - 1, dist = Math.hypot(dx, dz * 1.2); let l = 0; for (const t0 of [0.3, 2.1]) { const R = (t - t0) * 5; if (R > 0) l = Math.max(l, Math.exp(-((dist - R) ** 2) / 1.4) * clamp(1 - R / 26)); } return l; };
+    blocs(ctx, W, H, u, { cols: vertical ? 11 : 15, rows: 12, z0: 2.4, haut: (i, j) => villeH(i, j, t) * (1 - plat) + 0.12 + onde(i, j) * 0.18, lum: onde,
+      cam: { x: pan * 2.2, y: 2.0 + haus * 0.45, z: -0.6 + t * 0.15, pitch: 0.15 + haus * 0.07, yaw: pan * 0.22 }, base: C });
+    const sp = prog(t, 0.05, 0.45), mx = W / 2 - pan * W * (vertical ? 0.15 : 0.22), my = H * (vertical ? 0.3 : 0.27) - eio(prog(t, 0.6, 1.1)) * H * 0.1;
+    marque(ctx, mx, my, (vertical ? 96 : 84) * u * (1 + eio(prog(t, 3.0, d)) * 0.25), sp >= 1 || sp <= 0 ? 1 : Math.abs(Math.cos(eo(sp) * Math.PI * 2)), u, nom);
+    const spots = [[0.1, 0.36], [0.86, 0.14], [0.22, 0.12], [0.94, 0.42], [0.66, 0.3], [0.04, 0.14]];
+    spots.forEach(([fx, fy], k) => { const par = 1 + alea(k + 20) * 0.6; tuileApp(ctx, W * fx - pan * W * 0.25 * par + Math.sin(t * 1.2 + k) * 7 * u, H * fy + Math.cos(t + k) * 7 * u, (vertical ? 76 : 62) * u * par, k + 1, ics[(k + 1) % ics.length], u, { a: eo(prog(t, 0.02 + k * 0.03, 0.22 + k * 0.03)), ang: (alea(k) - 0.5) * 0.3 }); });
+    // une grande icône qui s'approche à côté de la marque, comme dans un plan rapproché
+    const gr = eo(prog(t, 2.6, 3.4)); if (gr > 0) tuileApp(ctx, mx + (vertical ? 140 : 150) * u * (1 + gr * 0.4), my + 40 * u * (1 + gr * 0.4), (vertical ? 120 : 110) * u * (1 + gr * 0.7), 2, ics[2], u, { a: gr, ang: -0.05 });
+  },
+  // 4) Ciel nu ; la marque arrive en tournant comme une pièce, se pose, puis le nom et la phrase s'écrivent dessous
+  logo(ctx, s, e) {
+    const { W, H, u, t, nom, vertical } = s, sp = prog(t, 0, 0.65), mont = eio(prog(t, 0.95, 1.3)), T = (vertical ? 120 : 100) * u * (1 - mont * 0.25), cy = H * 0.47 - mont * H * 0.07;
+    ctx.save(); ctx.globalAlpha *= eo(prog(t, 0, 0.15)); ctx.translate(W / 2, cy); ctx.rotate((1 - eo(sp)) * -0.6); ctx.translate(-W / 2, -cy); marque(ctx, W / 2, cy, T, sp >= 1 ? 1 : Math.abs(Math.cos((1 - eo(sp)) * Math.PI * 3)), u, nom); ctx.restore();
+    const a = eo(prog(t, 1.25, 1.55)), tn = (vertical ? 46 : 38) * u;
+    if (a > 0) { ctx.save(); ctx.globalAlpha *= a; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#3A3D45"; ctx.font = `500 ${tn}px ${F}`; ctx.fillText(nom, W / 2, cy + T * 0.75 + (1 - a) * 8 * u);
+      if (e.texte) { ctx.font = `500 ${tn}px ${F}`; ctx.fillStyle = "#23262D"; ctx.fillText(e.texte, W / 2, cy + T * 0.75 + tn * 1.15 + (1 - a) * 8 * u); } ctx.restore(); }
+  },
+};
+
 const CLAIR = {
   // Une petite phrase noire qui sort du flou mot après mot ; dans la seconde moitié, la caméra plonge dedans
   mots(ctx, s, e) {
@@ -1848,7 +1945,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
   LOOK = LOOKS.includes(script?.look) ? script.look : "nuit";
   F = `"${policeMotion(script)}", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif`;
   serre(ctx, "-0.01em");
-  const FOND = LOOK === "editorial" || LOOK === "minimal" || LOOK === "pop" || LOOK === "clair" || LOOK === "aura" || LOOK === "film" || LOOK === "prisme" || LOOK === "declic" ? "blanc" : LOOK === "verre" || LOOK === "lueur" ? "noir" : script?.fond === "blanc" ? "blanc" : "noir";
+  const FOND = LOOK === "editorial" || LOOK === "minimal" || LOOK === "pop" || LOOK === "clair" || LOOK === "aura" || LOOK === "film" || LOOK === "prisme" || LOOK === "declic" || LOOK === "relief" ? "blanc" : LOOK === "verre" || LOOK === "lueur" ? "noir" : script?.fond === "blanc" ? "blanc" : "noir";
   // Pop : graisse moyenne partout (les titres très gras deviennent des linéales serrées, comme une pub de marque)
   const policeCtx = LOOK === "pop" ? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ctx), "font") : null;
   if (policeCtx?.set) try { Object.defineProperty(ctx, "font", { configurable: true, get() { return policeCtx.get.call(this); }, set(v) { policeCtx.set.call(this, String(v).replace(/^(italic )?(\d{3}) /, (m, it, w) => `${it || ""}${Math.min(+w, 600)} `)); } }); } catch { /* contexte figé */ }
@@ -1872,7 +1969,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     if ((LOOK === "editorial" || LOOK === "minimal") && modeScene === "noir") modeScene = "blanc";
     if (MP) modeScene = MP[i];
     if (LOOK === "verre" || LOOK === "lueur") modeScene = "noir";
-    if (LOOK === "clair" || LOOK === "aura" || LOOK === "film" || LOOK === "prisme" || LOOK === "declic") modeScene = "blanc";
+    if (LOOK === "clair" || LOOK === "aura" || LOOK === "film" || LOOK === "prisme" || LOOK === "declic" || LOOK === "relief") modeScene = "blanc";
     palette(modeScene);
     if (modeScene !== FOND) { ctx.save(); ctx.globalAlpha = MP ? 1 : Math.min(1, ent * 1.6) * (1 - sort); fond(ctx, W, H, t, u); ctx.restore(); }
     ctx.save();
@@ -1905,7 +2002,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
       const es = derniere ? 0 : Math.pow(prog(local, d - 0.26, d), 2), k = 0.93 + ent * 0.07 + (local / d) * 0.03;
       ctx.translate(W / 2 - es * W * 0.2, H / 2); ctx.scale(k, k); ctx.translate(-W / 2, -H / 2);
       ctx.globalAlpha = Math.min(1, ent * 1.4) * (1 - es); if ("filter" in ctx) ctx.filter = (1 - ent) + es > 0.02 ? `blur(${((1 - ent) * 14 + es * 18) * u}px)` : "none";
-    } else if (LOOK === "declic") {
+    } else if (LOOK === "declic" || LOOK === "relief") {
       // Déclic : chaque scène fait ses propres mouvements de caméra ; les coupes sont franches, comme dans une pub de produit
       ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none";
     } else if (LOOK === "prisme") {
@@ -1934,13 +2031,13 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
     if (sansHalo) try { Object.defineProperty(ctx, "shadowBlur", { configurable: true, get: () => 0, set: () => {} }); } catch { /* contexte figé */ }
     // Verre, clair, aura : pendant les entrées et sorties floues, le plan est d'abord dessiné à part puis posé en une fois.
     // Sans cela le navigateur floute chaque pièce une par une (des centaines par image) et l'export ne finit jamais.
-    const ctxEcran = ctx, hors = ["verre", "clair", "aura", "lueur", "prisme", "declic"].includes(LOOK) && "filter" in ctx && ctx.filter !== "none" ? tampon(W, H) : null;
+    const ctxEcran = ctx, hors = ["verre", "clair", "aura", "lueur", "prisme", "declic", "relief"].includes(LOOK) && "filter" in ctx && ctx.filter !== "none" ? tampon(W, H) : null;
     if (hors) ctx = hors.ctx;
-    try { ((LOOK === "declic" && DECLIC[e.type]) || (LOOK === "prisme" && PRISME[e.type]) || (LOOK === "lueur" && LUEUR[e.type]) || (LOOK === "verre" && VERRE[e.type]) || (LOOK === "clair" && CLAIR[e.type]) || (LOOK === "aura" && AURA[e.type]) || (LOOK === "film" && FILM[e.type]) || SCENES[e.type])(ctx, { W, H, u, t: local, d, vertical, i, nom: script.nom ?? "", lien: script.lien ?? "" }, e); }
+    try { ((LOOK === "relief" && RELIEF[e.type]) || (LOOK === "declic" && DECLIC[e.type]) || (LOOK === "prisme" && PRISME[e.type]) || (LOOK === "lueur" && LUEUR[e.type]) || (LOOK === "verre" && VERRE[e.type]) || (LOOK === "clair" && CLAIR[e.type]) || (LOOK === "aura" && AURA[e.type]) || (LOOK === "film" && FILM[e.type]) || SCENES[e.type])(ctx, { W, H, u, t: local, d, vertical, i, nom: script.nom ?? "", lien: script.lien ?? "" }, e); }
     catch (x) { console.warn("scène", e.type, x); }
     finally { if (hors) { ctx = ctxEcran; ctx.drawImage(hors.canvas, 0, 0, W, H); } if (sansHalo) try { delete ctx.shadowBlur; } catch { /* rien */ } ctx.restore(); }
     // Vague de couleur qui balaie l'écran à l'entrée de la scène (style Jiwa)
-    if (e.transition === "vague" && local < 0.7 && LOOK !== "verre" && LOOK !== "lueur" && LOOK !== "prisme" && LOOK !== "declic" && LOOK !== "clair" && LOOK !== "aura" && LOOK !== "film") {
+    if (e.transition === "vague" && local < 0.7 && LOOK !== "verre" && LOOK !== "lueur" && LOOK !== "prisme" && LOOK !== "declic" && LOOK !== "relief" && LOOK !== "clair" && LOOK !== "aura" && LOOK !== "film") {
       const q = eio(prog(local, 0, 0.7));
       ctx.save(); ctx.fillStyle = rgba(C, 1);
       if (LOOK === "pop") {
@@ -2018,7 +2115,7 @@ export function dessinerScenes(ctx, W, H, t, script, { logo = null, ecrans = nul
   if ((LOOK === "editorial" || LOOK === "minimal") && modeCour === "noir") modeCour = "blanc";
   if (MP) modeCour = MP[iCour];
   if (LOOK === "verre" || LOOK === "lueur") modeCour = "noir";
-  if (LOOK === "clair" || LOOK === "aura" || LOOK === "film" || LOOK === "prisme" || LOOK === "declic") modeCour = "blanc";
+  if (LOOK === "clair" || LOOK === "aura" || LOOK === "film" || LOOK === "prisme" || LOOK === "declic" || LOOK === "relief") modeCour = "blanc";
   palette(modeCour); ctx.globalAlpha = 1; if ("filter" in ctx) ctx.filter = "none"; ctx.shadowBlur = 0;
   const derniere = iCour === scenes.length - 1;
   if (LOOK === "editorial" && !derniere) {
