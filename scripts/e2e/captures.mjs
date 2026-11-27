@@ -642,7 +642,7 @@ if (CONSTRUIRE === "marche-paye") {
     { const { c, p } = await navig(ta);
       await p.goto(`${RET}?c=${t}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
       const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
-      await fr.locator('button[title="Mon compte"]').first().click().catch(() => console.log("✗ bouton Mon compte"));
+      await fr.locator('button[title="Mon compte"], button[aria-label="Mon compte"]').first().click().catch(() => console.log("✗ bouton Mon compte"));
       await p.waitForTimeout(3500); await p.screenshot({ path: `${DOSSIER}/mp-1-mon-compte.png` });
       console.log("carte « Recevoir des paiements » :", (await fr.getByText("Recevoir des paiements").count()) ? "✓" : "✗");
       const en = await api("encaisser", { retour: RET }, ta);
