@@ -377,6 +377,18 @@ await test("un seul calendrier par logiciel : les autres écrans doivent le reti
   assert.match(T.consigneFidelite(spec, spec.ecrans[0], {}), /N'utilise PAS ui\.Calendrier/);
   assert.equal(T.consigneFidelite(spec, spec.ecrans[2], {}), "");
 });
+await test("règle du créateur non respectée : l'écran est à refaire, puis la note s'efface quand il est réécrit", () => {
+  const spec = { famille: "x", ecrans: [{ id: "calcul", titre: "Calcul", code: "abcdef" }], exigences_ko: { calcul: { msg: "Règle du créateur non respectée : commission 10 %.", n: 6 } } };
+  assert.match(T.fidelite(spec, {}).calcul, /commission 10/);
+  spec.ecrans[0].code = "abcdefgh";
+  assert.equal(T.fidelite(spec, {}).calcul, undefined);
+});
+await test("bouton Payer exigé sur l'écran qui liste les transactions payantes", () => {
+  const spec = { famille: "x", collections: [{ nom: "locations", label: "Locations", partage: "parties", champs: [{ nom: "total" }] }], ecrans: [{ id: "mes_outils", titre: "Mes outils", code: 'useCollection("locations")' }, { id: "mes_locations", titre: "Mes locations", code: 'useCollection("locations")' }] };
+  assert.deepEqual(Object.keys(T.fidelite(spec, {})), ["mes_locations"]);
+  spec.ecrans[1].code += '<${ui.BoutonPayer} col="locations" fiche=${f}/>';
+  assert.deepEqual(T.fidelite(spec, {}), {});
+});
 await test("agenda trouvé tout seul : rendez-vous d'un site, location sur plusieurs jours", () => {
   const site = T.agendaDe({ collections: [{ nom: "services", champs: [{ nom: "titre", type: "texte" }] }, { nom: "demandes", champs: [{ nom: "nom", type: "texte" }, { nom: "service", type: "texte" }, { nom: "date_souhaitee", type: "date" }] }] });
   assert.equal(site.collection, "demandes"); assert.equal(site.champ_date, "date_souhaitee"); assert.equal(site.champ_heure, "heure");

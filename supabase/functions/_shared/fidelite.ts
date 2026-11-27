@@ -38,9 +38,17 @@ function boutonPayer(spec: any, out: Record<string, string>) {
   }
 }
 
+/** Règles du créateur relues après l'écriture (spec.exigences_ko) : valables tant que l'écran n'a pas été réécrit. */
+function reglesCreateur(spec: any, out: Record<string, string>) {
+  for (const [id, x] of Object.entries(spec?.exigences_ko ?? {}) as [string, any][]) {
+    const e = (spec.ecrans ?? []).find((y: any) => y.id === id);
+    if (e?.code && e.code.length === x?.n && !out[id]) out[id] = String(x.msg);
+  }
+}
+
 export function fidelite(spec: any, FAMILLES: any): Record<string, string> {
   const f = spec?.famille, F = FAMILLES[f];
-  if (!F) { const o: Record<string, string> = {}; calendrierUnique(spec, o); boutonPayer(spec, o); return o; }
+  if (!F) { const o: Record<string, string> = {}; reglesCreateur(spec, o); calendrierUnique(spec, o); boutonPayer(spec, o); return o; }
   const ecrans = (spec.ecrans ?? []).filter((e: any) => !e.public && e.code), out: Record<string, string> = {};
   const ref = spec.nature?.espace_principal ? ` L'espace principal du produit d'origine : ${spec.nature.espace_principal}.` : "";
   const premier = ecrans[0];
@@ -52,6 +60,7 @@ export function fidelite(spec: any, FAMILLES: any): Record<string, string> {
   const sig = SIGNATURE[f];
   if (sig && !ecrans.some((e: any) => sig[0].test(e.code)) && premier && !out[premier.id])
     out[premier.id] = `Fidélité : il manque ce qui définit un logiciel de la famille « ${F.label} » : ${sig[1]}.${ref} Ajoute-le à cet écran, il doit vraiment fonctionner et enregistrer ses données.`;
+  reglesCreateur(spec, out);
   calendrierUnique(spec, out);
   boutonPayer(spec, out);
   for (const e of ecrans.slice(1)) if (!["gestion", "analyse", "crm", "reservation"].includes(f) && /ui\.Table\b/.test(e.code) && !out[e.id])

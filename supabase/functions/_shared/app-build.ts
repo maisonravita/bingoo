@@ -449,7 +449,7 @@ export async function saasEcrireEcran(appId: string, ecranId: string) {
   // Contrat de données (sans IA) : champs et valeurs alignés sur les données du SaaS, première cause de blocs vides et de chiffres à 0
   if (r.code) { const ct = alignerCode(r.code, spec); r.code = ct.code; if (ct.corrections.length || ct.alertes.length) console.log("contrat", ecranId, ct.corrections, ct.alertes); }
   const { data: fin } = await admin.rpc("saas_app_ecran_set", { p_app: appId, p_id: ecranId, p_code: r.code, p_ok: r.ok });
-  if (fin === "pret") { if (spec.type !== "outil") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); } await demarrerVerification(appId).catch((x) => console.error("verification", x)); }
+  if (fin === "pret") { if (spec.type !== "outil") { await verifierPromesses(appId).catch((x) => console.error("promesses", x)); await verifierExigences(appId).catch((x) => console.error("exigences", x)); await corrigerAccroche(appId).catch((x) => console.error("accroche", x)); } await demarrerVerification(appId).catch((x) => console.error("verification", x)); }
 }
 
 /** Capacités promises par le site (accroche, atouts, formules) mais qu'aucun écran prévu n'utilise :
@@ -538,6 +538,31 @@ Rends {"faux": ["clés des phrases fausses"]}`, { fast: true, maxTokens: 400 }).
   // Atouts trop peu nombreux : complétés depuis les vrais écrans (comme le fait la base)
   for (const e of s.ecrans.filter((e: any) => !e.public)) { if (atouts.length >= 3) break; if (!atouts.some((x: any) => x.titre === e.titre)) atouts.push({ titre: e.titre, texte: e.but ?? "" }); }
   await admin.from("saas_apps").update({ spec: { ...s, atouts, formules, faq } }).eq("id", appId);
+}
+
+/** Les règles écrites par le créateur (rôles, droits, calculs, étapes) relues dans le code des écrans, une fois tous écrits.
+ *  Un écran qui ne les respecte pas est noté (spec.exigences_ko) : la vérification le fait réécrire, comme une panne. La note
+ *  porte la longueur du code relu : dès que l'écran est réécrit, elle ne compte plus. */
+export async function verifierExigences(appId: string) {
+  const { data: a } = await admin.from("saas_apps").select("spec").eq("id", appId).single();
+  const s = a?.spec as any;
+  if (!s?.exigences || !s?.ecrans?.length) return;
+  const prives = (s.ecrans as any[]).filter((e) => !e.public && e.code && !e.modele);
+  if (!prives.length) return;
+  const court = (c: string) => c.replace(/\s+/g, " ").replace(/class="[^"]*"/g, "").slice(0, 5000);
+  const r = await askJson<any>(`Logiciel « ${s.nom} ». Le créateur a fixé ces règles (rôles et droits, règles métier, calculs, étapes) :
+${String(s.exigences).slice(0, 2500)}
+
+Voici le code de chaque écran (Preact + htm ; db.add/db.update enregistrent, ui.* sont des composants) :
+${prives.map((e) => `### ${e.id} (${e.titre})\n${court(e.code)}`).join("\n\n")}
+
+Repère seulement les écrans qui CONTREDISENT clairement une règle : un calcul faux (formule différente), un bouton visible pour un rôle qui n'y a pas droit, une étape ou un statut prévu absent alors que l'écran gère ce sujet, une action interdite permise. Une règle simplement non concernée par un écran n'est pas une faute. Au plus 4.
+Rends {"ecarts": [{"ecran": "id", "regle": "la règle en quelques mots", "correction": "ce qu'il faut changer, précisément"}]}`, { fast: true, maxTokens: 900 }).catch(() => null);
+  const ecarts = (Array.isArray(r?.ecarts) ? r.ecarts : []).filter((x: any) => prives.some((e) => e.id === x?.ecran)).slice(0, 4);
+  const ko: Record<string, { msg: string; n: number }> = {};
+  for (const x of ecarts) ko[x.ecran] = { msg: `Règle du créateur non respectée : ${String(x.regle).slice(0, 200)}. ${String(x.correction).slice(0, 300)}`, n: prives.find((e) => e.id === x.ecran).code.length };
+  console.log("exigences", appId, Object.keys(ko).length ? Object.keys(ko) : "respectées");
+  await admin.from("saas_apps").update({ spec: { ...s, exigences_ko: ko } }).eq("id", appId);
 }
 
 /** Le site ne promet que ce que l'application fait : la base retire les atouts et avantages faux et signale

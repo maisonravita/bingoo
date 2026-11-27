@@ -1119,6 +1119,9 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (!vers || !ref) throw new Err(400, "Il manque l'élément concerné");
         const { data: cible } = await rowsPartage().eq("col", vers).eq("id", ref).maybeSingle();
         if (!cible) throw new Err(404, "L'élément concerné n'existe plus");
+        // Règle de toute place de marché : on ne réserve pas, n'achète pas et ne note pas son propre élément
+        // (un exemple de l'espace reste permis, pour essayer l'application)
+        if ((cible as any).espace_id === espace && (cible as any).data?._exemple !== true) throw new Err(400, `C'est votre propre ${String(regleCol(vers)?.label ?? "élément").toLowerCase().replace(/s$/, "")} : ${String(regleCol(col)?.label ?? "cette action").toLowerCase()} se fait avec un autre membre.`);
         donnees = { ...donnees, _pour: (cible as any).espace_id };
       }
       const { data } = await admin.from("saas_app_rows").insert({ app_id: app.id, user_id: user.id, espace_id: espace, col, data: donnees }).select("id, data, at, maj, espace_id, user_id").single();
