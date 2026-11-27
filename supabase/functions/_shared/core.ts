@@ -46,8 +46,8 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 0, ai: 0.02, quota: 0 },
   // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
   explorer: { label: "Trouver", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
-  // 27 nov. 2026 : grille « pack de démarrage puis abonnement » — Site 9,99 · SaaS 14,99 · Vidéo 9,99 · Pro 29,99
-  explorer_pro: { label: "Essentiel", price: 14.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
+  // 27 nov. 2026 : Gratuit + Essentiel 9,99 € + Pro 29,99 €
+  explorer_pro: { label: "Essentiel", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
   business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 12, quota: 0 },
   // 20 nov. 2026 : formule supérieure de Lancer, toujours un seul SaaS, pour ceux qui modifient beaucoup
   lancer_pro: { label: "Pro", price: 29.99, factor: 1, seats: 1, credits: 0, ai: 10, quota: 0 },
@@ -101,12 +101,12 @@ export async function limiteMois(wsId: string, plan: string | null | undefined, 
 }
 
 /** Prix fondateur : les 50 premiers abonnés au mois paient 19 € par mois à vie. */
-// 27 nov. 2026 : le SaaS passe à 14,99 € ; le prix fondateur (19 €) n'a plus de sens et n'est plus proposé (places 0)
+// 27 nov. 2026 : Essentiel passe à 9,99 € ; le prix fondateur (19 €) n'a plus de sens et n'est plus proposé (places 0)
 export const FOUNDER = { plan: "explorer_pro", price: 19, places: 0 };
 /** Formule en vente : « Lancer », un seul SaaS par abonnement, payé au mois, au trimestre ou à l'année (prix affichés par mois).
  *  Plus la durée est longue, plus elle comprend de choses. Les anciennes formules (Trouver, Lancer à plusieurs) restent pour leurs abonnés. */
 export const PERIODES: Record<string, { label: string; mois: number; parMois: number; inclus: string[] }> = {
-  mois: { label: "1 mois", mois: 1, parMois: 14.99, inclus: ["Ton site ou ton SaaS en ligne, à ton nom", "Comptes clients et paiements sur ton Stripe", "30 modifications par mois dans l'atelier", "5 vidéos motion design par mois", "Ton plan pour tes 10 premiers clients", "L'assistant IA de ton site ou SaaS"] },
+  mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Ton site ou ton SaaS en ligne, à ton nom", "Comptes clients et paiements sur ton Stripe", "30 modifications par mois dans l'atelier", "5 vidéos motion design par mois", "Ton plan pour tes 10 premiers clients", "L'assistant IA de ton site ou SaaS"] },
 };
 // 27 nov. 2026 : un modèle gratuit + 2 formules (Essentiel, Pro). Site et Vidéo ne sont plus vendues, gardées pour les abonnés existants
 export const VENTE = ["explorer_pro", "lancer_pro"];

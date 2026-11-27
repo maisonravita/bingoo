@@ -168,7 +168,7 @@ function Prix({ ws, type }) {
   const outil = type === "outil", site = type === "site" || outil;
   const mois = (k, per = "mois") => (t.plans ?? []).find((p) => p.key === k)?.periodes?.find((x) => x.key === per)?.parMois;
   const fondateur = t.fondateur?.left > 0 ? t.fondateur.price : null;
-  const lancer = fondateur ?? mois("explorer_pro") ?? 14.99;
+  const lancer = fondateur ?? mois("explorer_pro") ?? 9.99;
   let txt;
   if (offert) txt = <><b>Offert</b> : ton premier outil ou jeu est construit et mis en ligne gratuitement, sans carte bancaire. Pour le modifier en discutant ensuite : formule Site, {euros(mois("site") ?? 9.99)} par mois.</>;
   else if (paye(ws, site ? "site" : type)) txt = deja ? <>Tu as déjà un {site ? "projet" : "SaaS"} en ligne : celui-ci coûte <b>60 crédits</b>, le premier reste en ligne.</> : <><b>Compris dans ta formule</b> : c'est {outil ? "le projet" : site ? "ton site" : "ton SaaS"} de l'abonnement, sans rien payer de plus.</>;
