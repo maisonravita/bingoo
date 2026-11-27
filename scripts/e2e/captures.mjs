@@ -711,8 +711,13 @@ if (CONSTRUIRE === "marche-locataire") {
     const rem = async (sel, v) => { const x = p.locator(sel).first(); if (await x.isVisible().catch(() => false)) await x.fill(v); };
     const carte = p.locator('button:has-text("Carte"), [data-testid="card-accordion-item-button"]').first(); if (await carte.isVisible().catch(() => false)) await carte.click().catch(() => null);
     await p.waitForTimeout(800);
-    await rem("#email", `robot+locataire${t}@maisonravita.fr`); await rem("#cardNumber", "4242 4242 4242 4242"); await rem("#cardExpiry", "12 / 34"); await rem("#cardCvc", "123"); await rem("#billingName", "Julie Locataire");
-    await p.waitForTimeout(800); await p.screenshot({ path: `${DOSSIER}/ml-2-carte-test.png` });
+    await p.getByText("36,00 €").first().click().catch(() => null); await p.waitForTimeout(800);
+    const ph = async (re, v) => { const x = p.getByPlaceholder(re).first(); if (await x.isVisible().catch(() => false)) { await x.click(); await x.fill(v); } else console.log("   champ absent :", String(re)); };
+    await ph(/1234|Numéro de carte/i, "4242424242424242"); await ph(/MM \/ AA/i, "1234"); await ph(/CVC|Code de sécurité/i, "123"); await ph(/Prénom et nom|Nom/i, "Julie Locataire");
+    const pays = p.locator("select#billingCountry, select[name=billingCountry]").first(); if (await pays.isVisible().catch(() => false)) await pays.selectOption("FR").catch(() => null);
+    await p.waitForTimeout(500); const cp = p.getByPlaceholder(/Code postal/i).first(); if (await cp.isVisible().catch(() => false)) await cp.fill("69004");
+    const link = p.locator('input#enableStripePass, input[name="enableStripePass"]').first(); if (await link.isChecked().catch(() => false)) await link.uncheck().catch(() => null);
+    await p.waitForTimeout(800); await p.screenshot({ path: `${DOSSIER}/ml-2-carte-test.png`, fullPage: true });
     await p.locator(".SubmitButton, button[type=submit]").first().click().catch(() => console.log("✗ bouton payer"));
     await p.waitForURL((u) => u.toString().startsWith(SITE), { timeout: 60000 }).catch(() => null);
     await p.waitForTimeout(10000); await p.screenshot({ path: `${DOSSIER}/ml-3-retour.png` });

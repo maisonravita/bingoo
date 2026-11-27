@@ -870,7 +870,9 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         const c = await compteDe(receveur);
         if (!(await pret(c, receveur))) throw new Err(409, "Ce membre n'a pas encore activé la réception des paiements");
         const pct = Math.max(0, Math.min(50, Number(pay.commission ?? 10) || 0)), frais = Math.round(montant * pct);
-        const nom = String(d.titre ?? d.nom ?? d.objet ?? regleColApp(app, col)?.titre ?? col).slice(0, 100);
+        // Le libellé du paiement : la fiche, sinon l'élément qu'elle vise (l'outil loué, le logement réservé…)
+        const vers = regleColApp(app, col)?.vers, visee = vers && d[`${vers}_id`] ? (await admin.from("saas_app_rows").select("data").eq("app_id", app.id).eq("col", vers).eq("id", String(d[`${vers}_id`])).maybeSingle()).data?.data as any : null;
+        const nom = String(d.titre ?? d.nom ?? d.objet ?? visee?.titre ?? visee?.nom ?? regleColApp(app, col)?.label ?? col).slice(0, 100);
         const sess = await stripe(key, "checkout/sessions", {
           mode: "payment", locale: "fr", customer_email: user.email,
           "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
