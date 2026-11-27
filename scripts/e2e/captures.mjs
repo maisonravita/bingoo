@@ -771,6 +771,9 @@ if (CONSTRUIRE === "semis") {
   const api = async (act, corps, jeton) => { const r = await fetch(`${SB}/functions/v1/t/app/${slug}/${act}`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json", ...(jeton ? { "x-app-token": jeton } : {}) }, body: JSON.stringify(corps) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
   const t = Date.now(), u = await api("signup", { email: `robot+semis${t}@maisonravita.fr`, password: crypto.randomBytes(14).toString("base64url") + "9a", nom: "Robot semis" });
   await api("me", {}, u.j.token);
+  { const o = await api("add", { col: "outils", data: { nom: "Ponceuse du robot", prix_jour: 9, caution: 30, quartier: "Test", disponible: true } }, u.j.token);
+    const moi = await api("add", { col: "locations", data: { outils_id: o.j.id, date_debut: "2026-12-12", date_retour: "2026-12-13", total: 18, statut: "demandée" } }, u.j.token);
+    console.log("louer son propre outil :", moi.status === 400 ? `✓ refusé (« ${moi.j.error} »)` : `✗ ${moi.status}`); }
   for (const col of ["locations", "avis"]) { const l = await api("list", { col }, u.j.token); const xs = Array.isArray(l.j) ? l.j : []; console.log(`${col} : ${xs.length} exemples, ${xs.filter((x) => x._recu).length} reçus, ${xs.filter((x) => !x._recu).length} envoyés`, xs.filter((x) => !x._recu).length && xs.filter((x) => x._recu).length ? "✓" : "✗"); }
   if (process.env.DOMAINE === "capture") {
     const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); await c.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (e) {} }, [`bingoo-app:${slug}`, u.j.token]);
