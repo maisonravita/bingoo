@@ -31,7 +31,9 @@ function boutonPayer(spec: any, out: Record<string, string>) {
   for (const c of (spec?.collections ?? []) as any[]) {
     if (c?.partage !== "parties" || !(c.champs ?? []).some((x: any) => ["montant", "total", "prix_total", "prix", "tarif"].includes(x.nom))) continue;
     if (ecrans.some((e: any) => /ui\.BoutonPayer\b|db\.payer\(/.test(e.code) && e.code.includes(`"${c.nom}"`))) continue;
-    const liste = ecrans.find((e: any) => new RegExp(`useCollection\\(\\s*["']${c.nom}["']`).test(e.code) && /mes_|location|commande|reservation|achat/i.test(`${e.id} ${e.titre}`)) ?? ecrans.find((e: any) => new RegExp(`useCollection\\(\\s*["']${c.nom}["']`).test(e.code));
+    const lit = (e: any) => new RegExp(`useCollection\\(\\s*["']${c.nom}["']`).test(e.code);
+    const nom = (e: any) => `${e.id} ${e.titre}`.toLowerCase();
+    const liste = ecrans.find((e: any) => lit(e) && nom(e).includes(c.nom.replace(/s$/, ""))) ?? ecrans.find((e: any) => lit(e) && /location|commande|reservation|achat/i.test(nom(e))) ?? ecrans.find(lit);
     if (liste && !out[liste.id]) out[liste.id] = `Paiement : les fiches « ${c.label ?? c.nom} » se paient en ligne entre les deux membres. Sur chaque fiche de la liste, ajoute <\${ui.BoutonPayer} col="${c.nom}" fiche=\${fiche}/> (le composant gère seul « Payer X € », « En attente de paiement » et « Payée »). Ne change rien d'autre.`;
   }
 }
