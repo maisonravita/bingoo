@@ -297,15 +297,15 @@ export default function Abonnement() {
               const an = p.periodes?.find((x) => x.key === "an");
               const actif = ws.plan === p.key && ["active", "trialing", "past_due"].includes(ws.plan_status) && !!ws.stripe_subscription;
               return (
-                <Card key={p.key} id={p.key === "lancer_pro" ? "lancer-pro" : undefined} className={cx("p-5 flex flex-col", p.key === "explorer_pro" && "border-2 border-[#E8571C]/50")}>
-                  <p className="text-[12px] font-semibold text-ink-soft">{sous[p.key]}</p>
+                <Card key={p.key} id={p.key === "lancer_pro" ? "lancer-pro" : undefined} className={cx("p-5 flex flex-col", p.key === "explorer_pro" && "border-2 border-[#E8571C]/50", p.key === "lancer_pro" && "border-2 border-ink")}>
+                  <div className="flex items-center justify-between gap-2"><p className="text-[12px] font-semibold text-ink-soft">{sous[p.key]}</p>{p.key === "lancer_pro" && <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-white">3 projets : 8,33 € chacun</span>}</div>
                   <p className="font-serif text-2xl mt-0.5">{p.label}</p>
                   <p className="mt-2"><span className="font-serif text-3xl tnum">{eur(per?.parMois ?? p.price)} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
-                  {an && <p className="text-[12px] text-ink-soft">ou {eur(an.parMois)} € par mois à l'année</p>}
+                  {an && <p className="text-[12.5px] text-ink-soft">ou <b>{eur(an.total)} € par an</b> : <span className="font-semibold text-good">2 mois offerts</span></p>}
                   <ul className="mt-3 space-y-1.5 text-[13px] flex-1">{(per?.inclus ?? []).map((x) => <li key={x} className="flex gap-2"><span className="text-good">✓</span><span>{x}</span></li>)}</ul>
                   {actif ? <span className="mt-4 rounded-xl bg-good/10 text-good px-4 py-2.5 text-sm font-semibold text-center">Ta formule actuelle</span>
                     : <button disabled={!!busy || !payments} onClick={() => go("billing-checkout", p.key, undefined, "mois")} className={cx("mt-4 rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-50", p.key === "explorer_pro" ? "bg-[#E8571C] text-white hover:opacity-90" : "border-2 border-ink bg-white hover:bg-paper")}>{busy === p.key ? "…" : `Choisir ${p.label}`}</button>}
-                  {!actif && an && <button disabled={!!busy || !payments} onClick={() => go("billing-checkout", p.key, undefined, "an")} className="mt-2 text-[12.5px] underline text-ink-soft hover:text-ink">Payer à l'année</button>}
+                  {!actif && an && <button disabled={!!busy || !payments} onClick={() => go("billing-checkout", p.key, undefined, "an")} className="mt-2 text-[12.5px] underline text-ink-soft hover:text-ink">Payer à l'année : 2 mois offerts</button>}
                 </Card>
               );
             })}

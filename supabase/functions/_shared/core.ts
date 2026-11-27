@@ -107,6 +107,7 @@ export const FOUNDER = { plan: "explorer_pro", price: 19, places: 0 };
  *  Plus la durée est longue, plus elle comprend de choses. Les anciennes formules (Trouver, Lancer à plusieurs) restent pour leurs abonnés. */
 export const PERIODES: Record<string, { label: string; mois: number; parMois: number; inclus: string[] }> = {
   mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["1 site ou SaaS en ligne, à ton nom", "Comptes clients et paiements sur ton Stripe", "30 modifications par mois dans l'atelier", "5 vidéos motion design par mois", "Ton plan pour tes 10 premiers clients", "L'assistant IA de ton site ou SaaS"] },
+  an: { label: "12 mois", mois: 12, parMois: 99.9 / 12, inclus: ["Tout ce qu'il y a dans 1 mois", "99,90 € HT facturés une fois par an : 2 mois offerts"] },
 };
 // 27 nov. 2026 : un modèle gratuit + 2 formules (Essentiel, Pro). Site et Vidéo ne sont plus vendues, gardées pour les abonnés existants
 export const VENTE = ["explorer_pro", "lancer_pro"];
@@ -117,6 +118,7 @@ export const PERIODES_PAR_PLAN: Record<string, typeof PERIODES> = {
 // Pro : site ou SaaS en marque blanche, 100 modifications et 20 vidéos par mois
 PERIODES_PAR_PLAN.lancer_pro = {
   mois: { label: "1 mois", mois: 1, parMois: 24.99, inclus: ["Jusqu'à 3 sites ou SaaS en ligne", "Sur ton nom de domaine", "Sans le badge « Built by Bingoo! » ni le « Fait avec Bingoo! » des vidéos", "100 modifications par mois dans l'atelier", "20 vidéos motion design par mois", "1 000 réponses de l'assistant IA par mois"] },
+  an: { label: "12 mois", mois: 12, parMois: 249.9 / 12, inclus: ["Tout ce qu'il y a dans 1 mois", "249,90 € HT facturés une fois par an : 2 mois offerts"] },
 };
 // Vidéo : seulement des vidéos motion design
 PERIODES_PAR_PLAN.video = {

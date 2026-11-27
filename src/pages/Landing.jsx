@@ -520,8 +520,8 @@ export default function Landing() {
             <div className="mt-12 grid overflow-hidden rounded-2xl border border-line md:grid-cols-3">
               {[
                 ["Gratuit", "0 €", "une seule fois", ["Ton premier outil ou jeu, construit et en ligne", "L'aperçu de ton idée : nom, écrans, vrai rendu"]],
-                ["Essentiel", "9,99 €", "par mois, sans engagement", ["1 site ou SaaS en ligne", "Comptes clients et paiements sur ton Stripe", "30 modifications et 5 vidéos par mois"]],
-                ["Pro", "24,99 €", "par mois, sans engagement", ["Jusqu'à 3 sites ou SaaS en ligne", "Sur ton nom de domaine, sans le badge Bingoo!", "100 modifications et 20 vidéos par mois"]],
+                ["Essentiel", "9,99 €", "par mois sans engagement · 2 mois offerts à l'année", ["1 site ou SaaS en ligne", "Comptes clients et paiements sur ton Stripe", "30 modifications et 5 vidéos par mois"]],
+                ["Pro", "24,99 €", "par mois sans engagement · 2 mois offerts à l'année", ["Jusqu'à 3 sites ou SaaS en ligne", "Sur ton nom de domaine, sans le badge Bingoo!", "100 modifications et 20 vidéos par mois"]],
               ].map(([t, p, sous, l], k) => (
                 <div key={t} className={cx("p-7 sm:p-8", k > 0 && "border-t border-line md:border-l md:border-t-0", k === 2 && "bg-ink text-white")}>
                   <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 2 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>

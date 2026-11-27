@@ -770,6 +770,10 @@ export function Chantier({ ws, nav, init, atelier = false }) {
                 {estApp && <div className="mb-3"><p className="mb-2"><b>{nom} est prête.</b> Essaie-la sur ton téléphone :</p><AppTelephone app={app} wsId={ws.id} /></div>}
                 <p>{estSite ? <><b>{nom} est en ligne.</b> C'est ton vrai site, à droite. En bas de page, « Espace gérant » : crée ton accès avec l'adresse e-mail de ton compte, puis vérifie tes prix et ajoute ton téléphone. Les demandes de tes visiteurs t'arrivent par e-mail.</> : <><b>{nom} est en ligne.</b> Essaie-le à droite : crée un compte, ajoute des données, clique partout. C'est ton vrai SaaS.</>}</p>
                 <CartePublie lien={lien} nom={nom} estSite={estSite} />
+                {ws?.plan === "essai" && <div className="mt-3 rounded-xl border-2 border-[#E8571C]/40 bg-[#FFF4EE] p-3.5 text-[13.5px]">
+                  <p><b>Il est à toi, offert.</b> Pour le faire évoluer en discutant avec moi : <b>Essentiel, 9,99 € par mois</b>. 30 modifications et 5 vidéos motion design par mois pour le faire connaître. Sans engagement.</p>
+                  <button onClick={() => nav("/abonnement")} className="mt-2.5 rounded-lg bg-[#E8571C] px-3.5 py-2 text-[13px] font-bold text-white">Passer à Essentiel</button>
+                </div>}
                 <p className="mt-1.5">Dis-moi ce que tu veux changer, en une phrase.</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">{(estSite ? IDEES_SITE : IDEES_SAAS).map((x) => <button key={x} onClick={() => { setEcran(""); envoyer(x); }} disabled={occupe} className="rounded-full border border-line bg-white px-3 py-1.5 text-[12.5px] font-medium hover:border-ink-faint disabled:opacity-50">{x}</button>)}</div>
               </Bingoo>
