@@ -835,7 +835,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
               contact_email: user.email, display_name: String(user.nom || user.email).slice(0, 80), dashboard: "full",
               identity: { country: "fr" },
               defaults: { currency: "eur", locales: ["fr-FR"], responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
-              configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+              configuration: { merchant: { capabilities: { card_payments: { requested: true } } }, recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
               metadata: { app: slug, espace },
             });
           } catch (e) {
@@ -846,7 +846,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
           c = { acct: a.id, pret: false };
         }
         if (await pret(c, espace)) { try { return { status: 200, body: { url: (await stripe(key, `accounts/${c.acct}/login_links`, {})).url, pret: true } }; } catch { /* sinon, le formulaire de mise à jour */ } }
-        const l = await stripe2(key, "core/account_links", { account: c.acct, use_case: { type: "account_onboarding", account_onboarding: { configurations: ["recipient"], refresh_url: retour, return_url: `${retour}${sep}encaisser=ok` } } });
+        const l = await stripe2(key, "core/account_links", { account: c.acct, use_case: { type: "account_onboarding", account_onboarding: { configurations: ["merchant", "recipient"], refresh_url: retour, return_url: `${retour}${sep}encaisser=ok` } } });
         return { status: 200, body: { url: l.url, pret: false } };
       }
       const montantDe = (d: any) => { for (const k of MONTANTS) { const n = Number(d?.[k]); if (n > 0) return Math.round(n * 100) / 100; } return 0; };
