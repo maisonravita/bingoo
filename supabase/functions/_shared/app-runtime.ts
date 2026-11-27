@@ -91,6 +91,13 @@ async function stripe(key: string, path: string, params?: Record<string, string>
   if (!r.ok) throw new Err(502, `Paiement indisponible : ${d?.error?.message ?? r.status}`);
   return d;
 }
+// API v2 de Stripe (comptes connectés) : JSON, version fixée
+async function stripe2(key: string, path: string, corps?: unknown, method = "POST") {
+  const r = await fetch(`https://api.stripe.com/v2/${path}`, { method, headers: { authorization: `Bearer ${key}`, "content-type": "application/json", "stripe-version": "2026-01-28.clover" }, body: corps === undefined ? undefined : JSON.stringify(corps) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Err(502, `Paiement indisponible : ${d?.error?.message ?? r.status}`);
+  return d;
+}
 const regleColApp = (app: any, col: string) => ((app?.spec as any)?.collections ?? []).find((c: any) => c?.nom === col);
 const cleStripe = async (admin: SupabaseClient, appId: string) => (await admin.from("saas_app_secrets").select("stripe_key").eq("app_id", appId).maybeSingle()).data?.stripe_key ?? null;
 const ACTIF = ["active", "trialing", "past_due"];
@@ -810,8 +817,8 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       const pret = async (c: any, esp: string) => {
         if (!c?.acct) return false;
         if (c.pret) return true;
-        const a = await stripe(key, `accounts/${c.acct}`, undefined, "GET");
-        const ok = !!(a.charges_enabled && a.payouts_enabled);
+        const a = await stripe2(key, `core/accounts/${c.acct}?include=configuration.recipient`, undefined, "GET");
+        const ok = a?.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status === "active";
         if (ok) await admin.from("saas_app_comptes").update({ pret: true, maj: new Date().toISOString() }).eq("app_id", app.id).eq("espace_id", esp);
         return ok;
       };
@@ -824,16 +831,22 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (!c?.acct) {
           let a: any;
           try {
-            a = await stripe(key, "accounts", { "controller[fees][payer]": "account", "controller[losses][payments]": "stripe", "controller[stripe_dashboard][type]": "full", "controller[requirement_collection]": "stripe", country: "FR", email: user.email, "capabilities[card_payments][requested]": "true", "capabilities[transfers][requested]": "true", "business_profile[product_description]": `Membre de ${(app.spec as any)?.nom ?? slug}`.slice(0, 200), "metadata[app]": slug, "metadata[espace]": espace });
+            a = await stripe2(key, "core/accounts", {
+              contact_email: user.email, display_name: String(user.nom || user.email).slice(0, 80), dashboard: "express",
+              identity: { country: "fr" },
+              defaults: { currency: "eur", locales: ["fr-FR"], responsibilities: { fees_collector: "application", losses_collector: "application" } },
+              configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+              metadata: { app: slug, espace },
+            });
           } catch (e) {
-            console.error("connect", app.id, String((e as Error).message).slice(0, 160));
+            console.error("connect", app.id, String((e as Error).message).slice(0, 400));
             throw new Err(400, "Le créateur de l'application doit d'abord activer Stripe Connect sur son compte Stripe pour que les membres puissent recevoir des paiements.");
           }
           await admin.from("saas_app_comptes").upsert({ app_id: app.id, espace_id: espace, acct: a.id, pret: false });
           c = { acct: a.id, pret: false };
         }
-        if (await pret(c, espace)) return { status: 200, body: { url: (await stripe(key, `accounts/${c.acct}/login_links`, {})).url, pret: true } };
-        const l = await stripe(key, "account_links", { account: c.acct, type: "account_onboarding", refresh_url: retour, return_url: `${retour}${sep}encaisser=ok` });
+        if (await pret(c, espace)) { try { return { status: 200, body: { url: (await stripe(key, `accounts/${c.acct}/login_links`, {})).url, pret: true } }; } catch { /* sinon, le formulaire de mise à jour */ } }
+        const l = await stripe2(key, "core/account_links", { account: c.acct, use_case: { type: "account_onboarding", account_onboarding: { configurations: ["recipient"], refresh_url: retour, return_url: `${retour}${sep}encaisser=ok` } } });
         return { status: 200, body: { url: l.url, pret: false } };
       }
       const montantDe = (d: any) => { for (const k of MONTANTS) { const n = Number(d?.[k]); if (n > 0) return Math.round(n * 100) / 100; } return 0; };
