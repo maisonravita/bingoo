@@ -200,9 +200,9 @@ export const VITRINE = [
 // Vraies vidéos écrites par Bingoo! (les scénarios viennent du générateur), dans les 4 allures et les 3 formats
 // [fichier, nom, légende, forme] ; deux bandes qui défilent en sens inverse, comme la vitrine des SaaS
 // [fichier, nom, légende, style à reprendre quand on part de ce modèle]
-// Une seule vidéo par style : sept modèles qui ne se ressemblent pas
+// Une seule vidéo par style : des modèles qui ne se ressemblent pas
 const VIDEOS_RANGS = [
-  [["trame-film", "Trame", "Logiciel pour artisans · style film", "film"], ["kilo", "Kilo", "Appli de course · style interface", "verre"], ["fournil", "Boulangerie artisanale", "Rennes · style éditorial, avec images", "editorial"], ["relais", "Relais", "Marketing · style aura, plans animés", "aura"], ["nid", "Nid", "Conciergerie · style clair", "clair"], ["brulerie", "Brûlerie Nord", "Torréfacteur · style deux tons", "pop"], ["pointa", "Pointa", "Logiciel pour cabinets · vrais écrans", ""]],
+  [["atelio", "Atelio", "Assistant IA pour salons · style lueur", "lueur"], ["trame-film", "Trame", "Logiciel pour artisans · style film", "film"], ["kilo", "Kilo", "Appli de course · style interface", "verre"], ["fournil", "Boulangerie artisanale", "Rennes · style éditorial, avec images", "editorial"], ["relais", "Relais", "Marketing · style aura, plans animés", "aura"], ["nid", "Nid", "Conciergerie · style clair", "clair"], ["brulerie", "Brûlerie Nord", "Torréfacteur · style deux tons", "pop"], ["pointa", "Pointa", "Logiciel pour cabinets · vrais écrans", ""]],
 ];
 const NOMS_STYLES = { film: "film", verre: "interface", lueur: "lueur", clair: "clair", aura: "aura", nuit: "nuit", pop: "deux tons", editorial: "éditorial", minimal: "minimal" };
 // Une vidéo ne tourne que quand elle est à l'écran (les bandes en contiennent une trentaine)
