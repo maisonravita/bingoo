@@ -717,7 +717,7 @@ if (CONSTRUIRE === "marche-locataire") {
     await ph(/1234|Numéro de carte/i, "4242424242424242"); await ph(/MM \/ AA/i, "1234"); await ph(/CVC|Code de sécurité/i, "123"); await ph(/Prénom et nom|Nom/i, "Julie Locataire");
     const pays = p.locator("select#billingCountry, select[name=billingCountry]").first(); if (await pays.isVisible().catch(() => false)) await pays.selectOption("FR").catch(() => null);
     await p.waitForTimeout(500); const cp = p.getByPlaceholder(/Code postal/i).first(); if (await cp.isVisible().catch(() => false)) await cp.fill("69004");
-    const link = p.locator('input#enableStripePass, input[name="enableStripePass"]').first(); if (await link.isChecked().catch(() => false)) await link.uncheck().catch(() => null);
+    for (const f of p.frames()) { const cb = f.getByRole("checkbox", { name: /Enregistrer mes informations|Save my information/i }).first(); if (await cb.isChecked().catch(() => false)) { await cb.uncheck().catch(() => null); console.log("   enregistrement Link décoché"); } }
     await p.waitForTimeout(800); await p.screenshot({ path: `${DOSSIER}/ml-2-carte-test.png` });
     { let ok = false; for (const f of p.frames()) { const bt = f.locator(".SubmitButton").first(); if (await bt.isVisible().catch(() => false)) { await bt.click().catch(() => null); ok = true; break; } } if (!ok) console.log("✗ bouton payer"); }
     await p.waitForURL((u) => u.toString().startsWith(SITE), { timeout: 60000 }).catch(() => null);
