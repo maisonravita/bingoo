@@ -1215,7 +1215,7 @@ const PRISME = {
     brume(ctx, W, H, t, eo(prog(t, 0, 0.3)));
     const places = vertical ? [[0.2, 0.2, 0.34], [0.78, 0.17, 0.3], [0.82, 0.72, 0.34], [0.2, 0.78, 0.3], [0.5, 0.06, 0.22]] : [[0.12, 0.25, 0.2], [0.85, 0.2, 0.18], [0.88, 0.78, 0.2], [0.14, 0.8, 0.18], [0.5, 0.1, 0.14]];
     places.forEach(([fx, fy, fw], k) => {
-      const p = eo(prog(t, 0.36 + k * 0.38, 0.91 + k * 0.38)); if (p <= 0) return;
+      const p = eo(prog(t, 0.21 + k * 0.38, 0.76 + k * 0.38)); if (p <= 0) return;
       const w = W * fw, h = w * 0.72, x = W * fx - w / 2 + Math.sin(t * 0.6 + k) * 10 * u, y = H * fy - h / 2 + (1 - p) * 60 * u - t * 8 * u;
       ctx.save(); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 10 * u); ctx.shadowColor = "rgba(30,30,50,.18)"; ctx.shadowBlur = 30 * u; rond(ctx, x, y, w, h, 22 * u); ctx.fillStyle = "#fff"; ctx.fill(); ctx.shadowBlur = 0; ctx.clip();
       const im = imgs[k % Math.max(1, imgs.length)];
@@ -1226,8 +1226,8 @@ const PRISME = {
     if (!e.swap) return motParMot(ctx, e.texte, e.accent, W / 2, H * 0.5, { taille: (vertical ? 56 : 48) * u, t: t - 0.15, u, largeurMax: W * 0.62 });
     // Deux mots ; le second change (ex. « sites » → « applis ») en glissant vers le haut
     const mots = String(e.texte ?? "").split(/\s+/), der = mots.pop(), deb = mots.join(" "), tp = (vertical ? 58 : 50) * u; ctx.font = `400 ${tp}px ${F}`;
-    const sp = ctx.measureText(" ").width, wd = ctx.measureText(deb).width, ch = eio(prog(t, 0.75, 1.0)), w2 = ctx.measureText(der).width * (1 - ch) + ctx.measureText(e.swap).width * ch;
-    const x0 = W / 2 - (wd + sp + w2) / 2, cy = H / 2, a = eo(prog(t, 0.15, 0.55));
+    const sp = ctx.measureText(" ").width, wd = ctx.measureText(deb).width, ch = eio(prog(t, 0.6, 0.85)), w2 = ctx.measureText(der).width * (1 - ch) + ctx.measureText(e.swap).width * ch;
+    const x0 = W / 2 - (wd + sp + w2) / 2, cy = H / 2, a = eo(prog(t, 0.02, 0.4));
     ctx.save(); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.globalAlpha *= a; flou(ctx, (1 - a) * 12 * u); ctx.fillStyle = "#1F2026"; ctx.fillText(deb, x0, cy);
     ctx.save(); ctx.globalAlpha *= 1 - ch; ctx.fillStyle = "rgba(83,85,94,.7)"; ctx.fillText(der, x0 + wd + sp, cy - ch * tp * 0.6); ctx.restore();
     if (ch > 0) { ctx.globalAlpha *= ch; ctx.fillStyle = spectre(ctx, x0 + wd, cy, x0 + wd + sp + w2, cy, 0.6); ctx.fillText(e.swap, x0 + wd + sp, cy + (1 - ch) * tp * 0.6); }

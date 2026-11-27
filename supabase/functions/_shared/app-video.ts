@@ -323,7 +323,7 @@ Si la demande n'a rien d'une vidéo pour une activité, un produit, un événeme
   // Film : plans plus longs (la phrase se tape, la fenêtre se construit), 30 secondes au total
   // Lueur : la demande se tape et la réponse s'écrit, les plans ont leur propre durée (environ 20 s)
   // Prisme : durées mesurées scène par scène sur le modèle (écart moyen 39 ms avec l'outil de comparaison)
-  if (prisme) { const D = [1.55, 1.6, 2.55, 1.55, 1.7, 2.8, 1.7, 1.8, 4.55]; scenes = scenes.filter((e) => e.type !== "logo").slice(0, 9).map((e, i) => ({ ...e, duree: D[i] ?? 2 })) as any; }
+  if (prisme) { const D = [1.55, 1.6, 2.55, 1.55, 1.85, 2.65, 1.7, 1.8, 4.55]; scenes = scenes.filter((e) => e.type !== "logo").slice(0, 9).map((e, i) => ({ ...e, duree: D[i] ?? 2 })) as any; }
   else   if (lueur) scenes = scenes.map((e) => ({ ...e, duree: ({ mots: 3, rature: 3, pastille: 3.6, liste: 4, cartes: 4, choix: 4, pilules: 3.6, compteur: 3.6, impact: 2.6, aplat: 2.6, logo: 3.4 } as Record<string, number>)[e.type] ?? 3 })) as any;
   else if (film) scenes = tenirDuree(scenes, 36).map((e) => ({ ...e, duree: ({ mots: 5, liste: 5, cartes: 5, pastille: 3, impact: 1.4, pilules: 4.2, choix: 4.2, aplat: 2.4, rature: 2.4, logo: 4.6 } as Record<string, number>)[e.type] ?? (e as any).duree })) as any;
   else scenes = tenirDuree(scenes);
