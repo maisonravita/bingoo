@@ -1097,8 +1097,15 @@ function carteIrisee(ctx, x, y, w, h, u, t, { r = 34, bord = 1 } = {}) {
   ctx.restore();
 }
 // Une phrase qui arrive mot par mot : chaque mot sort du flou en glissant depuis la droite ; un mot "accent" prend le spectre
-function motParMot(ctx, txt, accent, cx, cy, { taille, t, u, poids = 400, pas = 0.16, largeurMax, couleur = GRIS }) {
+function motParMot(ctx, txt, accent, cx, cy, { taille, t, u, poids = 400, pas = 0.16, largeurMax, couleur = GRIS }, coupee) {
   const mots = String(txt ?? "").split(/\s+/).filter(Boolean); if (!mots.length) return;
+  // Phrase trop longue pour une ligne : on la coupe en deux plutôt que de la rapetisser
+  if (largeurMax && mots.length >= 4 && !arguments[6]) { ctx.font = `${poids} ${taille}px ${F}`; if (ctx.measureText(mots.join(" ")).width > largeurMax * 1.08) {
+    let best = 1, ecart = Infinity; for (let k = 1; k < mots.length; k++) { const d = Math.abs(ctx.measureText(mots.slice(0, k).join(" ")).width - ctx.measureText(mots.slice(k).join(" ")).width); if (d < ecart) { ecart = d; best = k; } }
+    const o = { taille, t, u, poids, pas, largeurMax, couleur };
+    motParMot(ctx, mots.slice(0, best).join(" "), accent, cx, cy - taille * 0.62, o, true);
+    motParMot(ctx, mots.slice(best).join(" "), accent, cx, cy + taille * 0.62, { ...o, t: t - best * pas }, true); return;
+  } }
   let tp = taille; ctx.font = `${poids} ${tp}px ${F}`; const esp = () => ctx.measureText(" ").width;
   let tot = mots.reduce((a, m) => a + ctx.measureText(m).width, 0) + esp() * (mots.length - 1); if (largeurMax && tot > largeurMax) { tp *= largeurMax / tot; ctx.font = `${poids} ${tp}px ${F}`; tot = largeurMax; }
   // La caméra suit la phrase : elle glisse vers la gauche à mesure que les mots arrivent
