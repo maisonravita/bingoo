@@ -315,7 +315,7 @@ const db = {
   encaisser: async (etat) => {
     let jeton;
     if (etat?.pk && !etat.branche) {
-      const r = await fetch("https://api.stripe.com/v2/core/account_tokens", { method: "POST", headers: { authorization: "Bearer " + etat.pk, "content-type": "application/json", "stripe-version": "2026-01-28.clover" }, body: JSON.stringify({ identity: { country: "fr" } }) });
+      const r = await fetch("https://api.stripe.com/v2/core/account_tokens", { method: "POST", headers: { authorization: "Bearer " + etat.pk, "content-type": "application/json", "stripe-version": "2026-01-28.clover" }, body: JSON.stringify({}) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.id) throw new Error("Stripe n'a pas pu préparer votre compte : " + (d?.error?.message ?? r.status));
       jeton = d.id;
