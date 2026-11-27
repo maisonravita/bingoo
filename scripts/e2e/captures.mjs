@@ -732,6 +732,39 @@ if (CONSTRUIRE === "marche-locataire") {
     console.log("LOCATION GARDÉE POUR LE LOUEUR :", loc.j.id);
   } catch (e) { console.log("✗", e.message.slice(0, 220)); }
 }
+if (CONSTRUIRE === "flux") {
+  // Agenda et Google Sheets en direct, sur un vrai site (Atelier Mèche) : une demande de rendez-vous, puis les deux liens relus comme le feraient Google Agenda et Google Sheets
+  const slug = "atelier-meche-2j0d";
+  const [a] = await q(`select id from saas_apps where slug = ${lit(slug)}`);
+  const mdp = crypto.randomBytes(18).toString("base64url"), sel = crypto.randomBytes(16).toString("hex");
+  await q(`update saas_app_users set pass = ${lit(sel + ":" + crypto.pbkdf2Sync(mdp, sel, 100000, 32, "sha256").toString("hex"))} where app_id = ${lit(a.id)} and email = 'robot-captures@maisonravita.fr' and role = 'admin'`);
+  const api = async (act, corps, jeton) => { const r = await fetch(`${SB}/functions/v1/t/app/${slug}/${act}`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json", ...(jeton ? { "x-app-token": jeton } : {}) }, body: JSON.stringify(corps) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  const j = new Date(Date.now() + 9 * 864e5); while (j.getDay() !== 4) j.setDate(j.getDate() + 1); const jour = j.toISOString().slice(0, 10);
+  const dm = await api("site-contact", { data: { nom: "Robot agenda", telephone: "06 00 00 00 00", service: "Coupe femme", date_souhaitee: jour, heure: "11:00", message: "Essai de l'agenda" } });
+  console.log("demande de rendez-vous :", dm.status === 200 ? `✓ ${jour} à 11 h` : `✗ ${dm.status} ${JSON.stringify(dm.j).slice(0, 120)}`);
+  const lg = await api("login", { email: "robot-captures@maisonravita.fr", password: mdp }); const tok = lg.j.token;
+  const ag = await api("agenda", {}, tok), tb = await api("tableur", { col: "demandes" }, tok);
+  console.log("liens :", ag.j.url && tb.j.url ? "✓ agenda et tableur" : `✗ ${JSON.stringify(ag.j)} ${JSON.stringify(tb.j)}`);
+  if (ag.j.url) { const r = await fetch(ag.j.url); const t = await r.text(); const ev = (t.match(/BEGIN:VEVENT/g) ?? []).length;
+    console.log("agenda (ce que lit Google Agenda) :", r.status, (r.headers.get("content-type") ?? "").split(";")[0], `${ev} rendez-vous`, t.includes("Robot agenda") ? "✓ la demande y est" : "✗ demande absente");
+    console.log(t.split("BEGIN:VEVENT").find((x) => x.includes("Robot agenda"))?.replace(/\r/g, "").split("\n").filter((l) => /^(DTSTART|DTEND|SUMMARY)/.test(l)).join(" | ")); }
+  if (tb.j.url) { const r = await fetch(tb.j.url); const t = await r.text(); const L = t.trim().split(/\r?\n/);
+    console.log("tableur (ce que lit Google Sheets) :", r.status, `${L.length - 1} lignes`, "titres :", L[0].slice(0, 160), t.includes("Robot agenda") ? "✓ la demande y est" : "✗ absente"); }
+  const faux = await fetch(`${SB}/functions/v1/t/app/${slug}/tableur/${"0".repeat(32)}/demandes.csv`); console.log("lien inventé :", faux.status === 404 ? "✓ refusé" : `✗ ${faux.status}`);
+  // L'écran « Mes données » du gérant, avec le bouton Google Sheets
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+  const fr = () => p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+  try {
+    await p.goto(`${SITE}/?c=${Date.now()}#/app/${slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
+    await fr().getByRole("button", { name: "Espace gérant" }).first().click(); await p.waitForTimeout(1500);
+    await fr().locator('input[type="email"]').first().fill("robot-captures@maisonravita.fr"); await fr().locator('input[type="password"]').first().fill(mdp); await fr().locator('input[type="password"]').first().press("Enter"); await p.waitForTimeout(6000);
+    await fr().getByText(/^Mes données$/).first().click(); await p.waitForTimeout(3500);
+    await p.screenshot({ path: `${DOSSIER}/flux-mes-donnees.png` }); console.log("bouton Google Sheets :", (await fr().getByText("Relier à Google Sheets").count()) ? "✓" : "✗");
+  } catch (e) { console.log("✗ écran", e.message.slice(0, 120)); }
+  await c.close();
+  await q(`delete from saas_app_rows where app_id = ${lit(a.id)} and col = 'demandes' and data->>'nom' = 'Robot agenda'`); await q(`delete from saas_app_attente where app_id = ${lit(a.id)} and col = 'demandes' and data->>'nom' = 'Robot agenda'`);
+  console.log("demande d'essai retirée");
+}
 if (CONSTRUIRE === "automatisations") {
   // Automatisations d'un logiciel, jouées par le serveur : réglées par le propriétaire, déclenchées par un utilisateur de démonstration
   const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "changeo-5u0t";
@@ -1373,7 +1406,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
