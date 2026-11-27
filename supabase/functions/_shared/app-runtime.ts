@@ -437,13 +437,46 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         articles[`line_items[${i}][price_data][unit_amount]`] = String(Math.round(l.prix * 100));
         articles[`line_items[${i}][price_data][product_data][name]`] = `${l.titre} · ${String(sp.nom ?? "").slice(0, 40)}`;
       });
+      const detail = lignes.map((l) => `${l.quantite} × ${l.titre}`).join(", ").slice(0, 480);
       const sess = await stripe(key, "checkout/sessions", {
         mode: "payment", locale: "fr", ...articles,
-        "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][service]": lignes.map((l) => `${l.quantite} × ${l.titre}`).join(", ").slice(0, 480),
+        "metadata[app]": slug, "metadata[service]": detail,
+        "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][service]": detail,
         "invoice_creation[enabled]": "true", "phone_number_collection[enabled]": "true",
-        success_url: `${retour}${sep}paiement=ok`, cancel_url: retour,
+        success_url: `${retour}${sep}paiement=ok&session={CHECKOUT_SESSION_ID}`, cancel_url: retour,
       });
       return { status: 200, body: { url: sess.url } };
+    }
+
+    // ---- Site web : retour d'un paiement. Relu chez Stripe (jamais cru sur parole), rangé UNE fois chez le commerçant :
+    // une commande payée devient une demande « payée » ; un acompte passe la demande liée à « acompte réglé ». E-mail au gérant.
+    if (action === "site-paye") {
+      const sp = (app.spec ?? {}) as any;
+      if (sp.type !== "site") throw new Err(404, "Page introuvable");
+      const key = await cleStripe(admin, app.id);
+      const id = String(b.session ?? "");
+      if (!key || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(id)) throw new Err(400, "Paiement introuvable");
+      const ss: any = await stripe(key, `checkout/sessions/${id}`, undefined, "GET");
+      if (ss?.metadata?.app !== slug) throw new Err(404, "Paiement introuvable");
+      if (ss.payment_status !== "paid") return { status: 200, body: { ok: false, statut: ss.payment_status } };
+      const montant = Math.round(Number(ss.amount_total ?? 0)) / 100, cd = ss.customer_details ?? {};
+      if ((await compterSite(admin, app.id, "demandes", { _stripe: id })) > 0) return { status: 200, body: { ok: true, montant, deja: true } };
+      const proprio = await proprioSite(admin, app.id);
+      let lignes = "", nom = String(cd.name ?? "Un client").slice(0, 80);
+      const dem = String(ss.metadata?.demande ?? "");
+      if (/^[0-9a-f-]{36}$/.test(dem)) {
+        for (const t of ["saas_app_rows", "saas_app_attente"]) {
+          const { data: r } = await admin.from(t).select("id, data").eq("app_id", app.id).eq("col", "demandes").eq("id", dem).maybeSingle();
+          if (r) { await admin.from(t).update({ data: { ...(r.data as object), statut: "acompte réglé", acompte_paye: montant, _stripe: id } }).eq("id", r.id); nom = String((r.data as any)?.nom ?? nom); break; }
+        }
+        lignes = `Acompte réglé en ligne : ${montant.toFixed(2).replace(".", ",")} €${ss.metadata?.service ? `\nPour : ${ss.metadata.service}` : ""}`;
+      } else {
+        await rangerSite(admin, app.id, proprio, "demandes", { nom, email: String(cd.email ?? "").toLowerCase().slice(0, 160), telephone: String(cd.phone ?? "").slice(0, 30), service: String(ss.metadata?.service ?? "").slice(0, 300), montant, statut: "payée", message: "Commande payée en ligne", _public: true, _stripe: id });
+        lignes = `Commande payée en ligne : ${montant.toFixed(2).replace(".", ",")} €\nArticles : ${ss.metadata?.service ?? "—"}\nDe : ${nom}${cd.email ? `\nE-mail : ${cd.email}` : ""}${cd.phone ? `\nTéléphone : ${cd.phone}` : ""}`;
+      }
+      try { if (proprio) { const { mailDemandeSite } = await import("./app-mails.ts"); await mailDemandeSite(app, slug, proprio, dem || id, lignes, nom); } } catch (e) { console.error("site paye mail", e); }
+      { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "demande", { paiement: montant, client: nom, detail: String(ss.metadata?.service ?? "") }); }
+      return { status: 200, body: { ok: true, montant, acompte: !!dem } };
     }
 
     // ---- Site web (spec.type « site ») : son contenu vivant (services, horaires, coordonnées) et son formulaire de demande
@@ -509,7 +542,20 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       if ((await compterSite(admin, app.id, "demandes", {}, depuis)) >= 60) throw new Err(429, "Trop d'envois en ce moment, réessayez dans une heure");
       // Pas encore de gérant : la demande attend, elle sera rattachée à son espace à la création de son accès
       { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "demande", Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== ""))); }
-      const r = await rangerSite(admin, app.id, proprio, "demandes", { ...Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== "")), statut: "nouvelle", _public: true, _ip: ip });
+      // Acompte : demandé par le client sur un rendez-vous ou une réservation, si le commerçant a fixé un pourcentage
+      // (Infos › acompte) et branché son Stripe ; le prix vient de la base, jamais de la page
+      let acompte: { montant: number; service: string } | null = null;
+      if (b.acompte === true && ["rdv", "reservation"].includes(String(sp.site?.demande ?? "")) && demande.service) {
+        const key = await cleStripe(admin, app.id);
+        if (key) {
+          const lu = async (col: string) => proprio ? ((await admin.from("saas_app_rows").select("data").eq("app_id", app.id).eq("espace_id", proprio.id).eq("col", col).limit(60)).data ?? []).map((x: any) => x.data ?? {}) : ((sp.demo ?? {})[col] ?? []);
+          const pct = Number(((await lu("infos"))[0] ?? {}).acompte);
+          const svc = (await lu("services")).find((x: any) => String(x?.titre ?? "").slice(0, 80) === demande.service && x?.visible !== false);
+          const prix = Number(svc?.prix);
+          if (pct > 0 && pct <= 100 && prix > 0 && prix <= 10000) acompte = { montant: Math.max(1, Math.round(prix * pct) / 100), service: demande.service };
+        }
+      }
+      const r = await rangerSite(admin, app.id, proprio, "demandes", { ...Object.fromEntries(Object.entries(demande).filter(([, v]) => v !== "")), statut: acompte ? "acompte en attente" : "nouvelle", ...(acompte ? { acompte: acompte.montant } : {}), _public: true, _ip: ip });
       const lignes = [`De : ${demande.nom}`, demande.email && `E-mail : ${demande.email}`, demande.telephone && `Téléphone : ${demande.telephone}`, demande.service && `Pour : ${demande.service}`, demande.date_souhaitee && `Date souhaitée : ${demande.date_souhaitee.split("-").reverse().join("/")}${demande.heure ? ` à ${demande.heure.replace(":", " h ")}` : ""}`, demande.message && `\n${demande.message}`].filter(Boolean).join("\n");
       try {
         if (proprio) { const { mailDemandeSite } = await import("./app-mails.ts"); await mailDemandeSite(app, slug, proprio, r.id, lignes, demande.nom); }
@@ -520,6 +566,24 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
           if (to) await sendSystem({ to, subject: `Nouvelle demande sur ${sp.nom ?? "ton site"} : ${demande.nom}`, text: `Ton site vient de recevoir une demande.\n\n${lignes}\n\n${demande.email ? "Réponds directement à cette personne par e-mail. " : ""}Pour retrouver toutes tes demandes au même endroit, crée ton accès gérant : bouton « Espace gérant » en bas de ton site, avec cette adresse e-mail.\n\nBingoo!`, replyTo: emailOk(demande.email) ? demande.email : undefined, key: `site-${r.id}` });
         }
       } catch (e) { console.error("site demande mail", e); }
+      if (acompte) {
+        const retour = retourOk(String(b.retour ?? ""));
+        if (retour) {
+          const key = (await cleStripe(admin, app.id))!, sep = retour.includes("?") ? "&" : "?";
+          const sess = await stripe(key, "checkout/sessions", {
+            mode: "payment", locale: "fr",
+            "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
+            "line_items[0][price_data][unit_amount]": String(Math.round(acompte.montant * 100)),
+            "line_items[0][price_data][product_data][name]": `Acompte · ${acompte.service} · ${String(sp.nom ?? "").slice(0, 40)}`,
+            "metadata[app]": slug, "metadata[demande]": r.id, "metadata[service]": `Acompte · ${acompte.service}`,
+            "payment_intent_data[metadata][app]": slug, "payment_intent_data[metadata][demande]": r.id,
+            ...(demande.email ? { customer_email: demande.email } : {}),
+            "invoice_creation[enabled]": "true",
+            success_url: `${retour}${sep}paiement=ok&session={CHECKOUT_SESSION_ID}`, cancel_url: `${retour}${sep}paiement=annule`,
+          });
+          return { status: 200, body: { ok: true, url: sess.url, acompte: acompte.montant } };
+        }
+      }
       return { status: 200, body: { ok: true } };
     }
 

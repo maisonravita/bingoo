@@ -116,7 +116,7 @@ export function specSite(c: any, p: any) {
     { nom: "horaires", label: "Horaires", champs: [{ nom: "jour", type: "nombre" }, { nom: "ouvert", type: "booleen" }, { nom: "debut", type: "texte" }, { nom: "fin", type: "texte" }, { nom: "debut2", type: "texte" }, { nom: "fin2", type: "texte" }] },
     { nom: "realisations", label: "Réalisations", champs: [{ nom: "titre", type: "texte" }, { nom: "categorie", type: "texte" }, { nom: "description", type: "texte" }, { nom: "image", type: "lien" }, { nom: "lien", type: "lien" }, { nom: "visible", type: "booleen" }, { nom: "ordre", type: "nombre" }] },
     { nom: "inscrits", label: "Inscrits", champs: [{ nom: "prenom", type: "texte" }, { nom: "email", type: "email" }, { nom: "source", type: "texte" }] },
-    { nom: "infos", label: "Coordonnées", champs: [{ nom: "telephone", type: "telephone" }, { nom: "email", type: "email" }, { nom: "adresse", type: "texte" }, { nom: "zone", type: "texte" }, { nom: "instagram", type: "lien" }, { nom: "facebook", type: "lien" }, { nom: "prix_verifies", type: "booleen" }] },
+    { nom: "infos", label: "Coordonnées", champs: [{ nom: "telephone", type: "telephone" }, { nom: "email", type: "email" }, { nom: "adresse", type: "texte" }, { nom: "zone", type: "texte" }, { nom: "instagram", type: "lien" }, { nom: "facebook", type: "lien" }, { nom: "prix_verifies", type: "booleen" }, { nom: "acompte", type: "nombre" }] },
   ];
   const sansClaim = (t: string) => t.split(/(?<=[.!?])\s+/).filter((ph) => !/\d+\s*(ans?|années?)\s+d.exp|\d[\d\s]*\s*(clients?|avis)|satisf|certifi|dipl[ôo]m|label|n[°o]\s*1\b|meilleur/i.test(ph)).join(" ");
   const ville = court(c?.ville, 60);

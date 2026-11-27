@@ -943,6 +943,18 @@ function Panier() {
     <button type="button" aria-expanded=\${o} onClick=\${() => setO(!o)} style="min-height:46px;padding:0 18px;border:0;border-radius:999px;background:#111;color:#fff;font-weight:700;font-size:14.5px;cursor:pointer;box-shadow:0 10px 30px -10px rgba(0,0,0,.5)">Panier · \${n} · \${fmt.eur(total)}</button>
   </div>\`;
 }
+// Retour d'un paiement sur un site : relu chez Stripe par le serveur, rangé chez le commerçant, puis un mot de remerciement
+if (S.type === "site" && !B.verif && !B.capture) {
+  const u = new URLSearchParams(location.search), sess = u.get("session");
+  if (u.get("paiement") === "ok" && sess) call("site-paye", { session: sess }).then((r) => {
+    if (!r?.ok) return;
+    const m = document.createElement("div"); m.setAttribute("role", "status");
+    m.style.cssText = "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;max-width:min(560px,92vw);padding:14px 20px;border-radius:16px;background:#0f5132;color:#fff;font:500 15px/1.45 system-ui,sans-serif;box-shadow:0 18px 40px -18px rgba(0,0,0,.45)";
+    m.textContent = (r.acompte ? "Merci, votre acompte de " : "Merci, votre paiement de ") + String(Number(r.montant).toFixed(2)).replace(".", ",") + " € est bien reçu. Un reçu vous est envoyé par e-mail" + (r.acompte ? " et votre demande est confirmée au commerçant." : ".");
+    document.body.appendChild(m); setTimeout(() => m.remove(), 12000);
+    try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
+  }, () => {});
+}
 const payerService = async (s) => { try { allerVers((await call("site-payer", { service: s.id, retour: RETOUR() })).url); } catch (x) { avertir(x.message); } };
 const plageS = (h) => /^0?0:00$/.test(String(h.debut || "")) && /^(23:59|24:00)$/.test(String(h.fin || "")) ? "24 h/24" : heureS(h.debut) + " – " + heureS(h.fin);
 const prixS = (s) => s.mois && Number(s.prix) === 0 ? "Gratuit" : s.prix == null || s.prix === "" || !(Number(s.prix) > 0) ? (SITE.demande === "reservation" ? (/h[ôo]tel|g[îi]te|chambre|h[ée]bergement|camping|location/i.test(SITE.metier || "") ? "Selon vos dates" : "") : SITE.demande === "rdv" ? "Sur demande" : /restaura|bistro|brasser|caf[ée]|traiteur|boulang|p[âa]tiss|[ée]picer|fromag|boucher|chocolat|glac|pizz|cave|caviste|fleur|boutique|magasin/i.test(SITE.metier || "") || SITE.demande === "commande" ? "" : "Sur devis") : (s.prix_texte ? "À partir de " : "") + fmt.eur(s.prix) + (s.mois ? " par mois" : "");
@@ -1006,6 +1018,9 @@ function FormulaireSite({ d, liste }) {
     for (const [a, b] of [[h.debut, h.fin], [h.debut2, h.fin2]]) { const A = mn(a), B = mn(b); if (A == null || B == null) continue; for (let t = A; t + pas <= B; t += pas) if (t >= tot) { const hh = String(Math.floor(t / 60)).padStart(2, "0") + ":" + String(t % 60).padStart(2, "0"); out.push({ h: hh, pris: pris.has(hh) }); } }
     return out;
   })();
+  // Acompte en ligne : le commerçant l'a fixé (en %) et branché Stripe ; le montant affiché ici est relu côté serveur
+  const svcChoisi = (d.services ?? []).find((x) => x.titre === f.service), pctAc = Number(inf.acompte);
+  const acompte = !liste && avecDate && d.paiement_en_ligne && pctAc > 0 && pctAc <= 100 && Number(svcChoisi?.prix) > 0 ? Math.max(1, Math.round(Number(svcChoisi.prix) * pctAc) / 100) : 0;
   const champ = "mt-1.5 min-h-12 w-full rounded-lg px-3 outline-none", bord = "border:1px solid color-mix(in srgb,var(--ink,var(--p-ink)) 30%,transparent);background:color-mix(in srgb,var(--ink,var(--p-ink)) 7%,transparent);color:var(--ink,var(--p-ink));font-size:16px";
   const envoyer = async (e) => {
     e.preventDefault(); setErr("");
@@ -1013,7 +1028,7 @@ function FormulaireSite({ d, liste }) {
     if (!liste && !f.email.trim() && !f.telephone.trim()) { setErr("Indiquez votre e-mail ou votre téléphone pour qu'on puisse vous répondre."); return; }
     if (!liste && rdv && f.date_souhaitee && creneaux.some((c) => !c.pris) && !f.heure) { setErr("Choisissez une heure."); return; }
     setBusy(true);
-    try { await call("site-contact", { data: liste ? { prenom: f.prenom, email: f.email, site_web: f.site_web } : f, source: B.source }); setFait(liste ? "Merci, vous êtes sur la liste. Vous serez prévenu à la sortie." : f.heure ? "Merci " + f.nom.split(" ")[0] + ", votre rendez-vous du " + f.date_souhaitee.split("-").reverse().slice(0, 2).join("/") + " à " + heureS(f.heure) + " est demandé. Ce créneau vous est gardé, confirmation très vite." : "Merci " + f.nom.split(" ")[0] + ", votre demande est bien envoyée. Réponse très vite."); }
+    try { const rep = await call("site-contact", { data: liste ? { prenom: f.prenom, email: f.email, site_web: f.site_web } : { ...f, acompte: undefined }, source: B.source, ...(acompte && f.acompte !== false ? { acompte: true, retour: RETOUR() } : {}) }); if (rep?.url) { allerVers(rep.url); return; } setFait(liste ? "Merci, vous êtes sur la liste. Vous serez prévenu à la sortie." : f.heure ? "Merci " + f.nom.split(" ")[0] + ", votre rendez-vous du " + f.date_souhaitee.split("-").reverse().slice(0, 2).join("/") + " à " + heureS(f.heure) + " est demandé. Ce créneau vous est gardé, confirmation très vite." : "Merci " + f.nom.split(" ")[0] + ", votre demande est bien envoyée. Réponse très vite."); }
     catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
   if (fait) return html\`<p class="t-lead" role="status">\${fait}</p>\`;
@@ -1025,8 +1040,9 @@ function FormulaireSite({ d, liste }) {
       \${rdv && f.date_souhaitee && html\`<div class="plein"><p class="text-[15px] font-medium">Heure</p>\${creneaux.length ? html\`<div class="bingoo-creneaux">\${creneaux.map((c) => html\`<button type="button" disabled=\${c.pris} aria-pressed=\${f.heure === c.h} onClick=\${() => setF({ ...f, heure: c.h })}>\${heureS(c.h)}</button>\`)}</div>\` : html\`<p class="t-small muted" style="margin-top:6px">Fermé ce jour-là : choisissez un autre jour.</p>\`}</div>\`}
       <label class="block text-[15px] font-medium plein">Message<textarea rows="4" value=\${f.message} onInput=\${(e) => setF({ ...f, message: e.target.value })} class="mt-1.5 w-full rounded-lg px-3 py-2.5 outline-none" style=\${bord}></textarea></label>\`}
     <input tabindex="-1" autocomplete="off" aria-hidden="true" value=\${f.site_web} onInput=\${(e) => setF({ ...f, site_web: e.target.value })} style="position:absolute;left:-9999px;width:1px;height:1px"/>
+    \${acompte > 0 && html\`<label class="plein flex items-start gap-2.5 text-[15px]"><input type="checkbox" checked=\${f.acompte !== false} onChange=\${(e) => setF({ ...f, acompte: e.target.checked })} style="margin-top:4px;width:18px;height:18px"/><span>Régler maintenant l'acompte de <b>\${fmt.eur(acompte)}</b> pour confirmer (\${pctAc} % de \${fmt.eur(svcChoisi.prix)}, paiement sécurisé)</span></label>\`}
     \${err && html\`<p class="text-sm plein" style="color:#b91c1c">\${err}</p>\`}
-    <div class="plein flex flex-wrap items-center gap-4"><button type="submit" disabled=\${busy} class="btn btn--primary">\${busy ? "Envoi…" : liste ? "M'inscrire" : (SITE.cta || "Envoyer ma demande")}</button>\${!liste && inf.telephone && html\`<a class="link inline-flex min-h-11 items-center" href=\${lienTel(inf.telephone)}>\${inf.telephone}</a>\`}</div>
+    <div class="plein flex flex-wrap items-center gap-4"><button type="submit" disabled=\${busy} class="btn btn--primary">\${busy ? "Envoi…" : liste ? "M'inscrire" : acompte > 0 && f.acompte !== false ? "Réserver et payer l'acompte" : (SITE.cta || "Envoyer ma demande")}</button>\${!liste && inf.telephone && html\`<a class="link inline-flex min-h-11 items-center" href=\${lienTel(inf.telephone)}>\${inf.telephone}</a>\`}</div>
     <p class="t-small muted plein">Vos coordonnées servent seulement à vous répondre.</p>
   </form>\`;
 }
