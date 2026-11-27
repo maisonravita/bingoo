@@ -832,9 +832,9 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
           let a: any;
           try {
             a = await stripe2(key, "core/accounts", {
-              contact_email: user.email, display_name: String(user.nom || user.email).slice(0, 80), dashboard: "express",
+              contact_email: user.email, display_name: String(user.nom || user.email).slice(0, 80), dashboard: "full",
               identity: { country: "fr" },
-              defaults: { currency: "eur", locales: ["fr-FR"], responsibilities: { fees_collector: "application", losses_collector: "application" } },
+              defaults: { currency: "eur", locales: ["fr-FR"], responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
               configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
               metadata: { app: slug, espace },
             });
