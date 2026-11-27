@@ -712,13 +712,14 @@ if (CONSTRUIRE === "marche-locataire") {
     const carte = p.locator('button:has-text("Carte"), [data-testid="card-accordion-item-button"]').first(); if (await carte.isVisible().catch(() => false)) await carte.click().catch(() => null);
     await p.waitForTimeout(800);
     await p.getByText("36,00 €").first().click().catch(() => null); await p.waitForTimeout(800);
-    const ph = async (re, v) => { const x = p.getByPlaceholder(re).first(); if (await x.isVisible().catch(() => false)) { await x.click(); await x.fill(v); } else console.log("   champ absent :", String(re)); };
+    // Les champs de carte peuvent être dans des cadres (iframes) de Stripe : on les cherche dans tous
+    const ph = async (re, v) => { for (const f of p.frames()) { const x = f.getByPlaceholder(re).first(); if (await x.isVisible().catch(() => false)) { await x.click().catch(() => null); await x.fill(v).catch(async () => { await x.pressSequentially(v, { delay: 30 }).catch(() => null); }); return; } } console.log("   champ absent :", String(re), "cadres :", p.frames().length); };
     await ph(/1234|Numéro de carte/i, "4242424242424242"); await ph(/MM \/ AA/i, "1234"); await ph(/CVC|Code de sécurité/i, "123"); await ph(/Prénom et nom|Nom/i, "Julie Locataire");
     const pays = p.locator("select#billingCountry, select[name=billingCountry]").first(); if (await pays.isVisible().catch(() => false)) await pays.selectOption("FR").catch(() => null);
     await p.waitForTimeout(500); const cp = p.getByPlaceholder(/Code postal/i).first(); if (await cp.isVisible().catch(() => false)) await cp.fill("69004");
     const link = p.locator('input#enableStripePass, input[name="enableStripePass"]').first(); if (await link.isChecked().catch(() => false)) await link.uncheck().catch(() => null);
     await p.waitForTimeout(800); await p.screenshot({ path: `${DOSSIER}/ml-2-carte-test.png`, fullPage: true });
-    await p.locator(".SubmitButton, button[type=submit]").first().click().catch(() => console.log("✗ bouton payer"));
+    { let ok = false; for (const f of p.frames()) { const bt = f.locator(".SubmitButton, button[type=submit], button:has-text('Payer')").first(); if (await bt.isVisible().catch(() => false)) { await bt.click().catch(() => null); ok = true; break; } } if (!ok) console.log("✗ bouton payer"); }
     await p.waitForURL((u) => u.toString().startsWith(SITE), { timeout: 60000 }).catch(() => null);
     await p.waitForTimeout(10000); await p.screenshot({ path: `${DOSSIER}/ml-3-retour.png` });
     console.log("retour sur l'application :", p.url().startsWith(SITE) ? "✓" : `✗ ${p.url().slice(0, 90)} ${(await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 200)).catch(() => ""))}`);
