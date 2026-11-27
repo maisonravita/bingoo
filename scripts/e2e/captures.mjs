@@ -196,6 +196,58 @@ if (CONSTRUIRE === "gratuit") {
   }
   await ctx.close();
 }
+// CONSTRUIRE=verif-offres : vérifie la grille de bout en bout avec un compte gratuit, SANS rien payer :
+// formules renvoyées par le serveur, pages de paiement Stripe ouvertes (montants photographiés), refus attendus du compte gratuit
+if (CONSTRUIRE === "verif-offres") {
+  const E2 = "robot-gratuit@maisonravita.fr", M2 = crypto.randomBytes(18).toString("base64url");
+  const [u2] = await q(`select id from auth.users where email = ${lit(E2)}`);
+  await adminAuth(`users/${u2.id}`, "PUT", { password: M2 });
+  const s2 = await (await fetch(`${SB}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ email: E2, password: M2 }) })).json();
+  const [m2] = await q(`select m.workspace_id id from members m where m.user_id = ${lit(s2.user.id)} limit 1`);
+  const w2 = m2.id;
+  await q(`update workspaces set plan = 'essai', plan_status = 'trialing', pack_ends = null where id = ${lit(w2)}`);
+  const appel = async (chemin, corps) => { const r = await fetch(`${SB}/functions/v1/${chemin}`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${s2.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: w2, ...corps }) }); let j = {}; try { j = await r.json(); } catch { /* vide */ } return { status: r.status, j }; };
+  const ok = (cond, txt) => console.log(cond ? "✓" : "✗", txt);
+  // 1) Les formules en vente
+  const pl = (await appel("k/plans", {})).j;
+  const resume = (pl.plans ?? []).map((p) => `${p.key}:${p.label}:${p.periodes.map((x) => `${x.key}=${x.total}`).join("/")}`).join(" | ");
+  console.log("formules :", resume);
+  ok((pl.plans ?? []).length === 2, "2 formules en vente");
+  ok(/explorer_pro:Essentiel:mois=9.99\/an=99.9/.test(resume), "Essentiel 9,99 €/mois et 99,90 €/an");
+  ok(/lancer_pro:Pro:mois=24.99\/an=249.9/.test(resume), "Pro 24,99 €/mois et 249,90 €/an");
+  ok(pl.couts?.video === 2 && pl.couts?.site === 30 && pl.couts?.saas === 60 && pl.couts?.modification === 1, "crédits : modif 1, vidéo 2, site 30, SaaS 60");
+  // 2) Pages de paiement Stripe (ouvertes puis abandonnées : rien n'est payé)
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "fr-FR" }); const page = await ctx.newPage();
+  for (const [nom, chemin, corps, attendu] of [
+    ["stripe-essentiel-mois", "k/billing-checkout", { plan: "explorer_pro", periode: "mois" }, /9,99/],
+    ["stripe-essentiel-an", "k/billing-checkout", { plan: "explorer_pro", periode: "an" }, /99,90/],
+    ["stripe-pro-mois", "k/billing-checkout", { plan: "lancer_pro", periode: "mois" }, /24,99/],
+    ["stripe-pro-an", "k/billing-checkout", { plan: "lancer_pro", periode: "an" }, /249,90/],
+    ["stripe-pack", "k/billing-demarrage", { choix: "explorer_pro" }, /9,99/],
+    ["stripe-credits", "k/billing-recharge", { pack: "c20" }, /9,99/],
+  ]) {
+    const r = await appel(chemin, corps);
+    if (!r.j?.url) { ok(false, `${nom} : pas de page de paiement (${r.status} ${String(r.j?.error ?? "").slice(0, 120)})`); continue; }
+    await page.goto(r.j.url, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(3000);
+    const txt = await page.locator("body").innerText().catch(() => "");
+    ok(attendu.test(txt), `${nom} : montant ${attendu.source} affiché par Stripe`);
+    await page.screenshot({ path: `${DOSSIER}/${nom}.png` });
+  }
+  await ctx.close();
+  // 3) Ce que le compte gratuit ne doit PAS pouvoir faire
+  const v = await appel("r/video-creer", { texte: "Une vidéo pour tester le refus du compte gratuit", format: "vertical" });
+  ok(v.status === 402, `vidéo refusée au compte gratuit (${v.status})`);
+  const li = (await appel("r/limites", {})).j;
+  ok(li?.mois?.videos?.max === 0, "« Ton mois » : 0 vidéo comprise pour le gratuit");
+  // 4) Ce que donne Essentiel (formule posée à la main le temps du test, sans abonnement Stripe), puis retour au gratuit
+  await q(`update workspaces set plan = 'explorer_pro', plan_status = 'active' where id = ${lit(w2)}`);
+  const le = (await appel("r/limites", {})).j;
+  ok(le?.mois?.videos?.max === 5 && le?.mois?.modifier?.max === 30, `Essentiel : 30 modifications, 5 vidéos (${le?.mois?.modifier?.max}/${le?.mois?.videos?.max})`);
+  await q(`update workspaces set plan = 'lancer_pro' where id = ${lit(w2)}`);
+  const lp = (await appel("r/limites", {})).j;
+  ok(lp?.mois?.videos?.max === 20 && lp?.mois?.modifier?.max === 100, `Pro : 100 modifications, 20 vidéos (${lp?.mois?.modifier?.max}/${lp?.mois?.videos?.max})`);
+  await q(`update workspaces set plan = 'essai', plan_status = 'trialing' where id = ${lit(w2)}`);
+}
 // CONSTRUIRE=abonnement : la page Abonnement d'un compte sans formule (pack de démarrage + 4 formules) et les tarifs de l'accueil
 if (CONSTRUIRE === "abonnement") {
   const E2 = "robot-gratuit@maisonravita.fr", M2 = crypto.randomBytes(18).toString("base64url");
@@ -1494,7 +1546,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "abonnement" || CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "semis" || CONSTRUIRE === "plan-apercu" || CONSTRUIRE === "motion-style" || CONSTRUIRE === "modeles-video" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "verif-offres" || CONSTRUIRE === "abonnement" || CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "semis" || CONSTRUIRE === "plan-apercu" || CONSTRUIRE === "motion-style" || CONSTRUIRE === "modeles-video" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
