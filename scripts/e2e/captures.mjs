@@ -817,6 +817,15 @@ if (CONSTRUIRE === "motion-style") {
   if (d) { const f = `${DOSSIER}/style-export.${(d.suggestedFilename().split(".").pop() || "mp4")}`; await d.saveAs(f).catch(() => null); console.log("✓ Export :", d.suggestedFilename(), fs.existsSync(f) ? fs.statSync(f).size + " octets" : "?"); } else console.log("✗ export sans fichier");
   await ctx.close();
 }
+if (CONSTRUIRE === "modeles-video") {
+  // La galerie des modèles vidéo de l'accueil, vue par un visiteur
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+  await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(2000);
+  const v = p.locator('video[src*="atelio"], video:has(source[src*="atelio"])').first();
+  const n = await v.count(); console.log("vidéo Atelio sur l'accueil :", n ? "✓" : "✗");
+  if (n) { await v.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(4500); await p.screenshot({ path: `${DOSSIER}/modeles-video.png` }); const ok = await v.evaluate((x) => x.readyState >= 2 && !x.paused).catch(() => false); console.log("elle joue :", ok ? "✓" : "✗"); }
+  await c.close();
+}
 if (CONSTRUIRE === "automatisations") {
   // Automatisations d'un logiciel, jouées par le serveur : réglées par le propriétaire, déclenchées par un utilisateur de démonstration
   const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "changeo-5u0t";
@@ -1458,7 +1467,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "semis" || CONSTRUIRE === "plan-apercu" || CONSTRUIRE === "motion-style" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "semis" || CONSTRUIRE === "plan-apercu" || CONSTRUIRE === "motion-style" || CONSTRUIRE === "modeles-video" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
