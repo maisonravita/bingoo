@@ -1171,7 +1171,7 @@ export function agendaDe(spec: any): { collection: string; champ_date: string; c
     const fin = ch.find((x) => x.nom !== date.nom && /^(date_)?(fin|retour|depart|sortie)/.test(x.nom));
     const heure = ch.find((x) => /^heure(_debut)?$/.test(x.nom));
     const titres = ["titre", "nom", "service", "objet", "client", "prenom", "sujet"].filter((k) => ch.some((x) => x.nom === k)).slice(0, 2);
-    return { collection: c.nom, champ_date: date.nom, ...(heure ? { champ_heure: heure.nom } : {}), ...(fin ? { champ_fin: fin.nom } : {}), champs_titre: titres.length ? titres : [ch.find((x) => x.type === "texte")?.nom].filter(Boolean) as string[], ...(ch.some((x) => x.nom === "duree") ? { duree: "duree" } : {}) };
+    return { collection: c.nom, champ_date: date.nom, champ_heure: heure?.nom ?? "heure", ...(fin ? { champ_fin: fin.nom } : {}), champs_titre: titres.length ? titres : [ch.find((x) => x.type === "texte")?.nom].filter(Boolean) as string[], ...(ch.some((x) => x.nom === "duree") ? { duree: "duree" } : {}) };
   }
   return null;
 }
@@ -1230,7 +1230,10 @@ export async function appTableurCsv(admin: SupabaseClient, slug: string, jeton: 
   const c = t && ((t.app.spec as any)?.collections ?? []).find((x: any) => x.nom === col);
   if (!t || !c) return null;
   const rows = await fichesEspace(admin, t.app, t.espace, col);
-  const ch = ((c.champs ?? []) as any[]).map((x) => x.nom);
+  // Les champs déclarés, puis ceux que les fiches portent en plus (l'heure d'un rendez-vous, par exemple)
+  const decl = ((c.champs ?? []) as any[]).map((x) => x.nom);
+  const plus = [...new Set(rows.flatMap((r) => Object.keys(r.data ?? {})))].filter((k) => !/^_/.test(k) && !decl.includes(k) && !["id", "ref", "cree_le"].includes(k)).slice(0, 12);
+  const ch = [...decl, ...plus];
   const cel = (v: unknown) => { let s = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   return [[...ch, "cree_le"].map(cel).join(","), ...rows.map((r) => [...ch.map((k) => r.data?.[k]), String(r.at ?? "").slice(0, 16).replace("T", " ")].map(cel).join(","))].join("\r\n") + "\r\n";
 }
