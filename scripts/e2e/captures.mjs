@@ -772,6 +772,14 @@ if (CONSTRUIRE === "semis") {
   const t = Date.now(), u = await api("signup", { email: `robot+semis${t}@maisonravita.fr`, password: crypto.randomBytes(14).toString("base64url") + "9a", nom: "Robot semis" });
   await api("me", {}, u.j.token);
   for (const col of ["locations", "avis"]) { const l = await api("list", { col }, u.j.token); const xs = Array.isArray(l.j) ? l.j : []; console.log(`${col} : ${xs.length} exemples, ${xs.filter((x) => x._recu).length} reçus, ${xs.filter((x) => !x._recu).length} envoyés`, xs.filter((x) => !x._recu).length && xs.filter((x) => x._recu).length ? "✓" : "✗"); }
+  if (process.env.DOMAINE === "capture") {
+    const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); await c.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (e) {} }, [`bingoo-app:${slug}`, u.j.token]);
+    const p = await c.newPage(); await p.goto(`${SITE}/?c=${t}#/app/${slug}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
+    const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+    await fr.getByText(/^Mes locations$/).first().click().catch(() => console.log("✗ Mes locations")); await p.waitForTimeout(4000);
+    await p.screenshot({ path: `${DOSSIER}/semis-mes-locations.png` }); console.log("boutons Payer :", await fr.getByRole("button", { name: /^Payer / }).count());
+    await c.close();
+  }
   const ids = await q(`select id from saas_app_users where email like ${lit(`robot+semis${t}@maisonravita.fr`)}`);
   for (const x of ids) { await q(`delete from saas_app_rows where espace_id = ${lit(x.id)}`); await q(`delete from saas_app_users where id = ${lit(x.id)}`); }
 }
