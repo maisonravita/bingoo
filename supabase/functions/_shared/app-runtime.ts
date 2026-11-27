@@ -838,7 +838,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
             if (!jeton && /^(sk|rk)_test_/.test(key)) jeton = (await stripe2(key, "core/account_tokens", { contact_email: user.email, display_name: String(user.nom || user.email).slice(0, 80) })).id;
             if (!jeton) throw new Err(400, "Jeton de compte manquant");
             a = await stripe2(key, "core/accounts", {
-              account_token: jeton, identity: { country: "fr" }, dashboard: "full",
+              account_token: jeton, identity: { country: "fr" }, dashboard: "express",
               defaults: { responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
               configuration: { merchant: { capabilities: { card_payments: { requested: true } } }, recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
               metadata: { app: slug, espace },
