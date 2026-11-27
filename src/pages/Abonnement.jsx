@@ -244,6 +244,7 @@ export default function Abonnement() {
   const daysLeft = ws.trial_ends ? Math.ceil((new Date(ws.trial_ends) - new Date()) / 864e5) : null;
   const [label, tone] = ws.plan === "essai" ? [saas ? "Verrouillé" : daysLeft > 0 ? `Aperçu : ${daysLeft} jour${daysLeft > 1 ? "s" : ""} restant${daysLeft > 1 ? "s" : ""}` : (payments ? "Essai terminé" : "Accès de lancement"), daysLeft > 0 || !payments ? "accent" : "bad"] : STATUS[ws.plan_status] ?? [ws.plan_status, "muted"];
 
+  const aboActif = ws.plan === "fondateur" || (!!ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status));
   return (
     <div>
       <SubNav section="reglages" />
@@ -259,12 +260,14 @@ export default function Abonnement() {
         {ws.stripe_customer && <Button loading={busy === "billing-portal"} onClick={() => go("billing-portal")}>Factures, carte, résiliation</Button>}
       </Card>
 
+      {aboActif && <>
       {!saas && <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
       {!saas && <Garantie g={gar} />}
       {saas ? <MoisEnCours l={lim} /> : ai && <AiGauge ai={ai} saas={saas} />}
       {saas ? <CreditsBingoo c={credits} packs={cPacks} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
         : <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
 
+      </>}
       {(() => {
         const actifSub = ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status);
         const finPack = ws.pack_ends && !ws.stripe_subscription ? new Date(ws.pack_ends) : null;
@@ -310,6 +313,14 @@ export default function Abonnement() {
           <p className="mt-3 text-[12.5px] text-ink-faint">En payant, tu acceptes les <a href="#/conditions" className="underline hover:text-ink">conditions générales</a> et tu demandes l'accès immédiat. Particulier : tu peux te rétracter sous 14 jours, seul le temps déjà utilisé est retenu.</p>
         </>);
       })()}
+      {!aboActif && <div className="mt-8">
+      {!saas && <Quota q={quota} pack={pPack} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
+      {!saas && <Garantie g={gar} />}
+      {saas ? <MoisEnCours l={lim} /> : ai && <AiGauge ai={ai} saas={saas} />}
+      {saas ? <CreditsBingoo c={credits} packs={cPacks} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
+        : <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
+
+      </div>}
       <Card className="mt-6 p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4 bg-paper/50">
         <div><p className="font-semibold">Plusieurs SaaS, une équipe, un incubateur ?</p><p className="text-sm text-ink-soft mt-1">Formule sur devis : utilisateurs et SaaS sur mesure, accompagnement au lancement.</p></div>
         <a href={`mailto:${CONTACT}?subject=${encodeURIComponent("Bingoo! Entreprise : demande de devis")}`} className="inline-flex justify-center rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-semibold hover:border-ink-faint">Nous écrire</a>
