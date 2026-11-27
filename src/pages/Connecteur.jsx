@@ -176,7 +176,7 @@ const base = "https://www.bingoo.fr/mcp"; // www : bingoo.fr redirige, et une re
               <button onClick={() => copier(demande, "Demande copiée : colle-la dans ton IA")} className="mt-3 rounded-xl bg-accent px-5 py-2.5 text-[14px] font-bold text-white">Copier la demande</button>
             </div>
           ) : <p className="mt-2 text-[13px] text-ink-faint">Ou pars d'une des questions plus haut : un clic pour la copier.</p>}
-          <p className="mt-4 text-[12.5px] text-ink-faint">Construire avec ton IA demande l'abonnement SaaS et compte comme une construction du mois. Tes questions passent par ton IA : Bingoo! ne lui donne que les chiffres et les outils.</p>
+          <p className="mt-4 text-[12.5px] text-ink-faint">Construire avec ton IA demande l'abonnement Essentiel et compte comme une construction du mois. Tes questions passent par ton IA : Bingoo! ne lui donne que les chiffres et les outils.</p>
         </Etape>
       </div>
 

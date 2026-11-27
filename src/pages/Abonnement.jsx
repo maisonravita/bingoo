@@ -271,8 +271,8 @@ export default function Abonnement() {
       {(() => {
         const actifSub = ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status);
         const finPack = ws.pack_ends && !ws.stripe_subscription ? new Date(ws.pack_ends) : null;
-        const ordre = ["site", "explorer_pro", "video", "lancer_pro"];
-        const sous = { site: "Pour ton site", explorer_pro: "Pour ton SaaS ou ton appli", video: "Seulement des vidéos", lancer_pro: "Site ou SaaS, à ton nom" };
+        const ordre = ["explorer_pro", "lancer_pro"];
+        const sous = { explorer_pro: "Ton site ou ton SaaS", lancer_pro: "Pour aller plus loin, à ton nom" };
         return (<>
           {!actifSub && demarrage && (
             <Card className="p-5 sm:p-6 mb-6 border-2 border-[#E8571C]/40">
@@ -291,7 +291,7 @@ export default function Abonnement() {
           )}
           <h2 className="font-serif text-2xl mb-1">Ton abonnement</h2>
           <p className="text-sm text-ink-soft mb-6">Selon ce que tu crées. Sans engagement : tu changes ou tu arrêtes quand tu veux.</p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 max-w-4xl">
             {ordre.map((k) => plans.find((p) => p.key === k)).filter(Boolean).map((p) => {
               const per = p.periodes?.find((x) => x.key === "mois") ?? p.periodes?.[0];
               const an = p.periodes?.find((x) => x.key === "an");

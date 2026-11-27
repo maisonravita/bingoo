@@ -397,7 +397,7 @@ function Liste({ copier: copierPage = false }) {
       {sel.length > 0 && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 rounded-2xl bg-ink text-white shadow-xl px-4 py-3 flex items-center gap-3">
           <span className="text-[14px]">{sel.length} SaaS sélectionné{sel.length > 1 ? "s" : ""} (4 au plus)</span>
-          <button disabled={sel.length < 2} onClick={() => niv(ws) < 2 ? (toast("Comparer est dans la formule SaaS", "bad"), nav("/abonnement")) : nav(`/explorer/comparer?d=${sel.join(",")}`)} className="rounded-lg bg-accent px-4 py-2 text-[14px] font-bold disabled:opacity-50">Comparer</button>
+          <button disabled={sel.length < 2} onClick={() => niv(ws) < 2 ? (toast("Comparer est dans la formule Essentiel", "bad"), nav("/abonnement")) : nav(`/explorer/comparer?d=${sel.join(",")}`)} className="rounded-lg bg-accent px-4 py-2 text-[14px] font-bold disabled:opacity-50">Comparer</button>
           <button onClick={() => setSel([])} className="text-[13px] text-white/70 hover:text-white">Effacer</button>
         </div>
       )}
@@ -651,7 +651,7 @@ function Fiche({ domaine }) {
           <div className="mt-3 space-y-2">{mails.slice(0, 10).map((m) => <CarteMail key={m.id} m={m} />)}</div>
         </section>
       )}
-      {niv(ws) < 2 ? <div className="mt-4"><Verrou sombre titre={`Ses pubs, ses e-mails et ses clients`} texte={`Avec la formule SaaS : les publicités et les e-mails de ${s.nom}, et les types d'entreprises qui achètent ce genre de logiciel.`} /></div>
+      {niv(ws) < 2 ? <div className="mt-4"><Verrou sombre titre={`Ses pubs, ses e-mails et ses clients`} texte={`Avec la formule Essentiel : les publicités et les e-mails de ${s.nom}, et les types d'entreprises qui achètent ce genre de logiciel.`} /></div>
         : <div className="mt-4"><Clients domaine={s.domaine} titre={`Les clients de ${s.nom}, tes prospects`} /></div>}
       {(pubs.length > 0 || s.pubs_at) && (
         <section className="mt-4 rounded-2xl bg-white border border-line p-5">
@@ -952,7 +952,7 @@ function CartePub({ p, saas }) {
 
 function Pubs() {
   const { ws } = useWs();
-  if (niv(ws) < 2) return <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6"><h1 className="text-[30px] font-black tracking-tight" style={HF}>Pubs et e-mails</h1><div className="mt-4"><Verrou titre="Comment ils vont chercher leurs clients" texte="Les publicités Facebook et Instagram et les e-mails des SaaS de ta niche, dans la formule SaaS." /></div></div>;
+  if (niv(ws) < 2) return <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6"><h1 className="text-[30px] font-black tracking-tight" style={HF}>Pubs et e-mails</h1><div className="mt-4"><Verrou titre="Comment ils vont chercher leurs clients" texte="Les publicités Facebook et Instagram et les e-mails des SaaS de ta niche, dans la formule Essentiel." /></div></div>;
   return <PubsContenu />;
 }
 function PubsContenu() {
@@ -1374,7 +1374,7 @@ function Lancer() {
             <b className="text-ink">Ton abonnement comprend un SaaS, et le tien est déjà construit.</b> Un autre SaaS coûte {COUT_AUTRE} crédits, et ton premier reste en ligne.{bloque ? ` Il te manque ${COUT_AUTRE - autre.solde} crédits.` : ` Tu as ${autre.solde} crédits.`}
           </div>}
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <button onClick={generer} disabled={busy || autre === null} className={cx("rounded-xl px-7 py-3.5 font-bold disabled:opacity-60", bloque ? "bg-line text-ink-faint cursor-pointer hover:bg-line" : "bg-accent text-white hover:bg-accent-dark")}>{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule SaaS" : bloque ? "Préparer mon projet" : autre?.deja ? `Préparer mon projet · ${COUT_AUTRE} crédits` : "Préparer mon projet"}</button>
+            <button onClick={generer} disabled={busy || autre === null} className={cx("rounded-xl px-7 py-3.5 font-bold disabled:opacity-60", bloque ? "bg-line text-ink-faint cursor-pointer hover:bg-line" : "bg-accent text-white hover:bg-accent-dark")}>{busy ? "Préparation de ton projet… (une à deux minutes)" : niv(ws) < 2 ? "Disponible avec la formule Essentiel" : bloque ? "Préparer mon projet" : autre?.deja ? `Préparer mon projet · ${COUT_AUTRE} crédits` : "Préparer mon projet"}</button>
             {bloque && <a href="#/abonnement#credits" className="rounded-xl bg-ink px-5 py-3.5 font-bold text-white hover:opacity-90">Recharger des crédits</a>}
             {d && <a href={`#/explorer/connecteur?domaine=${encodeURIComponent(d)}&nom=${encodeURIComponent(nomInspi || d)}`} className="rounded-xl border border-ink/15 bg-white px-5 py-3.5 font-bold hover:border-ink/40">Construire avec mon IA</a>}
           </div>
@@ -1776,7 +1776,7 @@ function Construire({ projet }) {
         <>
           {app?.statut === "erreur" && <p className="mt-4 rounded-xl bg-[#7F1D1D]/40 px-4 py-3 text-[14px]">{app.erreur || "La construction a échoué."} Relance-la.</p>}
           <Validation projet={projet} app={app} recharger={charger} />
-          <button onClick={construire} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark">{niv(ws) < 2 ? "Disponible avec la formule SaaS" : "Construire mon SaaS"}</button>
+          <button onClick={construire} className="mt-6 rounded-xl bg-accent px-7 py-3.5 font-bold hover:bg-accent-dark">{niv(ws) < 2 ? "Disponible avec la formule Essentiel" : "Construire mon SaaS"}</button>
         </>
       ) : null}
 
@@ -3489,7 +3489,7 @@ function PlanChiffre({ r, ap, onSuite }) {
   );
 }
 const CLE_CHOIX = "bingoo-choix";
-// « Lancer celui-ci » avant paiement : on garde le SaaS choisi (son rang) et on file au paiement de la formule SaaS
+// « Lancer celui-ci » avant paiement : on garde le SaaS choisi (son rang) et on file au paiement de la formule Essentiel
 async function lancerApresPaiement({ periode, invite, ws, nav }) {
   if (invite) return demanderCompte("Crée ton compte : tu arrives ensuite directement au paiement, et ton SaaS s'ouvre dès qu'il est reçu.");
   try { const { url } = await fn("billing-checkout", { workspace_id: ws.id, plan: "explorer_pro", periode, retour: "revelation" }); if (url) { window.location.href = url; return; } } catch { /* paiement pas encore ouvert : on passe par la page Abonnement */ }
