@@ -366,6 +366,8 @@ const Icone = ({ nom, class: c = "w-5 h-5" }) => html\`<svg class=\${c} viewBox=
 
 // ---------------------------------------------------------------- Composants
 const cls = (...a) => a.filter(Boolean).join(" ");
+// Ce que le serveur a dit du compte connecté (paiements entre membres activés…) : lu par quelques composants
+let ETAT_ME = null;
 const ui = {};
 ui.Icone = Icone;
 ui.Page = ({ titre, sous, actions, children }) => html\`<div class="anim"><div class="flex flex-wrap items-end justify-between gap-3 mb-6"><div><h1 class="u-titre text-2xl font-bold tracking-tight">\${titre}</h1>\${sous && html\`<p class="u-sous text-slate-500 mt-0.5">\${sous}</p>\`}</div><div class="flex gap-2">\${actions}</div></div>\${children}</div>\`;
@@ -373,6 +375,16 @@ ui.Card = ({ titre, actions, children, class: c }) => html\`<section class=\${cl
 ui.Button = ({ variant = "primary", onClick, type = "button", disabled, children, class: c, icone }) => html\`<button type=\${type} disabled=\${disabled} onClick=\${onClick} class=\${cls("inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-50", variant === "primary" && "bg-[var(--c)] text-white hover:brightness-110", variant === "secondary" && "bg-white border border-slate-200 hover:border-slate-300", variant === "danger" && "bg-red-600 text-white hover:bg-red-700", variant === "ghost" && "hover:bg-slate-100 text-slate-600", c)}>\${icone && html\`<\${Icone} nom=\${icone} class="w-4 h-4"/>\`}\${children}</button>\`;
 const champ = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--c)] focus:ring-2 focus:ring-[var(--c)]/15";
 const Lab = ({ label, children }) => html\`<label class="block">\${label && html\`<span class="block text-xs font-medium text-slate-500 mb-1">\${label}</span>\`}\${children}</label>\`;
+// Place de marché : régler une transaction à l'autre membre. Rien si le créateur n'a pas activé les paiements entre membres,
+// « Payée » quand c'est fait, sinon « Payer X € » (celui qui reçoit l'argent ne voit pas le bouton : il voit « En attente de paiement »)
+ui.BoutonPayer = ({ col, fiche, libelle }) => {
+  const [busy, setBusy] = useState(false);
+  const montant = ["montant", "total", "prix_total", "prix", "tarif"].map((k) => Number(fiche?.[k])).find((n) => n > 0);
+  if (!fiche || !montant || !(ETAT_ME?.paiements_membres || B.verif || B.essai)) return null;
+  if (fiche._paye) return html\`<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">✓ Payée\${fiche._paye_montant ? " · " + fmt.eur(fiche._paye_montant) : ""}</span>\`;
+  if (fiche._recu) return html\`<span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">En attente de paiement</span>\`;
+  return html\`<\${ui.Button} disabled=\${busy} onClick=\${async () => { setBusy(true); try { await db.payer(col, fiche.id); } catch (x) { toast(x.message, "bad"); } finally { setBusy(false); } }}>\${busy ? "Ouverture…" : (libelle || "Payer") + " " + fmt.eur(montant)}</\${ui.Button}>\`;
+};
 ui.Input = ({ label, value, onInput, type = "text", placeholder, required, min, step }) => html\`<\${Lab} label=\${label}><input class=\${champ} type=\${type} value=\${value ?? ""} placeholder=\${placeholder} required=\${required} min=\${min} step=\${step} onInput=\${(e) => onInput?.(type === "number" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)}/></\${Lab}>\`;
 ui.Textarea = ({ label, value, onInput, rows = 3, placeholder }) => html\`<\${Lab} label=\${label}><textarea class=\${champ} rows=\${rows} placeholder=\${placeholder} value=\${value ?? ""} onInput=\${(e) => onInput?.(e.target.value)}/></\${Lab}>\`;
 ui.Select = ({ label, value, onChange, options = [] }) => html\`<\${Lab} label=\${label}><select class=\${champ} value=\${value ?? ""} onChange=\${(e) => onChange?.(e.target.value)}>\${options.map((o) => { const [v, l] = Array.isArray(o) ? o : [o, o]; return html\`<option value=\${v}>\${l}</option>\`; })}</select></\${Lab}>\`;
@@ -1867,7 +1879,7 @@ function Racine() {
   if (PAGE) return html\`<\${PagePublique}/>\`;
   if (B.validation && !(S.ecrans ?? []).length) return html\`<\${Precommande}/>\`;
   const [etat, setEtat] = useState(undefined), [auth, setAuth] = useState(B.invite ? "signup" : null), [tour, setTour] = useState(false);
-  const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => { if (r.variante) VARIANTE = r.variante; setEtat(r); }, () => setEtat(null)) : setEtat(null);
+  const verifier = (force) => token ? call("me", { verifier: !!force }).then((r) => { if (r.variante) VARIANTE = r.variante; ETAT_ME = r; setEtat(r); }, () => setEtat(null)) : setEtat(null);
   useEffect(() => {
     if (B.tour) ouvrir("tour"); else verifier(B.retourPaiement);
     if (B.retourPaiement) setTimeout(() => toast("Merci ! Votre abonnement est activé."), 1200);

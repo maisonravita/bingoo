@@ -25,9 +25,20 @@ function calendrierUnique(spec: any, out: Record<string, string>) {
     out[e.id] = `Logique : le calendrier est déjà sur l'écran « ${garde.titre} ». Retire ui.Calendrier de cet écran et garde seulement ce qui lui est propre (une liste, des cartes, un lien vers « ${garde.titre} » si utile).`;
 }
 
+/** Une transaction entre deux membres qui porte un montant se paie en ligne : l'écran qui la liste montre le bouton. */
+function boutonPayer(spec: any, out: Record<string, string>) {
+  const ecrans = (spec?.ecrans ?? []).filter((e: any) => !e.public && e.code);
+  for (const c of (spec?.collections ?? []) as any[]) {
+    if (c?.partage !== "parties" || !(c.champs ?? []).some((x: any) => ["montant", "total", "prix_total", "prix", "tarif"].includes(x.nom))) continue;
+    if (ecrans.some((e: any) => /ui\.BoutonPayer\b|db\.payer\(/.test(e.code) && e.code.includes(`"${c.nom}"`))) continue;
+    const liste = ecrans.find((e: any) => new RegExp(`useCollection\\(\\s*["']${c.nom}["']`).test(e.code) && /mes_|location|commande|reservation|achat/i.test(`${e.id} ${e.titre}`)) ?? ecrans.find((e: any) => new RegExp(`useCollection\\(\\s*["']${c.nom}["']`).test(e.code));
+    if (liste && !out[liste.id]) out[liste.id] = `Paiement : les fiches « ${c.label ?? c.nom} » se paient en ligne entre les deux membres. Sur chaque fiche de la liste, ajoute <\${ui.BoutonPayer} col="${c.nom}" fiche=\${fiche}/> (le composant gère seul « Payer X € », « En attente de paiement » et « Payée »). Ne change rien d'autre.`;
+  }
+}
+
 export function fidelite(spec: any, FAMILLES: any): Record<string, string> {
   const f = spec?.famille, F = FAMILLES[f];
-  if (!F) { const o: Record<string, string> = {}; calendrierUnique(spec, o); return o; }
+  if (!F) { const o: Record<string, string> = {}; calendrierUnique(spec, o); boutonPayer(spec, o); return o; }
   const ecrans = (spec.ecrans ?? []).filter((e: any) => !e.public && e.code), out: Record<string, string> = {};
   const ref = spec.nature?.espace_principal ? ` L'espace principal du produit d'origine : ${spec.nature.espace_principal}.` : "";
   const premier = ecrans[0];
@@ -40,6 +51,7 @@ export function fidelite(spec: any, FAMILLES: any): Record<string, string> {
   if (sig && !ecrans.some((e: any) => sig[0].test(e.code)) && premier && !out[premier.id])
     out[premier.id] = `Fidélité : il manque ce qui définit un logiciel de la famille « ${F.label} » : ${sig[1]}.${ref} Ajoute-le à cet écran, il doit vraiment fonctionner et enregistrer ses données.`;
   calendrierUnique(spec, out);
+  boutonPayer(spec, out);
   for (const e of ecrans.slice(1)) if (!["gestion", "analyse", "crm", "reservation"].includes(f) && /ui\.Table\b/.test(e.code) && !out[e.id])
     out[e.id] = `Fidélité : un tableau de données n'a pas sa place dans un logiciel de la famille « ${F.label} ». Remplace ui.Table par les composants de la famille (${F.guide.split("\n")[1]?.slice(2, 220) ?? ""}).`;
   return out;

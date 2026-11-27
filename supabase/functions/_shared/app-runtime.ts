@@ -865,7 +865,8 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (regleColApp(app, col)?.partage !== "parties" || !/^[0-9a-f-]{36}$/.test(id)) throw new Err(400, "Cette fiche ne se paie pas en ligne");
         const { data: r } = await admin.from("saas_app_rows").select("id, espace_id, data").eq("app_id", app.id).eq("col", col).eq("id", id).maybeSingle();
         const d = ((r as any)?.data ?? {}) as any;
-        if (!r || d._exemple) throw new Err(404, "Fiche introuvable");
+        if (!r) throw new Err(404, "Fiche introuvable");
+        if (d._exemple) throw new Err(400, "C'est une fiche d'exemple : elle ne se paie pas. Les vraies réservations, elles, se règlent ici.");
         // L'autre partie de la fiche reçoit l'argent ; celui qui paie est forcément l'une des deux
         const receveur = r.espace_id === espace ? String(d._pour ?? "") : d._pour === espace ? r.espace_id : "";
         if (!receveur || receveur === espace) throw new Err(403, "Vous ne pouvez pas régler cette fiche");
