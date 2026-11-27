@@ -517,18 +517,17 @@ export default function Landing() {
           {/* 8. Tarifs */}
           <section id="prix" className={SECTION}>
             <Tete n="06" rub="Tarifs" titre="Ton premier outil est offert. Tu paies pour aller plus loin." />
-            <div className="mt-12 grid overflow-hidden rounded-2xl border border-line md:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-12 grid overflow-hidden rounded-2xl border border-line md:grid-cols-3">
               {[
-                ["Gratuit", "0 €", "Pour voir, et ton premier outil", ["Ton premier outil ou jeu, construit et en ligne", "L'aperçu de ton idée : nom, écrans, vrai rendu", "La lecture d'un site qui te plaît", "Les SaaS qui marchent, en aperçu"]],
                 ["Site", "9,99 €", "par mois, hébergement compris", ["Ton site, ton outil ou ton jeu, en ligne", "30 modifications par mois", "5 vidéos motion design par mois"]],
                 ["Vidéo", "9,99 €", "par mois", ["20 vidéos motion design par mois", "À tes couleurs, tous les styles", "Retouches en discutant"]],
                 ["SaaS", "14,99 €", "par mois · pack de démarrage 9,99 €", ["Ton SaaS, construit et testé", "Comptes clients et paiements sur ton Stripe", "30 modifications et 5 vidéos par mois"]],
               ].map(([t, p, sous, l], k) => (
-                <div key={t} className={cx("p-7 sm:p-8", k > 0 && "border-t border-line lg:border-l lg:border-t-0", k === 3 && "bg-ink text-white")}>
-                  <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 3 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>
+                <div key={t} className={cx("p-7 sm:p-8", k > 0 && "border-t border-line md:border-l md:border-t-0", k === 2 && "bg-ink text-white")}>
+                  <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 2 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>
                   <p className="mt-5 text-[44px] font-bold leading-none tracking-[-.03em] tnum">{p}</p>
-                  <p className={cx("mt-2 text-[13.5px]", k === 3 ? "text-white/65" : "text-ink-soft")}>{sous}</p>
-                  <ul className="mt-7 space-y-3 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2.5"><Check className={cx("mt-1 h-4 w-4 shrink-0", k === 3 ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
+                  <p className={cx("mt-2 text-[13.5px]", k === 2 ? "text-white/65" : "text-ink-soft")}>{sous}</p>
+                  <ul className="mt-7 space-y-3 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2.5"><Check className={cx("mt-1 h-4 w-4 shrink-0", k === 2 ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
                 </div>
               ))}
             </div>
