@@ -823,8 +823,9 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         return ok;
       };
       if (action === "encaisser-etat") { const c = await compteDe(espace); const pk = /^(sk|rk)_test_/.test(key) ? null : (await admin.from("saas_app_secrets").select("stripe_pk").eq("app_id", app.id).maybeSingle()).data?.stripe_pk ?? null; return { status: 200, body: { branche: !!c?.acct, pret: await pret(c, espace), commission: Number(pay.commission ?? 10) || 0, pk } }; }
-      const retour = retourOk(String(b.retour ?? ""));
-      if (!retour) throw new Err(400, "Adresse de retour invalide");
+      // Retour de Stripe (paye-membre) : pas d'adresse de retour à donner
+      const retour = action === "paye-membre" ? "" : retourOk(String(b.retour ?? ""));
+      if (action !== "paye-membre" && !retour) throw new Err(400, "Adresse de retour invalide");
       const sep = retour.includes("?") ? "&" : "?";
       if (action === "encaisser") {
         let c = await compteDe(espace);
