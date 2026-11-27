@@ -702,6 +702,7 @@ if (CONSTRUIRE === "marche-locataire") {
     console.log("location : ", loc.j.id ? "✓ 3 jours × 12 € = 36 €" : `✗ ${JSON.stringify(loc.j).slice(0, 160)}`);
     const pay = await api("payer-membre", { col: "locations", id: loc.j.id, retour: RET }, tb);
     if (!pay.j.url) throw new Error(`paiement ${pay.status} ${JSON.stringify(pay.j).slice(0, 200)}`);
+    if (process.env.IDEE === "lien") { console.log("LIEN DE PAIEMENT :", pay.j.url); throw new Error("lien seulement"); }
     const c = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "fr-FR" });
     await c.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (e) {} }, [`bingoo-app:${slug}`, tb]);
     const p = await c.newPage();

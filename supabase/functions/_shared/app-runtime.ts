@@ -892,7 +892,8 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       if (!/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sid)) throw new Err(400, "Session de paiement invalide");
       const ss = await stripe(key, `checkout/sessions/${sid}`, undefined, "GET");
       const m = ss.metadata ?? {};
-      if (m.app !== slug || m.payeur !== espace || ss.payment_status !== "paid") throw new Err(400, "Paiement non reconnu");
+      // Relu chez Stripe : payé et pour cette application (qui revient de Stripe importe peu, le fait est vrai pour les deux membres)
+      if (m.app !== slug || !m.fiche || ss.payment_status !== "paid") throw new Err(400, "Paiement non reconnu");
       const { data: r } = await admin.from("saas_app_rows").select("id, data").eq("app_id", app.id).eq("col", m.col).eq("id", m.fiche).maybeSingle();
       if (!r) throw new Err(404, "Fiche introuvable");
       const montant = (Number(ss.amount_total) || 0) / 100;
