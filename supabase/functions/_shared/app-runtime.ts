@@ -822,7 +822,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (ok) await admin.from("saas_app_comptes").update({ pret: true, maj: new Date().toISOString() }).eq("app_id", app.id).eq("espace_id", esp);
         return ok;
       };
-      if (action === "encaisser-etat") { const c = await compteDe(espace); return { status: 200, body: { branche: !!c?.acct, pret: await pret(c, espace), commission: Number(pay.commission ?? 10) || 0 } }; }
+      if (action === "encaisser-etat") { const c = await compteDe(espace); const pk = /^(sk|rk)_test_/.test(key) ? null : (await admin.from("saas_app_secrets").select("stripe_pk").eq("app_id", app.id).maybeSingle()).data?.stripe_pk ?? null; return { status: 200, body: { branche: !!c?.acct, pret: await pret(c, espace), commission: Number(pay.commission ?? 10) || 0, pk } }; }
       const retour = retourOk(String(b.retour ?? ""));
       if (!retour) throw new Err(400, "Adresse de retour invalide");
       const sep = retour.includes("?") ? "&" : "?";
@@ -831,13 +831,19 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (!c?.acct) {
           let a: any;
           try {
+            // Plateforme française : l'identité du membre passe par un jeton de compte (fait dans son navigateur avec la clé
+            // publique en réel ; en mode test, Stripe accepte qu'il soit fait par le serveur)
+            let jeton = /^(accttok|acct_tok|ct)_[A-Za-z0-9_]{8,200}$/.test(String(b.jeton ?? "")) ? String(b.jeton) : "";
+            if (!jeton && /^(sk|rk)_test_/.test(key)) jeton = (await stripe2(key, "core/account_tokens", { contact_email: user.email, display_name: String(user.nom || user.email).slice(0, 80), identity: { country: "fr" } })).id;
+            if (!jeton) throw new Err(400, "Jeton de compte manquant");
             a = await stripe2(key, "core/accounts", {
-              dashboard: "full",
+              account_token: jeton, dashboard: "full",
               defaults: { responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
               configuration: { merchant: { capabilities: { card_payments: { requested: true } } }, recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
               metadata: { app: slug, espace },
             });
           } catch (e) {
+            if (e instanceof Err && e.status === 400) throw e;
             console.error("connect", app.id, String((e as Error).message).slice(0, 400));
             throw new Err(400, "Le créateur de l'application doit d'abord activer Stripe Connect sur son compte Stripe pour que les membres puissent recevoir des paiements.");
           }

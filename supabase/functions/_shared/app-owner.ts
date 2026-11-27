@@ -23,6 +23,14 @@ export async function appPaiement(appId: string, b: any) {
       Object.assign(pay, { actif: true, test: cle.includes("_test_"), compte: acc?.settings?.dashboard?.display_name ?? acc?.business_profile?.name ?? acc?.email ?? acc?.id ?? null });
     }
   }
+  // Clé publique (pk_…) : sert dans le navigateur du membre à transmettre son identité à Stripe (paiements entre membres)
+  if (b.pk !== undefined) {
+    const pk = String(b.pk ?? "").trim();
+    if (pk && !/^pk_(live|test)_[A-Za-z0-9]{20,}$/.test(pk)) throw new HttpError(400, "Clé publique invalide : elle commence par pk_live_ ou pk_test_");
+    if (!(await admin.from("saas_app_secrets").select("app_id").eq("app_id", appId).maybeSingle()).data) throw new HttpError(400, "Branche d'abord ton compte Stripe");
+    await admin.from("saas_app_secrets").update({ stripe_pk: pk || null }).eq("app_id", appId);
+    pay.pk = !!pk;
+  }
   if (b.actif !== undefined) {
     if (b.actif && !(await admin.from("saas_app_secrets").select("app_id").eq("app_id", appId).maybeSingle()).data) throw new HttpError(400, "Branche d'abord ton compte Stripe");
     pay.actif = !!b.actif;
@@ -75,6 +83,7 @@ export async function stripeConnectRetour(url: URL): Promise<Response> {
   const d = await r.json().catch(() => ({}));
   if (!r.ok || !d?.access_token) { console.error("stripe connect", r.status, d?.error, d?.error_description); return retour("erreur"); }
   await appPaiement(app.id, { cle: d.access_token, actif: true });
+  if (d.stripe_publishable_key) await appPaiement(app.id, { pk: d.stripe_publishable_key });
   const { data: a2 } = await admin.from("saas_apps").select("paiement").eq("id", app.id).single();
   await admin.from("saas_apps").update({ paiement: { ...(a2?.paiement ?? {}), connect: d.stripe_user_id ?? null } }).eq("id", app.id);
   return retour("ok");

@@ -2365,7 +2365,7 @@ function OngletEncaisser({ app, appel, agir, busy }) {
   const toast = useToast();
   const [cle, setCle] = useState(""), [cleVisible, setCleVisible] = useState(false), [part, setPart] = useState(false);
   const pay = app.paiement ?? {};
-  const [essai, setEssai] = useState(pay.essai_jours ?? 14), [com, setCom] = useState(pay.commission ?? 10);
+  const [essai, setEssai] = useState(pay.essai_jours ?? 14), [com, setCom] = useState(pay.commission ?? 10), [pk, setPk] = useState("");
   // Place de marché : une collection de transactions entre deux membres (réservations, commandes…)
   const marche = (app.spec?.collections ?? []).some((c) => c?.partage === "parties");
   // Retour de Stripe (?stripe=ok|annule|erreur|expire) : on le dit clairement, puis on nettoie l'adresse
@@ -2385,6 +2385,7 @@ function OngletEncaisser({ app, appel, agir, busy }) {
       {marche && <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
         <label className="flex items-center gap-2 text-[14px] font-medium"><input type="checkbox" checked={!!pay.membres} disabled={!!busy} onChange={(e) => agir("membres", () => appel("paiement", { membres: e.target.checked }), e.target.checked ? "Les membres peuvent se payer entre eux" : "Paiements entre membres coupés")} />Les membres se paient entre eux dans l'application</label>
         <p className="text-[12.5px] text-white/55">Chaque membre qui reçoit de l'argent active son compte en 3 minutes (Stripe vérifie son identité). Celui qui paie règle par carte, l'argent va directement au membre, et ta commission arrive sur ton Stripe. Il faut avoir activé Stripe Connect dans ton tableau de bord Stripe (Connect → Commencer).</p>
+        {pay.membres && !pay.test && !pay.pk && <div className="space-y-1.5 pt-1"><p className="text-[12.5px] text-white/65">Dernière étape : ta clé publique Stripe (Développeurs → Clés API, elle commence par pk_live_). Elle n'est pas secrète : elle permet à chaque membre d'envoyer son identité directement à Stripe.</p><div className="flex gap-2"><input value={pk} onChange={(e) => setPk(e.target.value)} placeholder="pk_live_…" className={champSombre} autoComplete="off" /><button disabled={!!busy || pk.trim().length < 20} onClick={() => agir("pk", async () => { await appel("paiement", { pk: pk.trim() }); setPk(""); }, "Clé publique enregistrée")} className={btnAccent}>Enregistrer</button></div></div>}
         {pay.membres && <label className="flex items-center gap-2 text-[14px]">Ta commission <input type="number" min={0} max={50} step={0.5} value={com} onChange={(e) => setCom(e.target.value)} onBlur={() => Number(com) !== Number(pay.commission ?? 0) && agir("commission", () => appel("paiement", { commission: Number(com) }), "Commission enregistrée")} className="w-20 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> % de chaque paiement</label>}
       </div>}
       <button disabled={!!busy} onClick={async () => { if (await demander("Débrancher Stripe ? L'application redevient gratuite.")) agir("cle", () => appel("paiement", { cle: "" }), "Stripe débranché"); }} className="text-[12.5px] text-white/50 underline">Débrancher Stripe</button>

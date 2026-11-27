@@ -311,7 +311,17 @@ const db = {
   // Place de marché : régler une fiche (réservation, commande…) à l'autre membre, par carte ; l'argent va directement chez lui
   payer: async (col, id) => { const r = await call("payer-membre", { col, id, retour: RETOUR() }); if (r?.url) allerVers(r.url); else toast("Paiement simulé (aperçu)"); return r; },
   // Recevoir des paiements : ouvre l'activation (ou le tableau de bord) du compte de versement du membre
-  encaisser: async () => { const r = await call("encaisser", { retour: RETOUR() }); if (r?.url) allerVers(r.url); return r; },
+  // En réel, l'identité du membre part de son navigateur vers Stripe (jeton de compte, clé publique du créateur) : le serveur ne la voit pas
+  encaisser: async (etat) => {
+    let jeton;
+    if (etat?.pk && !etat.branche) {
+      const r = await fetch("https://api.stripe.com/v2/core/account_tokens", { method: "POST", headers: { authorization: "Bearer " + etat.pk, "content-type": "application/json", "stripe-version": "2026-01-28.clover" }, body: JSON.stringify({ identity: { country: "fr" } }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.id) throw new Error("Stripe n'a pas pu préparer votre compte : " + (d?.error?.message ?? r.status));
+      jeton = d.id;
+    }
+    const r = await call("encaisser", { retour: RETOUR(), jeton }); if (r?.url) allerVers(r.url); return r;
+  },
   encaissement: () => call("encaisser-etat", {}),
 };
 // Retour de Stripe dans un logiciel : la fiche réglée est relue chez Stripe par le serveur, puis marquée « payée »
@@ -1558,7 +1568,7 @@ function Encaissement() {
   if (!e || e.erreur) return null;
   return html\`<\${ui.Card} titre="Recevoir des paiements">
     <p class="text-sm text-slate-600">\${e.pret ? "Votre compte de versement est actif : les membres peuvent vous régler en ligne, l'argent arrive sur votre compte bancaire." : e.branche ? "Votre activation n'est pas terminée : Stripe a encore besoin de quelques informations." : "Activez votre compte de versement pour que les autres membres puissent vous régler par carte. Stripe vérifie votre identité (3 minutes) et verse l'argent sur votre compte bancaire."}\${e.commission > 0 ? " Frais de service : " + String(e.commission).replace(".", ",") + " % de chaque paiement." : ""}</p>
-    <div class="mt-3"><\${ui.Button} disabled=\${busy} onClick=\${async () => { setBusy(true); try { await db.encaisser(); } catch (x) { toast(x.message, "bad"); setBusy(false); } }}>\${busy ? "Ouverture…" : e.pret ? "Voir mes versements" : e.branche ? "Terminer mon activation" : "Activer les paiements"}</\${ui.Button}></div>
+    <div class="mt-3"><\${ui.Button} disabled=\${busy} onClick=\${async () => { setBusy(true); try { await db.encaisser(e); } catch (x) { toast(x.message, "bad"); setBusy(false); } }}>\${busy ? "Ouverture…" : e.pret ? "Voir mes versements" : e.branche ? "Terminer mon activation" : "Activer les paiements"}</\${ui.Button}></div>
   </\${ui.Card}>\`;
 }
 function Compte({ user, etat }) {
