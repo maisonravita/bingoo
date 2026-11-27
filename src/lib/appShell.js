@@ -217,6 +217,7 @@ async function verifCall(action, b) {
   if (action === "payer-membre" || action === "encaisser") return { url: null };
   if (action === "upload") return { id: "f" + (++VSEQ), nom: b.nom, type: b.type, taille: 1, url: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" };
   if (action === "agenda") return { url: "https://exemple.fr/agenda.ics" };
+  if (action === "tableur") return { url: "https://exemple.fr/tableur.csv" };
   return {};
 }
 const VERRS = [];
@@ -547,11 +548,15 @@ ui.Progress = ({ valeur = 0, max = 100, label }) => html\`<div>\${label && html\
 // Mes données : export et import Excel (CSV) de chaque type de données, pour démarrer avec ses vraies données
 const lireCsv = (t) => { const sep = (t.split("\\n")[0].match(/;/g) ?? []).length >= (t.split("\\n")[0].match(/,/g) ?? []).length ? ";" : ","; const L = []; let r = [], c = "", q = false; for (let i = 0; i < t.length; i++) { const ch = t[i]; if (q) { if (ch === '"') { if (t[i + 1] === '"') { c += '"'; i++; } else q = false; } else c += ch; } else if (ch === '"') q = true; else if (ch === sep) { r.push(c); c = ""; } else if (ch === "\\n" || ch === "\\r") { if (ch === "\\r" && t[i + 1] === "\\n") i++; r.push(c); c = ""; if (r.some((x) => x.trim())) L.push(r); r = []; } else c += ch; } r.push(c); if (r.some((x) => x.trim())) L.push(r); return L; };
 const sansAccent = (s) => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "");
+// Une application a un agenda si le créateur l'a décrit, ou si une de ses collections porte une date (le serveur choisit laquelle)
+const AVEC_DATES = !!S.agenda?.collection || (S.collections ?? []).some((c) => (c.champs ?? []).some((x) => x.type === "date" || /^date_/.test(x.nom)));
 function Donnees() {
   const cols = S.collections ?? [];
   const [n, setN] = useState({}), [busy, setBusy] = useState(null);
   const compter = () => Promise.all(cols.map((c) => db.list(c.nom).then((r) => [c.nom, r.length], () => [c.nom, 0]))).then((x) => setN(Object.fromEntries(x)));
   useEffect(() => { compter(); }, []);
+  // Google Sheets : une formule à coller dans une cellule ; la feuille se met à jour toute seule (toutes les heures environ)
+  const lienSheets = async (c) => { try { const r = await call("tableur", { col: c.nom }); const f = '=IMPORTDATA("' + r.url + '")'; try { await navigator.clipboard.writeText(f); toast("Formule copiée : colle-la dans la case A1 d'une feuille Google Sheets"); } catch (x) { prompt("Collez cette formule dans la case A1 d'une feuille Google Sheets :", f); } } catch (x) { toast(x.message, "bad"); } };
   const exporter = async (c) => { const rows = await db.list(c.nom); const ch = c.champs ?? []; telecharger(c.label + ".csv", [ch.map((x) => celluleCsv(x.nom)).join(";"), ...rows.map((r) => ch.map((x) => celluleCsv(r[x.nom])).join(";"))].join("\\n")); };
   const importer = async (c, e) => {
     const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -571,7 +576,7 @@ function Donnees() {
   return html\`<\${ui.Page} titre="Mes données" sous="Exportez vos données en un clic, ou importe celles que vous avez déjà (fichier Excel enregistré en CSV).">
     <div class="grid sm:grid-cols-2 gap-4">\${cols.map((c) => html\`<\${ui.Card} titre=\${c.label}><p class="text-3xl font-bold tabular-nums">\${n[c.nom] ?? "…"}</p><p class="text-sm text-slate-500">enregistrement\${n[c.nom] > 1 ? "s" : ""}</p>
       <p class="mt-3 text-xs text-slate-400">Colonnes : \${(c.champs ?? []).map((x) => x.nom).join(", ")}</p>
-      <div class="mt-4 flex flex-wrap gap-2"><\${ui.Button} variant="secondary" onClick=\${() => exporter(c)}>Exporter</\${ui.Button}><label class=\${cls("inline-flex cursor-pointer items-center rounded-xl bg-[var(--c)] px-4 py-2 text-sm font-semibold text-white", busy && "opacity-50 pointer-events-none")}>\${busy === c.nom ? "Import…" : "Importer un fichier"}<input type="file" accept=".csv,text/csv" class="hidden" onChange=\${(e) => importer(c, e)}/></label></div></\${ui.Card}>\`)}</div>
+      <div class="mt-4 flex flex-wrap gap-2"><\${ui.Button} variant="secondary" onClick=\${() => exporter(c)}>Exporter</\${ui.Button}><\${ui.Button} variant="secondary" onClick=\${() => lienSheets(c)}>Relier à Google Sheets</\${ui.Button}><label class=\${cls("inline-flex cursor-pointer items-center rounded-xl bg-[var(--c)] px-4 py-2 text-sm font-semibold text-white", busy && "opacity-50 pointer-events-none")}>\${busy === c.nom ? "Import…" : "Importer un fichier"}<input type="file" accept=".csv,text/csv" class="hidden" onChange=\${(e) => importer(c, e)}/></label></div></\${ui.Card}>\`)}</div>
   </\${ui.Page}>\`;
 }
 // Premiers pas : ce qu'un nouveau client fait en arrivant (masquable)
@@ -1633,7 +1638,7 @@ function Appli({ user, etat, onLogout, tour, onFinTour }) {
   const E = cur.id === "_abonnement" ? { id: "_abonnement", titre: "Mon abonnement", Comp: Abonnement } : cur.id === "_equipe" ? { id: "_equipe", titre: "Équipe", Comp: Equipe } : cur.id === "_compte" ? { id: "_compte", titre: "Mon compte", Comp: Compte } : cur.id === "_donnees" ? { id: "_donnees", titre: "Mes données", Comp: Donnees } : PRIVES.find((e) => e.id === cur.id) ?? PRIVES[0];
   if (!etat.acces) return html\`<\${Paywall} etat=\${etat} onLogout=\${onLogout}/>\`;
   const lienPage = (e) => (B.retour || location.href.split("?")[0]).split("?")[0] + "?page=" + e.id + "&e=" + etat.espace;
-  const Agenda = () => S.agenda?.collection ? html\`<button class="w-full text-left rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2" onClick=\${async () => { try { const u = await lienAgenda(); try { await navigator.clipboard.writeText(u); toast("Lien copié : colle-le dans Google Agenda (Autres agendas → À partir de l'URL) ou Outlook"); } catch (x) { prompt("Collez ce lien dans votre agenda (Google Agenda : Autres agendas → À partir de l'URL) :", u); } } catch (x) { toast(x.message, "bad"); } }}><\${Icone} nom="agenda" class="w-4 h-4"/>Ajouter à mon agenda</button>\` : null;
+  const Agenda = () => AVEC_DATES ? html\`<button class="w-full text-left rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2" onClick=\${async () => { try { const u = await lienAgenda(); try { await navigator.clipboard.writeText(u); toast("Lien copié : colle-le dans Google Agenda (Autres agendas → À partir de l'URL) ou Outlook"); } catch (x) { prompt("Collez ce lien dans votre agenda (Google Agenda : Autres agendas → À partir de l'URL) :", u); } } catch (x) { toast(x.message, "bad"); } }}><\${Icone} nom="agenda" class="w-4 h-4"/>Ajouter à mon agenda</button>\` : null;
   const Partage = () => PUBLIQUES.length && etat.espace ? html\`<div class="rounded-xl bg-slate-50 p-3 text-sm"><p class="text-xs font-semibold text-slate-500 mb-1.5">À partager à vos clients</p>\${PUBLIQUES.map((e) => html\`<div class="flex items-center gap-1.5 py-1"><a href=\${lienPage(e)} target="_blank" rel="noopener" class="flex-1 truncate font-medium text-[var(--c)] hover:underline">\${e.titre} ↗</a><button title="Copier le lien" class="text-slate-400 hover:text-slate-700" onClick=\${() => { try { navigator.clipboard.writeText(lienPage(e)).then(() => toast("Lien copié"), () => prompt("Copiez ce lien :", lienPage(e))); } catch (x) { prompt("Copiez ce lien :", lienPage(e)); } }}>⧉</button></div>\`)}</div>\` : null;
   const Nav = () => html\`<nav class="space-y-0.5">\${[...PRIVES, { id: "_equipe", titre: "Équipe", icone: "contacts", sep: true }, ...((S.collections ?? []).length ? [{ id: "_donnees", titre: "Mes données", icone: "fichier" }] : [])].map((e) => html\`<button onClick=\${() => nav(e.id)} class=\${cls("w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium", e.sep && "mt-3", e.id === E?.id ? (MENU_FONCE ? "bg-white/15 text-white" : "bg-[var(--c)]/10 text-[var(--c)]") : (MENU_FONCE ? "text-white/70 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-slate-100"))}><\${Icone} nom=\${e.icone} class="w-[18px] h-[18px]"/>\${e.titre}</button>\`)}</nav>\`;
   const DISPO = ["haut", "onglets"].includes(S.disposition) ? S.disposition : "barre";

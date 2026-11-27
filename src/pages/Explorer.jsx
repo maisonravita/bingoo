@@ -2586,7 +2586,8 @@ function ConnexionsSortantes({ app, appel }) {
         <li key={w.id} className="rounded-xl border border-white/10 bg-white/[.04] p-3.5">
           <p className="break-all text-[13.5px] font-semibold">{w.url}</p>
           <p className="mt-0.5 text-[12.5px] text-white/55">{w.evenements.map((e) => EVENEMENTS_CX.find(([k]) => k === e)?.[1] ?? e).join(" · ")}</p>
-          <p className="mt-1 break-all text-[11.5px] text-white/40">Signature : chaque envoi porte l'en-tête X-Bingoo-Signature, calculé avec ce secret : {w.secret}</p>
+          {w.type ? <p className="mt-1 text-[11.5px] text-white/40">{w.collection ? `Fiches de « ${w.collection} » · ` : ""}Colonnes reliées par leur nom{w.colonnes?.length ? ` (${w.colonnes.slice(0, 8).join(", ")}${w.colonnes.length > 8 ? "…" : ""})` : ""}. La clé reste sur le serveur.</p>
+            : <p className="mt-1 break-all text-[11.5px] text-white/40">Signature : chaque envoi porte l'en-tête X-Bingoo-Signature, calculé avec ce secret : {w.secret}</p>}
           <div className="mt-2 flex gap-2 text-[13px] font-semibold">
             <button disabled={!!busy} onClick={() => faire("t" + w.id, async () => { const r = await appel("connexion-tester", { id: w.id }); toast(r.recu ? "Envoi d'essai bien reçu par ton outil" : r.code ? `Ton outil a répondu ${r.code} : vérifie l'adresse` : "Adresse injoignable : vérifie-la", r.recu ? undefined : "bad"); })} className="rounded-lg bg-white/10 px-3 py-1.5 !text-white hover:bg-white/15 disabled:opacity-50">{busy === "t" + w.id ? "Envoi…" : "Envoyer un essai"}</button>
             <button disabled={!!busy} onClick={() => faire("s" + w.id, async () => { const r = await appel("connexion-supprimer", { id: w.id }); setListe(r.liste); })} className="rounded-lg px-3 py-1.5 text-white/60 hover:text-white">Retirer</button>
@@ -2598,7 +2599,33 @@ function ConnexionsSortantes({ app, appel }) {
         <div className="mt-2.5 space-y-1.5">{EVENEMENTS_CX.filter(([k]) => site ? k === "demande" : k !== "demande").map(([k, l]) => <label key={k} className="flex items-center gap-2 text-[13.5px]"><input type="checkbox" checked={ev.includes(k)} onChange={(e) => setEv((x) => e.target.checked ? [...x, k] : x.filter((y) => y !== k))} />{l}</label>)}</div>
         <button disabled={!!busy || !url.trim() || !ev.length} onClick={() => faire("a", async () => { const r = await appel("connexion-ajouter", { url: url.trim(), evenements: ev }); setListe(r.liste); setUrl(""); toast("Connexion ajoutée : envoie un essai pour vérifier"); })} className="mt-3 rounded-xl bg-[#E8571C] px-4 py-2 text-[13.5px] font-semibold !text-white hover:brightness-110 disabled:opacity-50">{busy === "a" ? "Un instant…" : "Ajouter la connexion"}</button>
       </div>
+      <OutilNatif app={app} site={site} ev={ev} setEv={setEv} faire={faire} busy={busy} setListe={setListe} appel={appel} />
       {journal.length > 0 && <div className="mt-4"><p className="text-[12.5px] font-semibold text-white/60">Derniers envois</p><ul className="mt-1.5 space-y-1 text-[12.5px] text-white/55">{journal.slice(0, 6).map((j, i) => <li key={i}>{new Date(j.at).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {j.evenement === "essai" ? "essai" : EVENEMENTS_CX.find(([k]) => k === j.evenement)?.[1] ?? j.evenement} · {j.code >= 200 && j.code < 300 ? "reçu" : j.code ? `réponse ${j.code}` : "injoignable"}</li>)}</ul></div>}
+    </div>
+  );
+}
+// Notion et Airtable en direct : une ligne ajoutée dans ta base à chaque demande ou fiche, sans Zapier
+function OutilNatif({ app, site, faire, busy, setListe, appel }) {
+  const toast = useToast();
+  const [type, setType] = useState(""), [cle, setCle] = useState(""), [lien, setLien] = useState(""), [col, setCol] = useState(""), [evs, setEvs] = useState(site ? ["demande"] : ["fiche_creee"]);
+  const cols = app.spec?.collections ?? [];
+  const AIDE = {
+    notion: ["Notion", "1. notion.so/profile/integrations → Nouvelle intégration → copie la « clé secrète » (ntn_…). 2. Ouvre ta base Notion en pleine page → ••• → Connexions → ajoute ton intégration. 3. Copier le lien de la base.", "ntn_…", "https://www.notion.so/…"],
+    airtable: ["Airtable", "1. airtable.com/create/tokens → Créer un jeton avec data.records:write et schema.bases:read, et ta base dans « Accès ». 2. Ouvre la table, copie l'adresse de la page (elle contient app… et tbl…).", "pat…", "https://airtable.com/app…/tbl…"],
+  };
+  return (
+    <div className="mt-4 rounded-xl border border-white/10 bg-white/[.04] p-3.5">
+      <p className="text-[13.5px] font-semibold">Ajouter une ligne dans Notion ou Airtable</p>
+      <p className="mt-0.5 text-[12.5px] text-white/55">Sans Zapier : chaque {site ? "demande" : "fiche"} devient une ligne de ta base. Les colonnes qui portent le même nom que tes champs ({site ? "nom, email, telephone, service, date_souhaitee, message…" : "les noms de tes champs"}) sont remplies.</p>
+      <div className="mt-2.5 flex gap-2">{["notion", "airtable"].map((t) => <button key={t} onClick={() => setType(type === t ? "" : t)} className={cx("rounded-lg border px-3 py-1.5 text-[13px] font-semibold", type === t ? "border-[#E8571C] bg-[#E8571C]/15" : "border-white/15 hover:border-white/30")}>{AIDE[t][0]}</button>)}</div>
+      {type && <div className="mt-3 space-y-2">
+        <p className="text-[12px] text-white/50">{AIDE[type][1]}</p>
+        <input type="password" autoComplete="off" value={cle} onChange={(e) => setCle(e.target.value)} placeholder={AIDE[type][2]} aria-label={`Clé ${AIDE[type][0]}`} className={champSombre} />
+        <input value={lien} onChange={(e) => setLien(e.target.value)} placeholder={AIDE[type][3]} aria-label={`Lien de la base ${AIDE[type][0]}`} className={champSombre} />
+        {!site && cols.length > 1 && <select value={col} onChange={(e) => setCol(e.target.value)} className={champSombre} aria-label="Collection envoyée"><option value="">Toutes les fiches</option>{cols.map((c) => <option key={c.nom} value={c.nom}>{c.label ?? c.nom}</option>)}</select>}
+        {!site && <div className="flex flex-wrap gap-3">{[["fiche_creee", "Fiche créée"], ["fiche_modifiee", "Fiche modifiée"]].map(([k, l]) => <label key={k} className="flex items-center gap-1.5 text-[13px]"><input type="checkbox" checked={evs.includes(k)} onChange={(e) => setEvs(e.target.checked ? [...evs, k] : evs.filter((x) => x !== k))} />{l}</label>)}</div>}
+        <button disabled={!!busy || cle.trim().length < 10 || lien.trim().length < 10 || !evs.length} onClick={() => faire("o", async () => { const r = await appel("connexion-ajouter", { type, cle: cle.trim(), lien: lien.trim(), collection: col || undefined, evenements: evs }); setListe(r.liste); setCle(""); setLien(""); setType(""); toast(`${AIDE[type][0]} branché : clique sur « Envoyer un essai » pour voir la ligne arriver`); })} className="rounded-xl bg-[#E8571C] px-4 py-2 text-[13.5px] font-semibold !text-white disabled:opacity-50">{busy === "o" ? "Vérification…" : `Brancher ${AIDE[type][0]}`}</button>
+      </div>}
     </div>
   );
 }

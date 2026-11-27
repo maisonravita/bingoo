@@ -1131,7 +1131,28 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       const cx = await import("../_shared/connexions.ts");
       const { data: a } = await admin.from("saas_apps").select("slug, spec, connexions").eq("id", app.id).single();
       const liste: any[] = Array.isArray((a?.connexions as any)?.liste) ? (a!.connexions as any).liste : [];
-      const vue = (l: any[]) => l.map((w) => ({ id: w.id, url: w.url, evenements: w.evenements, secret: w.secret }));
+      const vue = (l: any[]) => l.map((w) => ({ id: w.id, url: w.url, evenements: w.evenements, secret: w.secret, type: w.type, nom: w.nom, collection: w.collection, colonnes: w.colonnes }));
+      // Notion ou Airtable : la clé est vérifiée sur la base visée, puis gardée sur le serveur (jamais renvoyée)
+      if (b.quoi === "connexion-ajouter" && (b.type === "notion" || b.type === "airtable")) {
+        const evenements = (Array.isArray(b.evenements) ? b.evenements : []).filter((e: string) => e in cx.EVENEMENTS);
+        if (!evenements.length) throw new HttpError(400, "Choisis au moins un événement");
+        if (liste.length >= cx.MAX_CONNEXIONS) throw new HttpError(400, `${cx.MAX_CONNEXIONS} connexions au plus`);
+        const cle = String(b.cle ?? "").trim();
+        if (b.type === "notion" ? !/^(ntn|secret)_[A-Za-z0-9]{20,80}$/.test(cle) : !/^pat[A-Za-z0-9]{10,20}\.[a-f0-9]{40,80}$/.test(cle)) throw new HttpError(400, b.type === "notion" ? "Clé Notion invalide : elle commence par ntn_ (ou secret_)" : "Jeton Airtable invalide : il commence par pat");
+        const cible = cx.cibleOutil(b.type, b.lien);
+        if (!cible) throw new HttpError(400, b.type === "notion" ? "Colle le lien de la base Notion (ouvre-la en pleine page, puis Copier le lien)" : "Colle le lien de la table Airtable (il contient app… et tbl…)");
+        const v = await cx.verifierOutil(b.type, cle, cible);
+        if (!v.ok) throw new HttpError(400, v.erreur ?? "Connexion impossible");
+        const collection = typeof b.collection === "string" && ((a?.spec as any)?.collections ?? []).some((c: any) => c.nom === b.collection) ? b.collection : undefined;
+        const id = crypto.randomUUID().slice(0, 8);
+        const { data: sec } = await admin.from("saas_app_secrets").select("connexions_cles").eq("app_id", app.id).maybeSingle();
+        if (sec) await admin.from("saas_app_secrets").update({ connexions_cles: { ...((sec as any).connexions_cles ?? {}), [id]: cle } }).eq("app_id", app.id);
+        else await admin.from("saas_app_secrets").insert({ app_id: app.id, connexions_cles: { [id]: cle } });
+        const nv = [...liste, { id, type: b.type, url: `${b.type === "notion" ? "Notion" : "Airtable"} · ${v.nom}`, nom: v.nom, cible, evenements, collection, colonnes: (v.colonnes ?? []).slice(0, 30) }];
+        await admin.from("saas_apps").update({ connexions: { ...((a?.connexions as any) ?? {}), liste: nv } }).eq("id", app.id);
+        await log(ws.id, "app_reglage", `${b.type === "notion" ? "Notion" : "Airtable"} branché (${evenements.join(", ")})`);
+        return { liste: vue(nv) };
+      }
       if (b.quoi === "connexion-ajouter") {
         const url = cx.urlConnexion(b.url);
         if (!url) throw new HttpError(400, "Colle une adresse qui commence par https:// (celle que te donne Zapier, Make ou n8n)");
@@ -1148,12 +1169,14 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       if (!w) throw new HttpError(404, "Connexion introuvable");
       if (b.quoi === "connexion-supprimer") {
         const nv = liste.filter((x) => x.id !== w.id);
+        if (w.type) { const { data: sec } = await admin.from("saas_app_secrets").select("connexions_cles").eq("app_id", app.id).maybeSingle(); const k = { ...((sec as any)?.connexions_cles ?? {}) }; delete k[w.id]; await admin.from("saas_app_secrets").update({ connexions_cles: k }).eq("app_id", app.id); }
         await admin.from("saas_apps").update({ connexions: { ...((a?.connexions as any) ?? {}), liste: nv } }).eq("id", app.id);
         return { liste: vue(nv) };
       }
       // Essai : un envoi d'exemple clairement marqué comme tel, pour vérifier que l'autre outil reçoit bien
       await quota(ws.id, "connexion_test", 30);
-      const code = await cx.envoyer(w, { evenement: w.evenements[0], essai: true, projet: a!.slug, nom: (a!.spec as any)?.nom ?? "", date: new Date().toISOString(), donnees: { nom: "Essai Bingoo!", message: "Ceci est un envoi d'essai." } });
+      const cleOutil = w.type ? (((await admin.from("saas_app_secrets").select("connexions_cles").eq("app_id", app.id).maybeSingle()).data as any)?.connexions_cles ?? {})[w.id] : null;
+      const code = w.type ? await cx.envoyerOutil(w.type, cleOutil ?? "", w.cible ?? {}, { nom: "Essai Bingoo!", titre: "Essai Bingoo!", message: "Ceci est un envoi d'essai : tu peux supprimer cette ligne.", date: new Date().toISOString().slice(0, 10) }) : await cx.envoyer(w, { evenement: w.evenements[0], essai: true, projet: a!.slug, nom: (a!.spec as any)?.nom ?? "", date: new Date().toISOString(), donnees: { nom: "Essai Bingoo!", message: "Ceci est un envoi d'essai." } });
       const journal = [{ id: w.id, evenement: "essai", at: new Date().toISOString(), code }, ...((((a?.connexions as any)?.journal) ?? []) as any[])].slice(0, 12);
       await admin.from("saas_apps").update({ connexions: { ...((a?.connexions as any) ?? {}), journal } }).eq("id", app.id);
       return { code, recu: code >= 200 && code < 300 };

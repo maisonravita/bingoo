@@ -1007,11 +1007,15 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       return { status: 200, body: { id, nom, type, taille: bin.length, url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/t/app/${slug}/f/${id}` } };
     }
     // ---- Agenda : un lien d'abonnement (Google Agenda, Outlook, Apple) pour l'espace
-    if (action === "agenda") {
-      if (!(app.spec as any)?.agenda?.collection) throw new Err(400, "Cette application n'a pas d'agenda");
-      let { data: a } = await admin.from("saas_app_agendas").select("jeton").eq("espace_id", espace).maybeSingle();
+    // ---- Agenda et tableur : des liens d'abonnement (Google Agenda, Outlook, Apple ; Google Sheets, Excel) pour l'espace, mis à jour tout seuls
+    if (action === "agenda" || action === "tableur") {
+      if (action === "agenda" && !agendaDe(app.spec)) throw new Err(400, "Cette application n'a pas de dates à mettre dans un agenda");
+      let { data: a } = await admin.from("saas_app_agendas").select("jeton").eq("espace_id", espace).eq("app_id", app.id).maybeSingle();
       if (!a) ({ data: a } = await admin.from("saas_app_agendas").insert({ espace_id: espace, app_id: app.id, jeton: hex32() }).select("jeton").single());
-      return { status: 200, body: { url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/t/app/${slug}/agenda/${a!.jeton}.ics` } };
+      const base = `${Deno.env.get("SUPABASE_URL")}/functions/v1/t/app/${slug}`;
+      if (action === "agenda") return { status: 200, body: { url: `${base}/agenda/${a!.jeton}.ics` } };
+      const col = colOk(b.col);
+      return { status: 200, body: { url: `${base}/tableur/${a!.jeton}/${col}.csv` } };
     }
 
     // ---- IA de l'application (rédiger, résumer, analyser…) : plafonnée par compte et par application chaque jour
@@ -1154,32 +1158,79 @@ export async function appFichierUtilisateur(admin: SupabaseClient, slug: string,
   return data ? { blob: data, type: f.type ?? "application/octet-stream", nom: f.nom ?? "fichier" } : null;
 }
 
-/** Flux iCalendar d'un espace (abonnement depuis Google Agenda, Outlook, Apple). */
-export async function appAgendaIcs(admin: SupabaseClient, slug: string, jeton: string) {
+/** L'agenda d'une application : celui que le créateur a décrit, sinon la première collection qui porte une date
+ *  (demandes d'un site : date souhaitée et heure ; réservations : date de début et de fin…). */
+export function agendaDe(spec: any): { collection: string; champ_date: string; champ_heure?: string; champ_fin?: string; champs_titre: string[]; duree?: any } | null {
+  if (spec?.agenda?.collection) return { ...spec.agenda, champs_titre: Array.isArray(spec.agenda.champs_titre) ? spec.agenda.champs_titre : [spec.agenda.champ_titre].filter(Boolean) };
+  const cols = (spec?.collections ?? []) as any[];
+  const ordre = ["date_souhaitee", "date_debut", "date", "debut", "date_rdv", "jour", "date_reservation", "echeance", "date_limite"];
+  for (const c of [...cols].sort((a, b) => Number(!(a.champs ?? []).some((x: any) => ordre.includes(x.nom))) - Number(!(b.champs ?? []).some((x: any) => ordre.includes(x.nom))))) {
+    const ch = (c.champs ?? []) as any[], dates = ch.filter((x) => x.type === "date" || ordre.includes(x.nom));
+    if (!dates.length) continue;
+    const date = dates.find((x) => ordre.includes(x.nom)) ?? dates[0];
+    const fin = ch.find((x) => x.nom !== date.nom && /^(date_)?(fin|retour|depart|sortie)/.test(x.nom));
+    const heure = ch.find((x) => /^heure(_debut)?$/.test(x.nom));
+    const titres = ["titre", "nom", "service", "objet", "client", "prenom", "sujet"].filter((k) => ch.some((x) => x.nom === k)).slice(0, 2);
+    return { collection: c.nom, champ_date: date.nom, ...(heure ? { champ_heure: heure.nom } : {}), ...(fin ? { champ_fin: fin.nom } : {}), champs_titre: titres.length ? titres : [ch.find((x) => x.type === "texte")?.nom].filter(Boolean) as string[], ...(ch.some((x) => x.nom === "duree") ? { duree: "duree" } : {}) };
+  }
+  return null;
+}
+/** Les fiches d'un espace dans une collection : les siennes, et pour une transaction les reçues ; jamais les exemples. */
+async function fichesEspace(admin: SupabaseClient, app: any, espace: string, col: string) {
+  const parties = ((app.spec as any)?.collections ?? []).find((c: any) => c.nom === col)?.partage === "parties";
+  const q = admin.from("saas_app_rows").select("id, data, at").eq("app_id", app.id).eq("col", col);
+  const { data } = await (parties ? q.or(`espace_id.eq.${espace},data->>_pour.eq.${espace}`) : q.eq("espace_id", espace)).order("at", { ascending: false }).limit(3000);
+  return ((data ?? []) as any[]).filter((r) => r.data?._exemple !== true);
+}
+async function espaceDuJeton(admin: SupabaseClient, slug: string, jeton: string) {
   if (!/^[0-9a-f]{32}$/.test(jeton)) return null;
   const { data: app } = await admin.from("saas_apps").select("id, spec").eq("slug", slug).maybeSingle();
-  const ag = (app?.spec as any)?.agenda;
-  if (!app || !ag?.collection) return null;
+  if (!app) return null;
   const { data: a } = await admin.from("saas_app_agendas").select("espace_id").eq("jeton", jeton).eq("app_id", app.id).maybeSingle();
-  if (!a) return null;
-  const { data: rows } = await admin.from("saas_app_rows").select("id, data").eq("app_id", app.id).eq("espace_id", a.espace_id).eq("col", ag.collection).limit(2000);
-  const esc = (t: unknown) => String(t ?? "").replace(/\\/g, "\\\\").replace(/[,;]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n").slice(0, 900);
+  return a ? { app, espace: a.espace_id as string } : null;
+}
+
+/** Flux iCalendar d'un espace (abonnement depuis Google Agenda, Outlook, Apple). */
+export async function appAgendaIcs(admin: SupabaseClient, slug: string, jeton: string) {
+  const t = await espaceDuJeton(admin, slug, jeton);
+  const ag = t && agendaDe(t.app.spec);
+  if (!t || !ag) return null;
+  const { app } = t;
+  const rows = await fichesEspace(admin, app, t.espace, ag.collection);
+  const esc = (x: unknown) => String(x ?? "").replace(/\\/g, "\\\\").replace(/[,;]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n").slice(0, 900);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const jourPlus = (j: string, n: number) => { const d = new Date(`${j}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10).replace(/-/g, ""); };
   const evts: string[] = [];
-  for (const r of (rows ?? []) as any[]) {
+  for (const r of rows) {
     const d = r.data ?? {};
+    if (/annul|refus/i.test(String(d.statut ?? ""))) continue;
     const jour = String(d[ag.champ_date] ?? "").slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) continue;
     const heure = ag.champ_heure && /^\d{1,2}[:h]\d{2}/.test(String(d[ag.champ_heure] ?? "")) ? String(d[ag.champ_heure]).replace("h", ":").slice(0, 5).padStart(5, "0") : null;
-    const titre = (Array.isArray(ag.champs_titre) ? ag.champs_titre : [ag.champ_titre]).map((k: string) => d[k]).filter(Boolean).join(" · ") || (app.spec as any)?.nom;
+    const titre = ag.champs_titre.map((k: string) => d[k]).filter(Boolean).join(" · ") || (app.spec as any)?.nom;
+    const desc = Object.entries(d).filter(([k, v]) => !/^_/.test(k) && v !== null && v !== "" && typeof v !== "object" && !ag.champs_titre.includes(k)).slice(0, 10).map(([k, v]) => `${k.replace(/_/g, " ")} : ${v}`).join("\n");
+    const tete = `BEGIN:VEVENT\r\nUID:${r.id}@${slug}\r\nDTSTAMP:${fmt(new Date())}\r\n`, pied = `SUMMARY:${esc(titre)}\r\nDESCRIPTION:${esc(desc)}\r\nEND:VEVENT`;
     if (heure) {
       const off = (new Date(`${jour}T12:00:00Z`).toLocaleString("en-US", { timeZone: "Europe/Paris", timeZoneName: "shortOffset" }).match(/GMT([+-]\d+)/)?.[1] ?? "+1").padStart(2, "+");
       const debut = new Date(`${jour}T${heure}:00${off[0]}${off.slice(1).padStart(2, "0")}:00`);
-      const duree = Number(typeof ag.duree === "string" ? d[ag.duree] : ag.duree) || 60;
-      evts.push(`BEGIN:VEVENT\r\nUID:${r.id}@${slug}\r\nDTSTAMP:${fmt(new Date())}\r\nDTSTART:${fmt(debut)}\r\nDTEND:${fmt(new Date(debut.getTime() + duree * 60e3))}\r\nSUMMARY:${esc(titre)}\r\nEND:VEVENT`);
+      const mn = Number(typeof ag.duree === "string" ? String(d[ag.duree] ?? "").match(/\d+/)?.[0] : ag.duree) || 60;
+      evts.push(`${tete}DTSTART:${fmt(debut)}\r\nDTEND:${fmt(new Date(debut.getTime() + mn * 60e3))}\r\n${pied}`);
     } else {
-      evts.push(`BEGIN:VEVENT\r\nUID:${r.id}@${slug}\r\nDTSTAMP:${fmt(new Date())}\r\nDTSTART;VALUE=DATE:${jour.replace(/-/g, "")}\r\nSUMMARY:${esc(titre)}\r\nEND:VEVENT`);
+      const fin = ag.champ_fin ? String(d[ag.champ_fin] ?? "").slice(0, 10) : "";
+      const fin2 = /^\d{4}-\d{2}-\d{2}$/.test(fin) && fin >= jour ? jourPlus(fin, 1) : jourPlus(jour, 1);
+      evts.push(`${tete}DTSTART;VALUE=DATE:${jour.replace(/-/g, "")}\r\nDTEND;VALUE=DATE:${fin2}\r\n${pied}`);
     }
   }
-  return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Bingoo//${slug}//FR\r\nX-WR-CALNAME:${esc((app.spec as any)?.nom)}\r\n${evts.join("\r\n")}${evts.length ? "\r\n" : ""}END:VCALENDAR\r\n`;
+  return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Bingoo//${slug}//FR\r\nX-WR-CALNAME:${esc((app.spec as any)?.nom)}\r\nX-PUBLISHED-TTL:PT15M\r\n${evts.join("\r\n")}${evts.length ? "\r\n" : ""}END:VCALENDAR\r\n`;
+}
+
+/** Une collection en CSV (virgules, UTF-8) pour Google Sheets : =IMPORTDATA("lien"), mis à jour tout seul. */
+export async function appTableurCsv(admin: SupabaseClient, slug: string, jeton: string, col: string) {
+  const t = await espaceDuJeton(admin, slug, jeton);
+  const c = t && ((t.app.spec as any)?.collections ?? []).find((x: any) => x.nom === col);
+  if (!t || !c) return null;
+  const rows = await fichesEspace(admin, t.app, t.espace, col);
+  const ch = ((c.champs ?? []) as any[]).map((x) => x.nom);
+  const cel = (v: unknown) => { let s = v === null || v === undefined ? "" : typeof v === "object" ? JSON.stringify(v) : String(v); if (/^[=+\-@]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  return [[...ch, "cree_le"].map(cel).join(","), ...rows.map((r) => [...ch.map((k) => r.data?.[k]), String(r.at ?? "").slice(0, 16).replace("T", " ")].map(cel).join(","))].join("\r\n") + "\r\n";
 }

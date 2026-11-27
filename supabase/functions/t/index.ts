@@ -87,6 +87,13 @@ Deno.serve(async (req) => {
     if (!ics) return new Response("Agenda introuvable", { status: 404, headers: cors });
     return new Response(ics, { headers: { ...cors, "content-type": "text/calendar; charset=utf-8", "cache-control": "private, max-age=900" } });
   }
+  const tb = path.match(/\/app\/([a-z0-9-]+)\/tableur\/([0-9a-f]{32})\/([a-z0-9_]{1,60})\.csv$/);
+  if (req.method === "GET" && tb) {
+    const { appTableurCsv } = await import("../_shared/app-runtime.ts");
+    const csv = await appTableurCsv(admin, tb[1], tb[2], tb[3]);
+    if (csv === null) return new Response("Tableau introuvable", { status: 404, headers: cors });
+    return new Response(csv, { headers: { ...cors, "content-type": "text/csv; charset=utf-8", "cache-control": "private, max-age=300" } });
+  }
   const am = path.match(/\/app\/([a-z0-9-]+)\/([a-z][a-z-]*)$/);
   if (req.method === "POST" && am) {
     const { appApi } = await import("../_shared/app-runtime.ts");
