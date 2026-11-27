@@ -46,11 +46,11 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 0, ai: 0.02, quota: 0 },
   // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
   explorer: { label: "Trouver", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
-  // 27 nov. 2026 : Gratuit + Essentiel 9,99 € + Pro 29,99 €
+  // 27 nov. 2026 : Gratuit + Essentiel 9,99 € + Pro 24,99 €
   explorer_pro: { label: "Essentiel", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
   business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 12, quota: 0 },
   // 20 nov. 2026 : formule supérieure de Lancer, toujours un seul SaaS, pour ceux qui modifient beaucoup
-  lancer_pro: { label: "Pro", price: 29.99, factor: 1, seats: 1, credits: 0, ai: 10, quota: 0 },
+  lancer_pro: { label: "Pro", price: 24.99, factor: 1, seats: 1, credits: 0, ai: 10, quota: 0 },
   // Vidéos motion design seulement (20 par mois), sans site ni SaaS
   video: { label: "Vidéo", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
   // 20 nov. 2026 : un site web (vitrine d'un commerce, d'un artisan, d'un indépendant), sans les données ni les outils SaaS
@@ -116,7 +116,7 @@ export const PERIODES_PAR_PLAN: Record<string, typeof PERIODES> = {
 };
 // Pro : site ou SaaS en marque blanche, 100 modifications et 20 vidéos par mois
 PERIODES_PAR_PLAN.lancer_pro = {
-  mois: { label: "1 mois", mois: 1, parMois: 29.99, inclus: ["Ton site ou ton SaaS, sur ton nom de domaine", "Sans le badge « Built by Bingoo! » ni le « Fait avec Bingoo! » des vidéos", "100 modifications par mois dans l'atelier", "20 vidéos motion design par mois", "1 000 réponses de l'assistant IA par mois"] },
+  mois: { label: "1 mois", mois: 1, parMois: 24.99, inclus: ["Ton site ou ton SaaS, sur ton nom de domaine", "Sans le badge « Built by Bingoo! » ni le « Fait avec Bingoo! » des vidéos", "100 modifications par mois dans l'atelier", "20 vidéos motion design par mois", "1 000 réponses de l'assistant IA par mois"] },
 };
 // Vidéo : seulement des vidéos motion design
 PERIODES_PAR_PLAN.video = {

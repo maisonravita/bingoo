@@ -958,7 +958,7 @@ function QuotaAtteint({ plan, nav, erreur }) {
     <div className="rounded-xl border border-[#E8571C]/30 bg-[#FFF6F1] p-3">
       <p className="font-semibold">{/crédit/.test(erreur) && !/modifications/.test(erreur) ? "Plus de modifications ni de crédits ce mois-ci." : "Tu as utilisé toutes tes modifications du mois."}</p>
       {pro ? <p className="mt-1 text-[13.5px] text-ink-soft">Continue tout de suite avec des crédits (1 crédit par modification), ou attends le 1er du mois.</p>
-        : <p className="mt-1 text-[13.5px] text-ink-soft">Passe à <b>Pro</b> : <b>100 modifications et 20 vidéos par mois</b> au lieu de 30 et 5, pour 29,99 € HT par mois. Tu gardes ton SaaS et ta durée, la différence est facturée au prorata. Ou continue avec des crédits.</p>}
+        : <p className="mt-1 text-[13.5px] text-ink-soft">Passe à <b>Pro</b> : <b>100 modifications et 20 vidéos par mois</b> au lieu de 30 et 5, pour 24,99 € HT par mois. Tu gardes ton SaaS et ta durée, la différence est facturée au prorata. Ou continue avec des crédits.</p>}
       <div className="mt-2.5 flex flex-wrap gap-2">
         {!pro && <button onClick={() => nav("/abonnement#lancer-pro")} className="rounded-lg bg-[#E8571C] px-3.5 py-2 text-[13px] font-semibold text-white">Passer à Pro</button>}
         <button onClick={() => nav("/abonnement")} className="rounded-lg border border-line bg-white px-3.5 py-2 text-[13px] font-semibold">Recharger des crédits</button>
