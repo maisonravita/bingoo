@@ -229,6 +229,8 @@ if (CONSTRUIRE === "verif-offres") {
     const r = await appel(chemin, corps);
     if (!r.j?.url) { ok(false, `${nom} : pas de page de paiement (${r.status} ${String(r.j?.error ?? "").slice(0, 120)})`); continue; }
     await page.goto(r.j.url, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await page.waitForTimeout(3000);
+    // Le robot tourne aux États-Unis : Stripe affiche des dollars, on repasse en euros (ce que voit un client en France)
+    await page.getByText("EUR", { exact: true }).first().click({ timeout: 5000 }).catch(() => null); await page.waitForTimeout(2500);
     const txt = await page.locator("body").innerText().catch(() => "");
     ok(attendu.test(txt), `${nom} : montant ${attendu.source} affiché par Stripe`);
     await page.screenshot({ path: `${DOSSIER}/${nom}.png` });
