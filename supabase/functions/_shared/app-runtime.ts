@@ -839,7 +839,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
             if (!jeton) throw new Err(400, "Jeton de compte manquant");
             a = await stripe2(key, "core/accounts", {
               account_token: jeton, identity: { country: "fr" }, dashboard: "express",
-              defaults: { responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
+              defaults: { responsibilities: { fees_collector: "application", losses_collector: "stripe" } },
               configuration: { merchant: { capabilities: { card_payments: { requested: true } } }, recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
               metadata: { app: slug, espace },
             });
