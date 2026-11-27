@@ -1123,29 +1123,80 @@ function motParMot(ctx, txt, accent, cx, cy, { taille, t, u, poids = 400, pas = 
 const PRISME = {
   // L'accueil de l'assistant : son nom et une sous-ligne, puis une carte irisée penchée qui salue et attend une question
   pastille(ctx, s, e) {
-    const { W, H, u, t, nom, vertical } = s, p = eo(prog(t, 0.1, 0.9)), bascule = 1 - eio(prog(t, 0.2, 1.6));
-    ctx.save(); ctx.globalAlpha *= p; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const { W, H, u, t, nom, vertical } = s, p = eo(prog(t, 0, 0.5)), bascule = 1 - eio(prog(t, 0.2, 1.3));
+    ctx.save(); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 14 * u); ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillStyle = "#1F2026"; ctx.font = `600 ${(vertical ? 74 : 66) * u}px ${F}`; const tn = ctx.measureText(nom).width; ctx.fillText(nom, W / 2 - 18 * u, H * 0.3);
     perle(ctx, W / 2 + tn / 2 + 8 * u, H * 0.3 - 22 * u, 13 * u, t, p);
     ctx.fillStyle = GRIS; ctx.font = `400 ${(vertical ? 36 : 32) * u}px ${F}`; ctx.fillText(e.sous || e.legende || "Votre assistant personnel", W / 2, H * 0.3 + 62 * u); ctx.restore();
     const w = W * (vertical ? 0.78 : 0.5), h = w * 0.62, cy = H * 0.58;
     ctx.save(); ctx.translate(W / 2, cy); ctx.transform(1, 0, -0.18 * bascule, 1 - 0.25 * bascule, 0, 0); ctx.rotate(-0.05 * bascule); ctx.globalAlpha *= eo(prog(t, 0.25, 0.9));
-    carteIrisee(ctx, -w / 2, -h / 2, w, h, u, t);
+    flou(ctx, 0); carteIrisee(ctx, -w / 2, -h / 2, w, h, u, t);
     perle(ctx, -w / 2 + 54 * u, -h / 2 + 62 * u, 9 * u, t);
     ctx.fillStyle = GRIS; ctx.font = `500 ${30 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText("Bonjour !", -w / 2 + 76 * u, -h / 2 + 62 * u);
-    const q = String(e.texte ?? ""), n = Math.floor(Math.max(0, t - 0.9) / 0.04); let tq = 44 * u; ctx.font = `600 ${tq}px ${F}`; const wq = ctx.measureText(q).width; if (wq > w - 100 * u) { tq *= (w - 100 * u) / wq; ctx.font = `600 ${tq}px ${F}`; }
+    const q = String(e.texte ?? ""), n = Math.floor(Math.max(0, t - 0.5) / 0.03); let tq = 44 * u; ctx.font = `600 ${tq}px ${F}`; const wq = ctx.measureText(q).width; if (wq > w - 100 * u) { tq *= (w - 100 * u) / wq; ctx.font = `600 ${tq}px ${F}`; }
     ctx.fillStyle = "#1F2026"; ctx.fillText(q.slice(0, n), -w / 2 + 50 * u, -h / 2 + 130 * u);
     rond(ctx, -w / 2 + 34 * u, h / 2 - 120 * u, w - 68 * u, 88 * u, 44 * u); ctx.fillStyle = "#F2F2F5"; ctx.fill();
     ctx.fillStyle = "rgba(83,85,94,.75)"; ctx.font = `400 ${28 * u}px ${F}`; ctx.fillText(`Demander à ${nom}`, -w / 2 + 70 * u, h / 2 - 76 * u);
     ctx.restore();
   },
   mots(ctx, s, e) {
-    const { W, H, u, t, vertical } = s;
-    motParMot(ctx, e.texte, e.accent, W / 2, H * 0.5, { taille: (vertical ? 70 : 62) * u, t: t - 0.15, u, largeurMax: W * 0.86 });
+    const { W, H, u, t, nom, vertical } = s;
+    if (!e.suite) return motParMot(ctx, e.texte, e.accent, W / 2, H * 0.5, { taille: (vertical ? 70 : 62) * u, t: t - 0.3, u, largeurMax: W * 0.86 });
+    // « Voici ✦ Nom » se pose, tient, puis glisse vers la gauche pendant que la suite s'écrit mot par mot à droite
+    let tp = (vertical ? 66 : 64) * u; ctx.font = `400 ${tp}px ${F}`;
+    const sp = ctx.measureText(" ").width, mots = String(e.suite).split(/\s+/).filter(Boolean);
+    let wa = ctx.measureText(e.texte || "").width, wn = ctx.measureText(nom).width, ws = mots.reduce((a, m) => a + sp + ctx.measureText(m).width, 0);
+    const R = tp * 0.26, gap = tp * 0.32, w1 = wa + gap * 2 + R * 2 + wn, k0 = Math.min(1, (W * 0.88) / (w1 + ws));
+    const gl = eio(prog(t, 0.8, 1.45)), kf = Math.min(1.25, (W * 0.92) / (w1 + ws)), x0 = W / 2 - w1 / 2, x1 = W / 2 - ((w1 + ws) * kf) / 2, k = 1 + (kf - 1) * gl;
+    ctx.save(); ctx.translate(x0 + (x1 - x0) * gl, H / 2); ctx.scale(k, k); ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    const vient = (i) => eo(prog(t, 0.05 + i * 0.1, 0.45 + i * 0.1));
+    [[e.texte || "", 0], ["", 1], [nom, 2]].forEach(([m, i]) => {
+      const a = vient(i); if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; flou(ctx, (1 - a) * 12 * u);
+      if (i === 1) perle(ctx, wa + gap + R, 0, R * a, t, 1); else { ctx.fillStyle = i === 2 ? "#1F2026" : GRIS; ctx.fillText(m, i === 0 ? 0 : wa + gap * 2 + R * 2, 0); }
+      ctx.restore();
+    });
+    let x = w1;
+    mots.forEach((m, i) => { const a = eo(prog(t, 0.88 + i * 0.22, 1.25 + i * 0.22)), w = ctx.measureText(m).width; x += sp; if (a > 0) { ctx.save(); ctx.globalAlpha *= a; flou(ctx, (1 - a) * 12 * u); ctx.fillStyle = GRIS; ctx.fillText(m, x + (1 - a) * 40 * u, 0); ctx.restore(); } x += w; });
+    ctx.restore();
+  },
+  // La demande : une barre « Demander à … », deux panneaux qui montent dessous ; la caméra file vers le bouton d'envoi qui s'allume
+  choix(ctx, s, e) {
+    const { W, H, u, t, d, nom, vertical } = s, items = (e.items ?? []).map(texteDe).filter(Boolean).slice(0, 2);
+    const pw = W * (vertical ? 0.82 : 0.52), ph = 76 * u, px = W / 2 - pw / 2, py = H * (vertical ? 0.3 : 0.24), bx = px + pw - 44 * u, by = py + ph / 2;
+    const pan = eio(prog(t, 0.62, 0.92)), zoom = 1 + Math.pow(prog(t, 0.85, d), 1.6) * 1.4;
+    ctx.save(); const fx = W / 2 + (bx - W / 2) * pan, fy = H / 2 + (by - H / 2) * pan; ctx.translate(W / 2, H / 2); ctx.scale(zoom, zoom); ctx.translate(-fx, -fy);
+    // brume irisée qui déborde à gauche
+    SPECTRE.forEach((c, k) => { const cx = px - 30 * u + k * 22 * u, cy = py + ph * (2.6 + (k % 2) * 0.5), R = 260 * u, g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R); g.addColorStop(0, rgba(c, 0.38 * eo(prog(t, 0, 0.5)))); g.addColorStop(1, rgba(c, 0)); ctx.fillStyle = g; ctx.fillRect(cx - R, cy - R, R * 2, R * 2); });
+    items.forEach((m, k) => {
+      const a = eo(prog(t, 0.1 + k * 0.18, 0.6 + k * 0.18)); if (a <= 0) return;
+      const y = py + ph + 26 * u + k * 112 * u + (1 - a) * 90 * u, w = pw - 40 * u;
+      ctx.save(); ctx.globalAlpha *= a; ctx.shadowColor = "rgba(40,40,60,.10)"; ctx.shadowBlur = 30 * u; rond(ctx, px + 20 * u, y, w, 96 * u, 22 * u); ctx.fillStyle = "rgba(255,255,255,.92)"; ctx.fill(); ctx.shadowBlur = 0;
+      perle(ctx, px + 48 * u, y + 32 * u, 8 * u, t + k); ctx.fillStyle = "#1F2026"; ctx.font = `600 ${24 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(m, px + 66 * u, y + 32 * u);
+      ctx.fillStyle = "rgba(83,85,94,.18)"; rond(ctx, px + 44 * u, y + 58 * u, w * 0.7, 9 * u, 4.5 * u); ctx.fill(); rond(ctx, px + 44 * u, y + 74 * u, w * 0.45, 9 * u, 4.5 * u); ctx.fill(); ctx.restore();
+    });
+    ctx.save(); ctx.shadowColor = "rgba(40,40,60,.16)"; ctx.shadowBlur = 36 * u; ctx.shadowOffsetY = 10 * u; rond(ctx, px, py, pw, ph, ph / 2); ctx.fillStyle = "#fff"; ctx.fill(); ctx.restore();
+    ctx.fillStyle = "rgba(83,85,94,.8)"; ctx.font = `400 ${28 * u}px ${F}`; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(e.texte || `Demander à ${nom}`, px + 34 * u, by);
+    const lu = eo(prog(t, 0.9, 1.3));
+    ctx.save(); if (lu > 0) { ctx.shadowColor = `rgba(70,140,255,${0.9 * lu})`; ctx.shadowBlur = 34 * u * lu; } ctx.beginPath(); ctx.arc(bx, by, 22 * u, 0, Math.PI * 2); ctx.fillStyle = lu > 0 ? `rgba(${Math.round(31 + 39 * lu)},${Math.round(32 + 124 * lu)},${Math.round(38 + 217 * lu)},1)` : "#1F2026"; ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(bx - 7 * u, by - 9 * u); ctx.lineTo(bx + 10 * u, by); ctx.lineTo(bx - 7 * u, by + 9 * u); ctx.closePath(); ctx.fill(); ctx.restore();
+    ctx.restore();
   },
   rature(ctx, s, e) { PRISME.mots(ctx, s, { texte: [e.texte_avant, e.barre, e.texte].filter(Boolean).join(" "), accent: e.texte }); },
   // Un mot sélectionné : il arrive, puis un rectangle de sélection bleuté pointillé l'entoure, comme surligné à la souris
   impact(ctx, s, e) {
+    if (e.avant) {
+      const { W, H, u, t, vertical } = s, mot = String(e.texte ?? "").replace(/\.$/, ""), avant = String(e.avant);
+      let tp = (vertical ? 80 : 72) * u; ctx.font = `400 ${tp}px ${F}`; const sp = ctx.measureText(" ").width;
+      let wa = ctx.measureText(avant).width, wm = ctx.measureText(mot).width; const R = tp * 0.22, tot = R * 2 + tp * 0.3 + wa + sp + wm;
+      if (tot > W * 0.86) { tp *= (W * 0.86) / tot; ctx.font = `400 ${tp}px ${F}`; wa = ctx.measureText(avant).width; wm = ctx.measureText(mot).width; }
+      const x0 = W / 2 - (R * 2 + tp * 0.3 + wa + sp + wm) / 2, cy = H / 2, a1 = eo(prog(t, 0, 0.4)), a2 = eo(prog(t, 0.45, 0.75)), sel = eio(prog(t, 0.75, 1.0));
+      perle(ctx, x0 + R, cy, R * a1, t, a1);
+      ctx.save(); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.globalAlpha *= a1; flou(ctx, (1 - a1) * 12 * u); ctx.fillStyle = GRIS; ctx.fillText(avant, x0 + R * 2 + tp * 0.3, cy); ctx.restore();
+      const xm = x0 + R * 2 + tp * 0.3 + wa + sp;
+      if (sel > 0) { ctx.save(); const x = xm - 10 * u, w = (wm + 20 * u) * sel; ctx.fillStyle = "rgba(120,170,255,.28)"; ctx.fillRect(x, cy - tp * 0.62, w, tp * 1.24); ctx.setLineDash([8 * u, 6 * u]); ctx.strokeStyle = "rgba(70,120,255,.85)"; ctx.lineWidth = 2 * u; ctx.strokeRect(x, cy - tp * 0.62, w, tp * 1.24); ctx.restore(); }
+      if (a2 > 0) { ctx.save(); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.globalAlpha *= a2; flou(ctx, (1 - a2) * 12 * u); ctx.fillStyle = sel > 0.5 ? "#2B4FD8" : GRIS; ctx.fillText(mot, xm + (1 - a2) * 70 * u, cy); ctx.restore(); }
+      return;
+    }
     const { W, H, u, t, vertical } = s, txt = String(e.texte ?? "").replace(/\.$/, ""), p = eo(prog(t, 0, 0.5));
     let tp = (vertical ? 96 : 86) * u; ctx.font = `400 ${tp}px ${F}`; let w = ctx.measureText(txt).width; if (w > W * 0.8) { tp *= (W * 0.8) / w; ctx.font = `400 ${tp}px ${F}`; w = ctx.measureText(txt).width; }
     const sel = eio(prog(t, 0.45, 0.95)), cy = H * 0.5;
@@ -1161,10 +1212,10 @@ const PRISME = {
   // Des vignettes qui flottent autour d'une phrase (les images de la vidéo s'il y en a, sinon des tuiles irisées), et la brume au bas de l'écran
   cartes(ctx, s, e) {
     const { W, H, u, t, vertical } = s, imgs = Object.values(IMAGES).filter((x) => x && (x.width || x.videoWidth));
-    brume(ctx, W, H, t, eo(prog(t, 0.2, 1.2)));
+    brume(ctx, W, H, t, eo(prog(t, 0, 0.3)));
     const places = vertical ? [[0.2, 0.2, 0.34], [0.78, 0.17, 0.3], [0.82, 0.72, 0.34], [0.2, 0.78, 0.3], [0.5, 0.06, 0.22]] : [[0.12, 0.25, 0.2], [0.85, 0.2, 0.18], [0.88, 0.78, 0.2], [0.14, 0.8, 0.18], [0.5, 0.1, 0.14]];
     places.forEach(([fx, fy, fw], k) => {
-      const p = eo(prog(t, 0.1 + k * 0.15, 0.7 + k * 0.15)); if (p <= 0) return;
+      const p = eo(prog(t, 0.36 + k * 0.38, 0.91 + k * 0.38)); if (p <= 0) return;
       const w = W * fw, h = w * 0.72, x = W * fx - w / 2 + Math.sin(t * 0.6 + k) * 10 * u, y = H * fy - h / 2 + (1 - p) * 60 * u - t * 8 * u;
       ctx.save(); ctx.globalAlpha *= p; flou(ctx, (1 - p) * 10 * u); ctx.shadowColor = "rgba(30,30,50,.18)"; ctx.shadowBlur = 30 * u; rond(ctx, x, y, w, h, 22 * u); ctx.fillStyle = "#fff"; ctx.fill(); ctx.shadowBlur = 0; ctx.clip();
       const im = imgs[k % Math.max(1, imgs.length)];
@@ -1172,16 +1223,33 @@ const PRISME = {
       else { ctx.fillStyle = spectre(ctx, x, y, x + w, y + h, k * 0.2 + t * 0.1, 0.55); ctx.fillRect(x, y, w, h); perle(ctx, x + w / 2, y + h / 2, h * 0.16, t + k, 0.9); }
       ctx.restore();
     });
-    motParMot(ctx, e.texte, e.accent, W / 2, H * 0.5, { taille: (vertical ? 56 : 48) * u, t: t - 0.5, u, largeurMax: W * 0.62 });
+    if (!e.swap) return motParMot(ctx, e.texte, e.accent, W / 2, H * 0.5, { taille: (vertical ? 56 : 48) * u, t: t - 0.15, u, largeurMax: W * 0.62 });
+    // Deux mots ; le second change (ex. « sites » → « applis ») en glissant vers le haut
+    const mots = String(e.texte ?? "").split(/\s+/), der = mots.pop(), deb = mots.join(" "), tp = (vertical ? 58 : 50) * u; ctx.font = `400 ${tp}px ${F}`;
+    const sp = ctx.measureText(" ").width, wd = ctx.measureText(deb).width, ch = eio(prog(t, 0.75, 1.0)), w2 = ctx.measureText(der).width * (1 - ch) + ctx.measureText(e.swap).width * ch;
+    const x0 = W / 2 - (wd + sp + w2) / 2, cy = H / 2, a = eo(prog(t, 0.15, 0.55));
+    ctx.save(); ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.globalAlpha *= a; flou(ctx, (1 - a) * 12 * u); ctx.fillStyle = "#1F2026"; ctx.fillText(deb, x0, cy);
+    ctx.save(); ctx.globalAlpha *= 1 - ch; ctx.fillStyle = "rgba(83,85,94,.7)"; ctx.fillText(der, x0 + wd + sp, cy - ch * tp * 0.6); ctx.restore();
+    if (ch > 0) { ctx.globalAlpha *= ch; ctx.fillStyle = spectre(ctx, x0 + wd, cy, x0 + wd + sp + w2, cy, 0.6); ctx.fillText(e.swap, x0 + wd + sp, cy + (1 - ch) * tp * 0.6); }
+    ctx.restore();
   },
-  pilules(ctx, s, e) { PRISME.cartes(ctx, s, { texte: e.texte || (e.items ?? []).map(texteDe).join(", "), accent: e.accent }); },
+  pilules(ctx, s, e) {
+    const { W, H, u, t } = s, T = 170 * u, cx = W / 2, cy = H / 2, a = eo(prog(t, 0.1, 0.45)), g = eio(prog(t, 0.55, 0.9)) * (1 - eio(prog(t, 0.95, 1.2)));
+    const noms = (e.items ?? []).map((x) => x?.icone).filter((x) => ICONES[x]); while (noms.length < 4) noms.push(["telephone", "maison", "etoile", "musique"][noms.length]);
+    const fin = eio(prog(t, 1.0, 1.35)), sc = (0.7 + 0.3 * a + g * 0.08) * (1 - fin * 0.45);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.globalAlpha *= 1 - fin * 0.5; ctx.globalAlpha *= a; flou(ctx, (1 - a) * 12 * u);
+    carteIrisee(ctx, -T / 2, -T / 2, T, T, u, t, { r: 40 });
+    if (g < 0.5) perle(ctx, 0, 0, T * 0.2 * (1 - g * 2), t, 1 - g * 2);
+    if (g > 0) noms.slice(0, 4).forEach((n, k) => icone(ctx, n, (k % 2 ? 1 : -1) * T * 0.2 * g, (k < 2 ? -1 : 1) * T * 0.2 * g, T * 0.24 * g, rgba(SPECTRE[[0, 1, 3, 4][k]], 1), 2.4));
+    ctx.restore();
+  },
   // Un téléphone tenu, qui écoute : « À l'écoute », une onde qui bouge ; le titre en dégradé au-dessus, des lettres qui flottent
   telephone(ctx, s, e) {
-    const { W, H, u, t, vertical } = s, p = eo(prog(t, 0, 0.8)), tel = e.texte || "Il vous écoute.";
+    const { W, H, u, t, d, vertical } = s, p = eio(prog(t, 0.05, 1.0)) * (1 - eio(prog(t, d - 0.85, d - 0.45))), chute = eio(prog(t, d - 0.8, d)), tel = e.texte || "Il vous écoute.";
     brume(ctx, W, H, t, 0.9 * p);
     let tt = (vertical ? 70 : 60) * u; ctx.font = `600 ${tt}px ${F}`; const wt = ctx.measureText(tel).width; if (wt > W * 0.84) { tt *= (W * 0.84) / wt; ctx.font = `600 ${tt}px ${F}`; }
     ctx.save(); ctx.globalAlpha *= p; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = spectre(ctx, W / 2 - wt / 2, 0, W / 2 + wt / 2, 0, 0.6 + t * 0.15); ctx.fillText(tel, W / 2, H * 0.24); ctx.restore();
-    const pw = W * (vertical ? 0.46 : 0.26), ph = pw * 1.9, px = W / 2 - pw / 2, py = H * 0.36 + (1 - p) * 120 * u;
+    const pw = W * (vertical ? 0.46 : 0.26), ph = pw * 1.9, px = W / 2 - pw / 2, py = H * 0.36 + (1 - eio(prog(t, 0.05, 1.0))) * H * 0.35 + chute * H * 0.7;
     ctx.save(); ctx.translate(W / 2, py + ph / 2); ctx.rotate(-0.06 + Math.sin(t * 0.7) * 0.015); ctx.translate(-W / 2, -(py + ph / 2));
     ctx.shadowColor = "rgba(20,20,40,.25)"; ctx.shadowBlur = 50 * u; rond(ctx, px, py, pw, ph, 56 * u); ctx.fillStyle = "#1C1D22"; ctx.fill(); ctx.shadowBlur = 0;
     rond(ctx, px + 10 * u, py + 10 * u, pw - 20 * u, ph - 20 * u, 48 * u); ctx.fillStyle = "#F7F7FA"; ctx.fill();
@@ -1193,14 +1261,13 @@ const PRISME = {
   },
   // Des mots seuls qui se succèdent au centre, puis la phrase qui les réunit
   liste(ctx, s, e) {
-    const { W, H, u, t, d, vertical } = s, items = (e.items ?? []).map(texteDe).filter(Boolean).slice(0, 4), n = Math.max(1, items.length), tranche = (d - (e.texte ? 1.2 : 0.2)) / n;
+    const { W, H, u, t, d, vertical } = s, items = (e.items ?? []).map(texteDe).filter(Boolean).slice(0, 4), n = Math.max(1, items.length), tranche = Math.min(1.35, (d - (e.texte ? 0.3 : 0.2)) / n);
     items.forEach((m, i) => {
-      const t0 = 0.1 + i * tranche, a = Math.min(eo(prog(t, t0, t0 + 0.4)), 1 - prog(t, t0 + tranche - 0.3, t0 + tranche)); if (a <= 0) return;
+      const t0 = i * tranche, a = Math.min(eo(prog(t, t0, t0 + 0.4)), 1 - eio(prog(t, t0 + tranche * (i === n - 1 ? 0.73 : 0.63), t0 + tranche * (i === n - 1 ? 0.88 : 0.78)))); if (a <= 0) return;
       ctx.save(); ctx.globalAlpha *= a; flou(ctx, (1 - a) * 10 * u); ctx.fillStyle = GRIS; ctx.font = `400 ${(vertical ? 84 : 74) * u}px ${F}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(m, W / 2, H * 0.5 + (1 - a) * 14 * u); ctx.restore();
     });
-    if (e.texte) motParMot(ctx, e.texte, e.accent, W / 2, H * 0.5, { taille: (vertical ? 62 : 54) * u, t: t - (0.1 + n * tranche), u, largeurMax: W * 0.86 });
+    if (e.texte) motParMot(ctx, e.texte, e.accent, W / 2, H * 0.5, { taille: (vertical ? 62 : 54) * u, t: t - (n * tranche + 0.2), u, largeurMax: W * 0.86 });
   },
-  choix(ctx, s, e) { PRISME.liste(ctx, s, e); },
   compteur(ctx, s, e) { PRISME.mots(ctx, s, { texte: `${e.valeur ?? ""}${e.suffixe ? " " + e.suffixe : ""} ${e.legende ?? ""}`.trim(), accent: String(e.valeur ?? "") }); },
   // La signature : la perle grossit, le nom s'écrit à côté, la brume s'allume une dernière fois
   logo(ctx, s, e) {

@@ -179,17 +179,17 @@ function scenesNettes(liste: any[], texteSource: string, titresEcrans: string[] 
     }
     const base: SceneVideo = { type, ...(["couleur", "blanc", "noir"].includes(e?.fond) ? { fond: e.fond } : {}), ...(e?.transition === "vague" ? { transition: "vague" } : {}) };
     const t = (n: number) => court2(e?.texte, n), acc = court2(e?.accent, 30);
-    if (type === "mots") { if (!t(60)) continue; out.push({ ...base, texte: t(60), accent: acc, ...(e?.style === "machine" ? { style: "machine" } : {}), ...(e?.trait ? { trait: true } : {}) }); }
-    else if (type === "impact") { if (!t(12)) continue; out.push({ ...base, texte: t(12) }); }
+    if (type === "mots") { if (!t(60)) continue; out.push({ ...base, texte: t(60), accent: acc, ...(court2(e?.suite, 30) ? { suite: court2(e?.suite, 30) } : {}), ...(e?.style === "machine" ? { style: "machine" } : {}), ...(e?.trait ? { trait: true } : {}) }); }
+    else if (type === "impact") { if (!t(14)) continue; out.push({ ...base, texte: t(14), ...(court2(e?.avant, 14) ? { avant: court2(e?.avant, 14) } : {}) }); }
     else if (type === "rature") { if (!t(32) || !court2(e?.barre, 28)) continue; out.push({ ...base, texte_avant: court2(e?.texte_avant, 28), barre: court2(e?.barre, 28), texte: t(32) }); }
     else if (type === "objet") out.push({ ...base, objet: ["carte", "telephone", "icone"].includes(e?.objet) ? e.objet : "icone", icone: ic(e?.icone), texte: t(40), accent: acc });
     else if (["pilules", "choix", "liste", "telephone"].includes(type)) {
-      const max = type === "liste" || type === "telephone" ? 4 : type === "pilules" ? 6 : 3, n = type === "choix" ? 14 : type === "pilules" ? 18 : 24;
+      const max = type === "liste" || type === "telephone" ? 4 : type === "pilules" ? 6 : 3, n = type === "choix" ? 22 : type === "pilules" ? 18 : 24;
       const items = (Array.isArray(e?.items) ? e.items : []).slice(0, max).map((x: any) => ({ icone: ic(x?.icone), texte: court2(x?.texte, n) })).filter((x: any) => x.texte);
       // Téléphone de l'allure « prisme » : une phrase seule suffit (il écoute)
       if (items.length < 2 && !(type === "telephone" && t(36))) continue; out.push({ ...base, items, texte: t(36), accent: acc });
     }
-    else if (type === "cartes") { const items = (Array.isArray(e?.items) ? e.items : []).slice(0, 3).map((x: any) => court2(typeof x === "string" ? x : x?.texte ?? x?.titre ?? "", 20)).filter((x: string) => x && !/^\[object/.test(x)); if (items.length < 2 && !t(40)) continue; out.push({ ...base, items, ...(t(40) ? { texte: t(40), accent: acc } : {}) }); }
+    else if (type === "cartes") { const items = (Array.isArray(e?.items) ? e.items : []).slice(0, 3).map((x: any) => court2(typeof x === "string" ? x : x?.texte ?? x?.titre ?? "", 20)).filter((x: string) => x && !/^\[object/.test(x)); if (items.length < 2 && !t(40)) continue; out.push({ ...base, items, ...(t(40) ? { texte: t(40), accent: acc } : {}), ...(court2(e?.swap, 14) ? { swap: court2(e?.swap, 14) } : {}) }); }
     else if (type === "compteur") { const v = String(e?.valeur ?? "").replace(/\s/g, "").replace(",", "."); if (!/^\d+(\.\d+)?$/.test(v) || !chiffres.has(v)) continue; out.push({ ...base, valeur: v, suffixe: court2(e?.suffixe, 8), legende: court2(e?.legende, 34) }); }
     else if (type === "barres") out.push({ ...base, texte: t(36), accent: acc });
     else if (type === "pastille") { if (!t(32)) continue; out.push({ ...base, texte: t(32), ...(court2(e?.sous, 34) ? { sous: court2(e?.sous, 34) } : {}) }); }
@@ -292,16 +292,18 @@ ALLURE IMPOSÉE « clair » : une pub sobre de logiciel ou de service, qui racon
 8) « logo » dont le texte est une formule de DEUX mots, chacun suivi d'un point (ex. « Travail. Rangé. »).
 Les "icone" se choisissent UNIQUEMENT dans cette liste, jamais « etincelle », jamais deux fois la même dans une scène : ${ICONES.filter((x) => x !== "etincelle").join(", ")}.
 Aucune scène « image », « pastille », « aplat », « cartes », « choix » ; « compteur » seulement si la personne a écrit un nombre (à placer avant la liste).` : ""}${prisme ? `
-ALLURE IMPOSÉE « prisme » : une pub douce et lumineuse. Ces consignes passent avant la construction demandée plus haut et avant la règle « pas plus de deux fois le même type ». Exactement 8 scènes, dans CET ordre :
-1) « pastille » : texte = la question d'accueil que l'outil ou l'activité pose au client (≤ 30 car., ex. « Par quoi on commence ? »), "sous" = ce que c'est en 2 à 4 mots (ex. « Votre assistant de salon ») ;
-2) « mots » : une phrase de 4 à 7 mots qui présente {nom} et ce qu'il fait, avec un "accent" d'un mot ;
-3) « impact » : UN mot terminé par un point, la qualité clé (ex. « Connecté. ») ;
-4) « cartes » : texte = une phrase de 3 à 6 mots sur ce qu'on obtient, avec un "accent" d'un mot, items = [] ;
-5) « mots » : une phrase de 4 à 7 mots qui dit où ou quand on s'en sert (ex. « dans la poche de votre tablier. »), avec un "accent" ;
-6) « telephone » : texte = « {nom} vous écoute. » ou une formule de 3 ou 4 mots du même genre, items = [] ;
-7) « liste » : 3 items d'UN verbe chacun (ce qu'on fait avec), texte = « Avec {nom}. », accent = le nom suivi du point ;
-8) « logo » dont le texte est le slogan en 3 à 6 mots.
-Aucune autre scène, aucune scène « image ».` : ""}${lueur ? `
+ALLURE IMPOSÉE « prisme » : une pub douce et lumineuse, au rythme d'une grande pub d'assistant (20 s). Ces consignes passent avant la construction demandée plus haut et avant la règle « pas plus de deux fois le même type ». Exactement 9 scènes, dans CET ordre :
+1) « pastille » : texte = la question d'accueil que l'outil ou l'activité pose au client (≤ 30 car., ex. « Qu'est-ce qu'on crée ? »), "sous" = ce que c'est en 2 à 4 mots ;
+2) « choix » : texte = ce que le client tape pour commencer (≤ 26 car., ex. « Décris ton idée… »), items = 2 objets {texte} de 2 à 4 mots : ce que {nom} lui montre en retour (ex. « Aperçu de ton appli ») ;
+3) « mots » : texte = « Voici », suite = 2 à 4 mots qui disent ce que fait {nom} (ex. « qui crée tout. ») ;
+4) « pilules » : items = 4 objets {icone, texte} : les 4 choses qu'on y trouve ;
+5) « impact » : avant = UN mot, un nom (ex. « Paiements »), texte = UN mot qui le qualifie, terminé par un point (ex. « intégrés. ») ;
+6) « cartes » : texte = 2 mots dont le second sera remplacé (ex. « Des sites »), swap = UN mot qui le remplace (ex. « applis »), items = [] ;
+7) « mots » : une phrase de 4 à 6 mots qui dit où ou quand on s'en sert (ex. « dans la poche de vos clients. »), avec un "accent" d'un mot ;
+8) « telephone » : texte = « {nom} vous écoute. » ou une formule de 3 ou 4 mots du même genre, items = [] ;
+9) « liste » : 3 items d'UN verbe chacun (ce qu'on fait avec), texte = « Avec {nom} », accent = le nom.
+Pas de scène « logo », aucune autre scène, aucune scène « image ».
+` : ""}${lueur ? `
 ALLURE IMPOSÉE « lueur » : une pub d'outil intelligent, dans la nuit. Ces consignes passent avant la construction demandée plus haut. Exactement 6 scènes, dans CET ordre :
 1) « mots » : la question qui pose le problème du client, à la deuxième personne, terminée par « ? » (≤ 48 car., ex. « Encore à répondre à vos clients à la main ? ») ;
 2) « pastille » : la demande qu'un client ou l'utilisateur taperait dans la barre de l'outil (≤ 42 car., sans guillemets) ;
@@ -320,7 +322,8 @@ Si la demande n'a rien d'une vidéo pour une activité, un produit, un événeme
   const vus: Record<string, number> = {}; scenes = scenes.filter((e) => e.type === "logo" || (vus[e.type] = (vus[e.type] ?? 0) + 1) <= (film && e.type === "impact" ? 4 : 2));
   // Film : plans plus longs (la phrase se tape, la fenêtre se construit), 30 secondes au total
   // Lueur : la demande se tape et la réponse s'écrit, les plans ont leur propre durée (environ 20 s)
-  if (prisme) scenes = scenes.map((e) => ({ ...e, duree: ({ pastille: 3.6, mots: 2.8, impact: 2.4, cartes: 3.4, telephone: 3.2, liste: 3.8, logo: 3.2 } as Record<string, number>)[e.type] ?? 3 })) as any;
+  // Prisme : durées mesurées scène par scène sur le modèle (écart moyen 39 ms avec l'outil de comparaison)
+  if (prisme) { const D = [1.55, 1.6, 2.55, 1.55, 1.7, 2.8, 1.7, 1.8, 4.55]; scenes = scenes.filter((e) => e.type !== "logo").slice(0, 9).map((e, i) => ({ ...e, duree: D[i] ?? 2 })) as any; }
   else   if (lueur) scenes = scenes.map((e) => ({ ...e, duree: ({ mots: 3, rature: 3, pastille: 3.6, liste: 4, cartes: 4, choix: 4, pilules: 3.6, compteur: 3.6, impact: 2.6, aplat: 2.6, logo: 3.4 } as Record<string, number>)[e.type] ?? 3 })) as any;
   else if (film) scenes = tenirDuree(scenes, 36).map((e) => ({ ...e, duree: ({ mots: 5, liste: 5, cartes: 5, pastille: 3, impact: 1.4, pilules: 4.2, choix: 4.2, aplat: 2.4, rature: 2.4, logo: 4.6 } as Record<string, number>)[e.type] ?? (e as any).duree })) as any;
   else scenes = tenirDuree(scenes);
