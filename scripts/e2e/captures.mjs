@@ -196,6 +196,30 @@ if (CONSTRUIRE === "gratuit") {
   }
   await ctx.close();
 }
+// CONSTRUIRE=abonnement : la page Abonnement d'un compte sans formule (pack de démarrage + 4 formules) et les tarifs de l'accueil
+if (CONSTRUIRE === "abonnement") {
+  const E2 = "robot-gratuit@maisonravita.fr", M2 = crypto.randomBytes(18).toString("base64url");
+  let [u2] = await q(`select id from auth.users where email = ${lit(E2)}`);
+  if (!u2) u2 = await adminAuth("users", "POST", { email: E2, password: M2, email_confirm: true, user_metadata: { name: "Robot gratuit" } });
+  else await adminAuth(`users/${u2.id}`, "PUT", { password: M2 });
+  const s2 = await (await fetch(`${SB}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ email: E2, password: M2 }) })).json();
+  const [m2] = await q(`select m.workspace_id id from members m where m.user_id = ${lit(s2.user.id)} limit 1`);
+  const w2 = m2?.id;
+  await q(`update workspaces set plan = 'essai', plan_status = 'trialing', onboarded = true, pack_ends = null where id = ${lit(w2)}`);
+  for (const [nom, vw] of [["abonnement", { width: 1440, height: 900 }], ["abonnement-mobile", { width: 390, height: 844 }]]) {
+    const ctx = await browser.newContext({ viewport: vw, locale: "fr-FR", storageState: { cookies: [], origins: [{ origin: SITE, localStorage: [{ name: `sb-${REF}-auth-token`, value: JSON.stringify(s2) }, { name: "kairo-ws", value: w2 }] }] } });
+    const page = await ctx.newPage();
+    await page.goto(`${SITE}/?c=${Date.now()}#/abonnement`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
+    await page.getByText("Pack de démarrage").first().waitFor({ timeout: 30000 }).catch(() => console.log("✗ pack absent"));
+    await page.waitForTimeout(2500); await page.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom);
+    await ctx.close();
+  }
+  const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
+  await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(2000);
+  for (let k = 0; k < 20 && !(await p.locator("#prix").count()); k++) { await p.mouse.wheel(0, 900); await p.waitForTimeout(400); }
+  const prix = p.locator("#prix"); if (await prix.count()) { await prix.scrollIntoViewIfNeeded(); await p.waitForTimeout(1500); await prix.screenshot({ path: `${DOSSIER}/accueil-tarifs.png` }); console.log("✓ accueil-tarifs"); } else console.log("✗ section tarifs absente de l'accueil");
+  await c.close();
+}
 // CONSTRUIRE=copie : l'accueil d'un visiteur qui colle une adresse, puis l'étape « compte » (avant toute construction)
 if (CONSTRUIRE === "copie") {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const page = await ctx.newPage();
