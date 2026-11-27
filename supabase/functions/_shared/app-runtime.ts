@@ -68,7 +68,10 @@ const propre = (d: unknown) => {
 const ligne = (r: any) => { const { _exemple, _pour, ...d } = r.data ?? {}; return { ...d, id: r.id, created_at: r.at, updated_at: r.maj }; };
 // Champs calculés par le serveur (auteur d'un élément partagé) : jamais enregistrés tels quels
 // (et _exemple : une donnée d'exemple modifiée par le membre devient la sienne)
-const sansCalcul = (d: any) => { const { _auteur, _auteur_id, _moi, _exemple, _pour, _recu, ...x } = d ?? {}; return x; };
+const sansCalcul = (d: any) => { const { _auteur, _auteur_id, _moi, _exemple, _pour, _recu, _paye, _paye_le, _paye_montant, _stripe, ...x } = d ?? {}; return x; };
+// Une fiche réglée en ligne : la preuve du paiement et le montant restent tels quels (seul le serveur les écrit)
+const MONTANTS = ["montant", "total", "prix_total", "prix", "tarif"];
+const gardePaye = (cur: any, nouv: any) => { if (!cur?._paye) return { garde: {}, nouv }; const n = { ...(nouv ?? {}) }; for (const k of MONTANTS) delete n[k]; return { garde: { _paye: cur._paye, _paye_le: cur._paye_le, _paye_montant: cur._paye_montant, _stripe: cur._stripe }, nouv: n }; };
 
 async function session(admin: SupabaseClient, user: any) {
   const jeton = hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -88,6 +91,7 @@ async function stripe(key: string, path: string, params?: Record<string, string>
   if (!r.ok) throw new Err(502, `Paiement indisponible : ${d?.error?.message ?? r.status}`);
   return d;
 }
+const regleColApp = (app: any, col: string) => ((app?.spec as any)?.collections ?? []).find((c: any) => c?.nom === col);
 const cleStripe = async (admin: SupabaseClient, appId: string) => (await admin.from("saas_app_secrets").select("stripe_key").eq("app_id", appId).maybeSingle()).data?.stripe_key ?? null;
 const ACTIF = ["active", "trialing", "past_due"];
 const COLS = "id, email, nom, at, stripe_customer, abonnement, verifie_at, espace_id, role, variante, vu_at";
@@ -740,7 +744,8 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
     if (action === "me") {
       // Données d'exemple encore présentes dans l'espace : l'application l'affiche (et propose de les vider) à l'administrateur
       const { count: exemples } = user.role === "admin" ? await admin.from("saas_app_rows").select("id", { count: "exact", head: true }).eq("app_id", app.id).eq("espace_id", espace).eq("data->>_exemple", "true") : { count: 0 };
-      return { status: 200, body: { user, ...et, espace, variante: titulaire.variante ?? "A", exemples: exemples ?? 0 } };
+      const membres = !!(app.paiement as any)?.membres && !!(await cleStripe(admin, app.id));
+      return { status: 200, body: { user, ...et, espace, variante: titulaire.variante ?? "A", exemples: exemples ?? 0, paiements_membres: membres } };
     }
     if (action === "vider-exemples") {
       if (user.role !== "admin") throw new Err(403, "Seul l'administrateur de l'espace peut vider les exemples");
@@ -793,6 +798,85 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
     // Essai terminé sans abonnement : seuls la lecture du compte et le paiement restent possibles
     if (!et.acces) throw new Err(402, "Votre essai est terminé : choisissez une formule pour continuer");
 
+    // ---- Paiements entre membres (place de marché) : Stripe Connect sur le compte Stripe du créateur.
+    // Le membre qui reçoit ouvre son compte Express (Stripe vérifie son identité) ; celui qui paie règle par carte,
+    // l'argent va directement au membre, le créateur garde sa commission. Le montant est celui de la fiche que les deux voient.
+    if (action === "encaisser" || action === "encaisser-etat" || action === "payer-membre" || action === "paye-membre") {
+      const pay = (app.paiement ?? {}) as any;
+      const key = await cleStripe(admin, app.id);
+      if (!key || !pay.membres) throw new Err(400, "Les paiements entre membres ne sont pas activés sur cette application");
+      if (estDemo(user.email)) throw new Err(403, "Créez un vrai compte pour payer ou recevoir des paiements");
+      const compteDe = async (esp: string) => (await admin.from("saas_app_comptes").select("acct, pret").eq("app_id", app.id).eq("espace_id", esp).maybeSingle()).data as any;
+      const pret = async (c: any, esp: string) => {
+        if (!c?.acct) return false;
+        if (c.pret) return true;
+        const a = await stripe(key, `accounts/${c.acct}`, undefined, "GET");
+        const ok = !!(a.charges_enabled && a.payouts_enabled);
+        if (ok) await admin.from("saas_app_comptes").update({ pret: true, maj: new Date().toISOString() }).eq("app_id", app.id).eq("espace_id", esp);
+        return ok;
+      };
+      if (action === "encaisser-etat") { const c = await compteDe(espace); return { status: 200, body: { branche: !!c?.acct, pret: await pret(c, espace), commission: Number(pay.commission) || 0 } }; }
+      const retour = retourOk(String(b.retour ?? ""));
+      if (!retour) throw new Err(400, "Adresse de retour invalide");
+      const sep = retour.includes("?") ? "&" : "?";
+      if (action === "encaisser") {
+        let c = await compteDe(espace);
+        if (!c?.acct) {
+          let a: any;
+          try {
+            a = await stripe(key, "accounts", { type: "express", country: "FR", email: user.email, "capabilities[card_payments][requested]": "true", "capabilities[transfers][requested]": "true", "business_profile[product_description]": `Membre de ${(app.spec as any)?.nom ?? slug}`.slice(0, 200), "metadata[app]": slug, "metadata[espace]": espace });
+          } catch (e) {
+            console.error("connect", app.id, String((e as Error).message).slice(0, 160));
+            throw new Err(400, "Le créateur de l'application doit d'abord activer Stripe Connect sur son compte Stripe pour que les membres puissent recevoir des paiements.");
+          }
+          await admin.from("saas_app_comptes").upsert({ app_id: app.id, espace_id: espace, acct: a.id, pret: false });
+          c = { acct: a.id, pret: false };
+        }
+        if (await pret(c, espace)) return { status: 200, body: { url: (await stripe(key, `accounts/${c.acct}/login_links`, {})).url, pret: true } };
+        const l = await stripe(key, "account_links", { account: c.acct, type: "account_onboarding", refresh_url: retour, return_url: `${retour}${sep}encaisser=ok` });
+        return { status: 200, body: { url: l.url, pret: false } };
+      }
+      const montantDe = (d: any) => { for (const k of MONTANTS) { const n = Number(d?.[k]); if (n > 0) return Math.round(n * 100) / 100; } return 0; };
+      if (action === "payer-membre") {
+        const col = String(b.col ?? ""), id = String(b.id ?? "");
+        if (regleColApp(app, col)?.partage !== "parties" || !/^[0-9a-f-]{36}$/.test(id)) throw new Err(400, "Cette fiche ne se paie pas en ligne");
+        const { data: r } = await admin.from("saas_app_rows").select("id, espace_id, data").eq("app_id", app.id).eq("col", col).eq("id", id).maybeSingle();
+        const d = ((r as any)?.data ?? {}) as any;
+        if (!r || d._exemple) throw new Err(404, "Fiche introuvable");
+        // L'autre partie de la fiche reçoit l'argent ; celui qui paie est forcément l'une des deux
+        const receveur = r.espace_id === espace ? String(d._pour ?? "") : d._pour === espace ? r.espace_id : "";
+        if (!receveur || receveur === espace) throw new Err(403, "Vous ne pouvez pas régler cette fiche");
+        if (d._paye) throw new Err(409, "Cette fiche est déjà réglée");
+        const montant = montantDe(d);
+        if (!(montant >= 1)) throw new Err(400, "Aucun montant à régler sur cette fiche");
+        const c = await compteDe(receveur);
+        if (!(await pret(c, receveur))) throw new Err(409, "Ce membre n'a pas encore activé la réception des paiements");
+        const pct = Math.max(0, Math.min(50, Number(pay.commission) || 0)), frais = Math.round(montant * pct);
+        const nom = String(d.titre ?? d.nom ?? d.objet ?? regleColApp(app, col)?.titre ?? col).slice(0, 100);
+        const sess = await stripe(key, "checkout/sessions", {
+          mode: "payment", locale: "fr", customer_email: user.email,
+          "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
+          "line_items[0][price_data][unit_amount]": String(Math.round(montant * 100)),
+          "line_items[0][price_data][product_data][name]": nom || "Règlement",
+          ...(frais > 0 ? { "payment_intent_data[application_fee_amount]": String(frais) } : {}),
+          "payment_intent_data[transfer_data][destination]": c.acct,
+          "metadata[app]": slug, "metadata[col]": col, "metadata[fiche]": id, "metadata[payeur]": espace,
+          success_url: `${retour}${sep}paiement=ok&session={CHECKOUT_SESSION_ID}`, cancel_url: retour,
+        });
+        return { status: 200, body: { url: sess.url } };
+      }
+      // paye-membre : retour de Stripe, relu chez Stripe avant de marquer la fiche réglée (une seule fois)
+      const sid = String(b.session ?? "");
+      if (!/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sid)) throw new Err(400, "Session de paiement invalide");
+      const ss = await stripe(key, `checkout/sessions/${sid}`, undefined, "GET");
+      const m = ss.metadata ?? {};
+      if (m.app !== slug || m.payeur !== espace || ss.payment_status !== "paid") throw new Err(400, "Paiement non reconnu");
+      const { data: r } = await admin.from("saas_app_rows").select("id, data").eq("app_id", app.id).eq("col", m.col).eq("id", m.fiche).maybeSingle();
+      if (!r) throw new Err(404, "Fiche introuvable");
+      const montant = (Number(ss.amount_total) || 0) / 100;
+      if (!(r.data as any)?._paye) await admin.from("saas_app_rows").update({ data: { ...(r.data as any), _paye: true, _paye_le: new Date().toISOString(), _paye_montant: montant, _stripe: sid }, maj: new Date().toISOString() }).eq("id", r.id);
+      return { status: 200, body: { ok: true, montant, col: m.col, id: m.fiche } };
+    }
     // ---- Mon compte
     if (action === "compte") {
       const nom = String(b.nom ?? "").trim().slice(0, 80);
@@ -1014,8 +1098,9 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
       // Transaction : son auteur ET le propriétaire de l'élément visé peuvent la faire avancer (accepter, refuser, terminer…)
       const { data: cur } = parties(col) ? await lesParties(rowsPartage().eq("col", col).eq("id", String(b.id))).maybeSingle() : await rows().eq("col", col).eq("id", String(b.id)).maybeSingle();
       if (!cur) throw new Err(404, "Élément introuvable");
-      const garde = parties(col) ? { _pour: (cur.data as any)?._pour } : {};
-      const { data } = await admin.from("saas_app_rows").update({ data: { ...sansCalcul(propre({ ...(cur.data as object), ...propre(b.data) })), ...garde }, maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
+      const gp = gardePaye(cur.data, propre(b.data));
+      const garde = { ...(parties(col) ? { _pour: (cur.data as any)?._pour } : {}), ...gp.garde };
+      const { data } = await admin.from("saas_app_rows").update({ data: { ...sansCalcul(propre({ ...(cur.data as object), ...gp.nouv })), ...garde }, maj: new Date().toISOString() }).eq("id", cur.id).select("id, data, at, maj").single();
       if (data && ((app.spec as any)?.automatisations ?? []).length) (data as any).data = await autos("fiche_modifiee", col, data as any, cur.data as any);
       if ((app as any).connexions?.liste?.length) { const { prevenir } = await import("./connexions.ts"); prevenir(admin, app as any, "fiche_modifiee", { id: data?.id, ...((data?.data as object) ?? {}) }, col); }
       return { status: 200, body: ligne(data) };

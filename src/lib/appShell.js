@@ -213,6 +213,8 @@ async function verifCall(action, b) {
   if (action === "ia") return { resultat: b.json ? {} : "Texte d'essai rédigé par l'IA." };
   if (action === "mail") return { id: "m" + (++VSEQ), quand: b.quand ?? new Date().toISOString() };
   if (action === "mails") return [];
+  if (action === "encaisser-etat") return { branche: true, pret: true, commission: 10 };
+  if (action === "payer-membre" || action === "encaisser") return { url: null };
   if (action === "upload") return { id: "f" + (++VSEQ), nom: b.nom, type: b.type, taille: 1, url: "data:image/gif;base64,R0lGODlhAQABAAAAACw=" };
   if (action === "agenda") return { url: "https://exemple.fr/agenda.ics" };
   return {};
@@ -306,7 +308,19 @@ const db = {
   add: async (col, data) => { const r = await call("add", { col, data }); bus.emit("col:" + col); return r; },
   update: async (col, id, data) => { const r = await call("update", { col, id, data }); bus.emit("col:" + col); return r; },
   remove: async (col, id) => { const r = await call("remove", { col, id }); bus.emit("col:" + col); return r; },
+  // Place de marché : régler une fiche (réservation, commande…) à l'autre membre, par carte ; l'argent va directement chez lui
+  payer: async (col, id) => { const r = await call("payer-membre", { col, id, retour: RETOUR() }); if (r?.url) allerVers(r.url); else toast("Paiement simulé (aperçu)"); return r; },
+  // Recevoir des paiements : ouvre l'activation (ou le tableau de bord) du compte de versement du membre
+  encaisser: async () => { const r = await call("encaisser", { retour: RETOUR() }); if (r?.url) allerVers(r.url); return r; },
+  encaissement: () => call("encaisser-etat", {}),
 };
+// Retour de Stripe dans un logiciel : la fiche réglée est relue chez Stripe par le serveur, puis marquée « payée »
+if (S.type !== "site" && !B.verif && !B.capture && !B.essai) {
+  const u = new URLSearchParams(location.search), sess = u.get("session");
+  const nettoyer = () => { try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {} };
+  if (u.get("paiement") === "ok" && /^cs_/.test(sess ?? "")) setTimeout(() => call("paye-membre", { session: sess }).then((r) => { toast("Paiement de " + String(Number(r.montant).toFixed(2)).replace(".", ",") + " € reçu, merci"); bus.emit("col:" + r.col); nettoyer(); }, () => {}), 1200);
+  else if (u.get("encaisser") === "ok") setTimeout(() => { toast("Compte de versement enregistré : Stripe termine sa vérification"); nettoyer(); }, 1200);
+}
 const mkUseCollection = (dbx) => function useCollection(col, where) {
   const [rows, setRows] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState(null);
   const key = JSON.stringify(where ?? {});
@@ -1537,7 +1551,18 @@ function Equipe({ user }) {
 }
 
 // ---------------------------------------------------------------- Mon compte : nom et mot de passe
-function Compte({ user }) {
+// Recevoir des paiements des autres membres (place de marché) : activation du compte de versement chez Stripe
+function Encaissement() {
+  const [e, setE] = useState(null), [busy, setBusy] = useState(false);
+  useEffect(() => { db.encaissement().then(setE, () => setE({ erreur: true })); }, []);
+  if (!e || e.erreur) return null;
+  return html\`<\${ui.Card} titre="Recevoir des paiements">
+    <p class="text-sm text-slate-600">\${e.pret ? "Votre compte de versement est actif : les membres peuvent vous régler en ligne, l'argent arrive sur votre compte bancaire." : e.branche ? "Votre activation n'est pas terminée : Stripe a encore besoin de quelques informations." : "Activez votre compte de versement pour que les autres membres puissent vous régler par carte. Stripe vérifie votre identité (3 minutes) et verse l'argent sur votre compte bancaire."}\${e.commission > 0 ? " Frais de service : " + String(e.commission).replace(".", ",") + " % de chaque paiement." : ""}</p>
+    <div class="mt-3"><\${ui.Button} disabled=\${busy} onClick=\${async () => { setBusy(true); try { await db.encaisser(); } catch (x) { toast(x.message, "bad"); setBusy(false); } }}>\${busy ? "Ouverture…" : e.pret ? "Voir mes versements" : e.branche ? "Terminer mon activation" : "Activer les paiements"}</\${ui.Button}></div>
+  </\${ui.Card}>\`;
+}
+function Compte({ user, etat }) {
+  const membres = !!etat?.paiements_membres;
   const [nom, setNom] = useState(user.nom ?? ""), [p, setP] = useState({ ancien: "", nouveau: "" });
   const demo = /@demo\\.local$/.test(user.email);
   return html\`<\${ui.Page} titre="Mon compte" sous=\${demo ? "Compte de démonstration" : user.email}>
@@ -1545,6 +1570,7 @@ function Compte({ user }) {
       <\${ui.Card} titre="Mon nom"><form class="space-y-3" onSubmit=\${async (e) => { e.preventDefault(); try { await call("compte", { nom }); toast("Nom enregistré"); } catch (x) { toast(x.message, "bad"); } }}><\${ui.Input} label="Nom affiché" value=\${nom} onInput=\${setNom}/><\${ui.Button} type="submit">Enregistrer</\${ui.Button}></form></\${ui.Card}>
       \${!demo && html\`<\${ui.Card} titre="Mot de passe"><form class="space-y-3" onSubmit=\${async (e) => { e.preventDefault(); try { await call("motdepasse", p); setP({ ancien: "", nouveau: "" }); toast("Mot de passe changé"); } catch (x) { toast(x.message, "bad"); } }}><\${ui.Input} label="Mot de passe actuel" type="password" value=\${p.ancien} onInput=\${(v) => setP({ ...p, ancien: v })}/><\${ui.Input} label="Nouveau mot de passe" type="password" value=\${p.nouveau} onInput=\${(v) => setP({ ...p, nouveau: v })} placeholder="8 caractères au moins"/><\${ui.Button} type="submit">Changer</\${ui.Button}></form></\${ui.Card}>\`}
     </div>
+    \${membres && !demo && html\`<div class="mt-4"><\${Encaissement}/></div>\`}
     <div class="mt-6 text-sm text-slate-400"><\${LiensLegaux}/></div>
   </\${ui.Page}>\`;
 }

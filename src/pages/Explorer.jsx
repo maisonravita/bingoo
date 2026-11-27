@@ -2365,7 +2365,9 @@ function OngletEncaisser({ app, appel, agir, busy }) {
   const toast = useToast();
   const [cle, setCle] = useState(""), [cleVisible, setCleVisible] = useState(false), [part, setPart] = useState(false);
   const pay = app.paiement ?? {};
-  const [essai, setEssai] = useState(pay.essai_jours ?? 14);
+  const [essai, setEssai] = useState(pay.essai_jours ?? 14), [com, setCom] = useState(pay.commission ?? 10);
+  // Place de marché : une collection de transactions entre deux membres (réservations, commandes…)
+  const marche = (app.spec?.collections ?? []).some((c) => c?.partage === "parties");
   // Retour de Stripe (?stripe=ok|annule|erreur|expire) : on le dit clairement, puis on nettoie l'adresse
   useEffect(() => {
     const m = /[?&]stripe=(ok|annule|erreur|expire)/.exec(window.location.href)?.[1];
@@ -2380,6 +2382,11 @@ function OngletEncaisser({ app, appel, agir, busy }) {
       <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" checked={!!pay.actif} disabled={!!busy} onChange={(e) => agir("actif", () => appel("paiement", { actif: e.target.checked }), e.target.checked ? "Abonnements activés" : "Application gratuite")} />Abonnement obligatoire après l'essai</label>
       <label className="flex items-center gap-2 text-[14px]">Modèle <select value={pay.modele ?? "abonnement"} onChange={(e) => agir("modele", () => appel("paiement", { modele: e.target.value }), e.target.value === "unique" ? "Paiement unique : tes clients paient une fois, accès à vie" : "Abonnement mensuel enregistré")} className="rounded-lg bg-white/10 border border-white/15 px-2 py-1"><option value="abonnement" className="text-ink">Abonnement mensuel (SaaS)</option><option value="unique" className="text-ink">Paiement unique, accès à vie (appli web)</option></select></label>
       <label className="flex items-center gap-2 text-[14px]">Essai gratuit <input type="number" min={0} max={60} value={essai} onChange={(e) => setEssai(e.target.value)} onBlur={() => Number(essai) !== Number(pay.essai_jours ?? 14) && agir("essai", () => appel("paiement", { essai_jours: Number(essai) }), "Durée d'essai enregistrée")} className="w-16 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> jours</label>
+      {marche && <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+        <label className="flex items-center gap-2 text-[14px] font-medium"><input type="checkbox" checked={!!pay.membres} disabled={!!busy} onChange={(e) => agir("membres", () => appel("paiement", { membres: e.target.checked }), e.target.checked ? "Les membres peuvent se payer entre eux" : "Paiements entre membres coupés")} />Les membres se paient entre eux dans l'application</label>
+        <p className="text-[12.5px] text-white/55">Chaque membre qui reçoit de l'argent active son compte en 3 minutes (Stripe vérifie son identité). Celui qui paie règle par carte, l'argent va directement au membre, et ta commission arrive sur ton Stripe. Il faut avoir activé Stripe Connect dans ton tableau de bord Stripe (Connect → Commencer).</p>
+        {pay.membres && <label className="flex items-center gap-2 text-[14px]">Ta commission <input type="number" min={0} max={50} step={0.5} value={com} onChange={(e) => setCom(e.target.value)} onBlur={() => Number(com) !== Number(pay.commission ?? 0) && agir("commission", () => appel("paiement", { commission: Number(com) }), "Commission enregistrée")} className="w-20 rounded-lg bg-white/10 border border-white/15 px-2 py-1" /> % de chaque paiement</label>}
+      </div>}
       <button disabled={!!busy} onClick={async () => { if (await demander("Débrancher Stripe ? L'application redevient gratuite.")) agir("cle", () => appel("paiement", { cle: "" }), "Stripe débranché"); }} className="text-[12.5px] text-white/50 underline">Débrancher Stripe</button>
     </div>
   ) : (

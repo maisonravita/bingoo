@@ -29,6 +29,9 @@ export async function appPaiement(appId: string, b: any) {
   }
   // Modèle : abonnement mensuel (SaaS) ou paiement unique (appli web, accès à vie)
   if (b.modele !== undefined) pay.modele = b.modele === "unique" ? "unique" : "abonnement";
+  // Place de marché : les membres se paient entre eux (Stripe Connect), le créateur garde une commission (0 à 50 %)
+  if (b.membres !== undefined) pay.membres = !!b.membres;
+  if (b.commission !== undefined) pay.commission = Math.max(0, Math.min(50, Math.round((Number(b.commission) || 0) * 10) / 10));
   if (b.essai_jours !== undefined) pay.essai_jours = Math.max(0, Math.min(60, Math.round(Number(b.essai_jours) || 0)));
   await admin.from("saas_apps").update({ paiement: pay }).eq("id", appId);
   return pay;

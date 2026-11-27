@@ -601,6 +601,24 @@ if (CONSTRUIRE === "acompte") {
   await q(`update saas_app_rows set data = data - 'acompte' where app_id = ${lit(a.id)} and col = 'infos'`);
   await c.close(); console.log("site de test remis en état");
 }
+if (CONSTRUIRE === "marche") {
+  // Paiements entre membres : les garde-fous du serveur, par l'API d'une vraie place de marché (sans Stripe branché)
+  const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "outilvoisin-6n5b";
+  const api = async (act, corps, jeton) => { const r = await fetch(`${SB}/functions/v1/t/app/${slug}/${act}`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json", ...(jeton ? { "x-app-token": jeton } : {}) }, body: JSON.stringify(corps) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  const d = await api("demo", {}); const tok = d.j.token;
+  console.log("compte d'essai :", tok ? "✓" : `✗ ${d.status}`);
+  const me = await api("me", {}, tok); console.log("paiements entre membres annoncés :", me.j.paiements_membres === false ? "✓ non (Stripe non branché)" : `? ${me.j.paiements_membres}`);
+  const outils = await api("list", { col: "outils" }, tok); const o = (outils.j ?? []).find((x) => !x._moi) ?? (outils.j ?? [])[0];
+  const add = await api("add", { col: "locations", data: { outils_id: o?.id, montant: 30, statut: "demandée", _paye: true, _stripe: "cs_live_faux" } }, tok);
+  console.log("fiche créée avec un faux « payé » :", add.status, add.j._paye ? "✗ le faux paiement est resté" : "✓ le faux paiement est retiré");
+  if (add.j.id) { const up = await api("update", { col: "locations", id: add.j.id, data: { _paye: true } }, tok); console.log("« payé » forcé en modification :", up.j._paye ? "✗ accepté" : "✓ refusé"); }
+  const pm = await api("payer-membre", { col: "locations", id: add.j.id, retour: `${SITE}/` }, tok);
+  console.log("payer sans Stripe branché :", pm.status === 400 ? `✓ refusé (« ${pm.j.error} »)` : `✗ ${pm.status}`);
+  const pe = await api("paye-membre", { session: "cs_live_faux1234567890abcdef" }, tok);
+  console.log("faux retour de paiement :", pe.status >= 400 ? `✓ refusé (${pe.status})` : "✗ accepté");
+  if (add.j.id) await api("remove", { col: "locations", id: add.j.id }, tok);
+  console.log("fiche d'essai retirée");
+}
 if (CONSTRUIRE === "automatisations") {
   // Automatisations d'un logiciel, jouées par le serveur : réglées par le propriétaire, déclenchées par un utilisateur de démonstration
   const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "changeo-5u0t";
@@ -1242,7 +1260,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
