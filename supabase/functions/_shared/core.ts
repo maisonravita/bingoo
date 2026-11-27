@@ -484,14 +484,25 @@ export async function aiGuard() {
 }
 
 async function call(body: Record<string, unknown>, key: string) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (res.ok && data?.usage) await aiRecord(String(body.model), data.usage);
-  return { ok: res.ok, status: res.status, data };
+  // L'IA surchargée ou une coupure réseau ne fait pas échouer l'action : jusqu'à 3 nouveaux essais, espacés (2 s, 5 s, 10 s)
+  let res: Response | null = null;
+  for (let essai = 0; ; essai++) {
+    try {
+      res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (![429, 500, 502, 503, 504, 529].includes(res.status) || essai >= 3) break;
+    } catch (e) { if (essai >= 3) throw e; }
+    const pause = [2000, 5000, 10000][essai] ?? 10000;
+    console.warn(`IA ${res?.status ?? "réseau"} : nouvel essai dans ${pause / 1000} s`);
+    await res?.body?.cancel().catch(() => null);
+    await new Promise((r) => setTimeout(r, pause));
+  }
+  const data = await res!.json().catch(() => ({}));
+  if (res!.ok && data?.usage) await aiRecord(String(body.model), data.usage);
+  return { ok: res!.ok, status: res!.status, data };
 }
 
 export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {

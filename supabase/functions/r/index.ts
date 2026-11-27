@@ -1923,6 +1923,23 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     await cron(req);
     const { appEnvoisCron } = await import("../_shared/app-mails.ts");
     const envois = await appEnvoisCron();
+    // E-mails refusés un moment par Resend (quota, panne) : renvoyés
+    const { renvoyerMailsAttente, sendSystem } = await import("../_shared/mail.ts");
+    const attente = await renvoyerMailsAttente().catch((e) => { console.error("mails en attente", e); return null; });
+    if (attente?.renvoyes) console.log(`e-mails en attente renvoyés : ${attente.renvoyes} (restent ${attente.restent})`);
+    // Base de données : alerte à 90 % puis à 100 % du quota de la formule Supabase (500 Mo en gratuit), une fois par jour au plus
+    try {
+      const { data: taille } = await admin.rpc("taille_base");
+      const mo = Math.round(Number(taille ?? 0) / 1048576), quota = Number(await secret("base_quota_mo").catch(() => "")) || 500;
+      const { data: der } = await admin.from("app_secrets").select("value").eq("name", "base_alerte_at").maybeSingle();
+      if (mo >= quota * 0.9 && (!der?.value || Date.now() - new Date(der.value).getTime() > 24 * 3600e3)) {
+        await admin.from("app_secrets").upsert({ name: "base_alerte_at", value: new Date().toISOString() });
+        const texte = `La base de données de Bingoo! fait ${mo} Mo pour un quota de ${quota} Mo (${Math.round((mo / quota) * 100)} %). ${mo >= quota ? "Le quota est dépassé : Supabase peut ralentir ou bloquer les écritures." : "Le quota approche."} Les plus grosses tables sont visibles dans Supabase › Database › Tables.`;
+        await admin.from("admin_alertes").insert({ texte });
+        const { data: to } = await admin.from("app_secrets").select("value").eq("name", "ia_alerte_email").maybeSingle();
+        if (to?.value) await sendSystem({ to: to.value, subject: `Base de données : ${mo} Mo sur ${quota}`, text: texte, key: `base-${new Date().toISOString().slice(0, 10)}` }).catch(() => null);
+      }
+    } catch (e) { console.error("taille base", e); }
     // Constructions bloquées (invocation coupée en route) : relancées une fois, puis signalées
     const { data: bloquees } = await admin.from("saas_apps").select("id, projet_id, workspace_id, etape").eq("statut", "en_cours").not("etape", "like", "En pause%").lt("maj", new Date(Date.now() - 11 * 60e3).toISOString()).limit(5);
     const cle = await secret("cron_key");

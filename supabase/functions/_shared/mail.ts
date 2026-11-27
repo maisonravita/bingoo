@@ -10,12 +10,45 @@ export async function resend(path: string, method = "GET", body?: unknown, extra
   // Les robots de test ne consomment pas le quota d'e-mails (100 par jour, envois ET réceptions) des vrais clients
   const dest = (body as any)?.to; const tous = (Array.isArray(dest) ? dest : dest ? [dest] : []).map((x: unknown) => String(x).toLowerCase());
   if (method === "POST" && /^\/emails/.test(path) && tous.length && tous.every((x: string) => /(^|<)robot[-+.][^@]*@maisonravita\.fr>?$/.test(x)) && env("ROBOT_EMAILS") !== "oui") return { ok: true, status: 200, data: { id: "robot-non-envoye" } };
-  const res = await fetch(`https://api.resend.com${path}`, {
-    method, headers: { Authorization: `Bearer ${key}`, "content-type": "application/json", ...extra },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
+  const envoi = method === "POST" && path === "/emails";
+  let res: Response | null = null;
+  try {
+    res = await fetch(`https://api.resend.com${path}`, {
+      method, headers: { Authorization: `Bearer ${key}`, "content-type": "application/json", ...extra },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (e) { if (!envoi) throw e; }
+  const data = res ? await res.json().catch(() => ({})) : {};
+  // Resend refuse un moment (quota du jour atteint, trop d'envois d'un coup, panne) : l'e-mail n'est pas perdu, il attend
+  // et la tâche planifiée le renvoie (même clé d'idempotence : jamais de doublon). Pour l'appelant, il est parti.
+  if (envoi && (!res || res.status === 429 || res.status >= 500)) {
+    await admin.from("mails_attente").insert({ corps: body, extra, derniere_erreur: res ? `${res.status} ${String((data as any)?.message ?? "").slice(0, 200)}` : "Resend injoignable" }).then(() => null, (e: unknown) => console.error("mails_attente", e));
+    console.warn("e-mail mis en attente", res?.status ?? "réseau");
+    return { ok: true, status: 202, data: { id: "", attente: true } };
+  }
+  return { ok: !!res?.ok, status: res?.status ?? 0, data };
+}
+
+/** Renvoie les e-mails en attente (appelé toutes les 5 minutes). Délais croissants ; après 12 essais, l'équipe est prévenue. */
+export async function renvoyerMailsAttente() {
+  const key = env("RESEND_API_KEY");
+  if (!key) return { renvoyes: 0, restent: 0 };
+  const { data } = await admin.from("mails_attente").select("id, corps, extra, essais").eq("statut", "attente").lte("prochain", new Date().toISOString()).order("id").limit(40);
+  let renvoyes = 0;
+  for (const m of (data ?? []) as any[]) {
+    let res: Response | null = null, msg = "";
+    try { res = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "content-type": "application/json", ...(m.extra ?? {}) }, body: JSON.stringify(m.corps) }); msg = String(((await res.json().catch(() => ({}))) as any)?.message ?? ""); } catch { msg = "Resend injoignable"; }
+    if (res?.ok) { await admin.from("mails_attente").delete().eq("id", m.id); renvoyes++; continue; }
+    // Refus définitif (adresse invalide, domaine non vérifié…) : inutile d'insister
+    const definitif = !!res && res.status < 500 && res.status !== 429;
+    const essais = m.essais + 1, attente = [5, 15, 30, 60, 120, 240, 360, 480, 720, 720, 720, 720][Math.min(essais - 1, 11)];
+    const fin = definitif || essais >= 12;
+    await admin.from("mails_attente").update({ essais, statut: fin ? "echec" : "attente", prochain: new Date(Date.now() + attente * 60e3).toISOString(), derniere_erreur: `${res?.status ?? 0} ${msg}`.slice(0, 240) }).eq("id", m.id);
+    if (fin) await admin.from("admin_alertes").insert({ texte: `E-mail non envoyé après ${essais} essai(s) : « ${String(m.corps?.subject ?? "").slice(0, 80)} » (${res?.status ?? 0} ${msg.slice(0, 120)})` }).then(() => null, () => null);
+    if (res?.status === 429) break; // quota toujours atteint : les suivants attendront le prochain passage
+  }
+  const { count } = await admin.from("mails_attente").select("id", { count: "exact", head: true }).eq("statut", "attente");
+  return { renvoyes, restent: count ?? 0 };
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
