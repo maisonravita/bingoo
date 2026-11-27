@@ -26,6 +26,8 @@ export type EntreePage = {
   design: any; photosMembre?: string[]; services?: any[]; horaires?: any[]; infos?: any; faq?: any[];
   /** Consignes propres au genre de projet (page de présentation d'un SaaS : boutons vers l'essai, maquettes des vrais écrans) */
   consignes?: string;
+  /** Plan validé par le membre avant la construction : sections voulues, et sections refusées (retirées du plan quoi qu'il arrive) */
+  avecSections?: string[]; sansSections?: string[];
   /** Mise en scène du premier écran choisie par le membre (sinon Bingoo! choisit) */
   compo?: string;
   /** Construction en direct : appelé à chaque étape (plan, images, chaque lot de sections écrit) avec la page en cours */
@@ -103,6 +105,14 @@ Choisis la mise en page de chaque section selon la fiche et les plans Taste, san
   if (!Array.isArray(plan?.sections) || plan.sections.length < 3) throw new Error("Plan de page invalide");
   plan.sections = plan.sections.slice(0, 8).map((s, i) => ({ ...s, id: (String(s.id || `s${i}`).toLowerCase().replace(/[^a-z0-9-]/g, "") || `s${i}`) }));
   if (plan.sections[0].id !== "hero") plan.sections[0].id = "hero";
+  // Sections refusées par le membre dans le plan : retirées, jamais réécrites (le premier écran et la fin restent)
+  if (e.sansSections?.length) {
+    const QUOI: Record<string, RegExp> = { "Services et prix": /offre|prix|tarif|service|carte|menu/, "Photos": /galerie|photo|visuel|ambiance/, "Comment ça se passe": /fonctionnement|etape|deroule|process/, "À propos": /apropos|propos|histoire|equipe|qui/, "Questions fréquentes": /faq|question/, "Horaires et accès": /horaire|acces|lieu|visite|venir|adresse/, "Zone d'intervention": /zone|secteur|deplacement/, "Réalisations": /realisation|portfolio|projet/ };
+    const refus = e.sansSections.map((x) => QUOI[x]).filter(Boolean) as RegExp[];
+    const avant = plan.sections.length;
+    plan.sections = plan.sections.filter((x, i) => i === 0 || x.role === "closing" || !refus.some((re) => re.test(`${x.id} ${x.role ?? ""} ${(x.marqueurs ?? []).join(" ")}`.toLowerCase())));
+    if (plan.sections.length < avant) journal.push(`Plan du membre : ${avant - plan.sections.length} section(s) refusée(s) retirée(s)`);
+  }
   journal.push(`Plan : ${plan.sections.map((s) => s.id).join(", ")}`);
   const ecrites = new Map<string, string>();
   // Le premier écran d'une composition : structure du kit seulement (sans <style> ni style écrit à la main)

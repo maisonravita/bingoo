@@ -77,6 +77,7 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
     const g = await genererPage({
       nom: spec.nom, brief: [idee.texte, ...(Array.isArray(idee.reponses) ? idee.reponses.map((x: any) => `${x.q} : ${x.r}`) : [])].filter(Boolean).join("\n") || String(spec.pitch ?? ""),
       modele: spec.site?.modele, metier: spec.site?.metier, ville: spec.site?.ville, cta: spec.site?.cta, demande: spec.site?.demande,
+      sansSections: String((Array.isArray(idee.reponses) ? idee.reponses : []).find((x: any) => x?.q === "Sections à NE PAS mettre sur la page")?.r ?? "").split(",").map((x) => x.trim()).filter(Boolean),
       // La mise en scène montrée dans l'aperçu : Bingoo! l'a choisie dans la bibliothèque selon le projet (la première proposée)
       compo: typeof idee.apercu?.composition === "string" && idee.apercu.composition !== "auto" ? idee.apercu.composition : Array.isArray(idee.apercu?.compositions) && typeof idee.apercu.compositions[0] === "string" ? idee.apercu.compositions[0] : undefined,
       design: spec.design, services: spec.demo?.services, horaires: spec.demo?.horaires, infos: (spec.demo?.infos ?? [])[0], faq: spec.faq, photosMembre: Array.isArray(spec.site?.photos) ? spec.site.photos : undefined,

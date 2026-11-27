@@ -58,6 +58,8 @@ ${CONSIGNE_TEXTES_FR}`;
 export function specSite(c: any, p: any) {
   const ap = p.idee?.apercu ?? {};
   const modele = ["vitrine", "portfolio", "lancement"].includes(c?.modele) ? c.modele : ["vitrine", "portfolio", "lancement"].includes(ap.modele) ? ap.modele : "vitrine";
+  // Choisie par le membre dans le plan du site : elle passe avant celle que l'IA propose
+  if (["rdv", "devis", "reservation", "message"].includes(ap.demande) && modele !== "lancement") c = { ...c, demande: ap.demande, cta: ap.demande === c?.demande ? c?.cta : "" };
   const demandeType = modele === "lancement" ? "inscription" : ["rdv", "devis", "reservation", "message"].includes(c?.demande) ? (modele === "portfolio" && !["devis", "message"].includes(c.demande) ? "devis" : c.demande) : "message";
   const cta = court(c?.cta, 28) || ({ rdv: "Prendre rendez-vous", devis: "Demander un devis", reservation: "Réserver", message: "Me contacter", inscription: "Être prévenu" } as any)[demandeType];
   const metier = court(c?.metier, 50) || court(ap.cible, 50) || "Professionnel";
