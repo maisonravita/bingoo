@@ -58,10 +58,10 @@ const FAQ = [
   ["Je ne sais pas coder, ça marche quand même ?", "Oui. Tu décris ton idée en une phrase (ou tu colles l'adresse d'un site qui te plaît), et Bingoo! construit tout. Pour un logiciel : les écrans, les comptes de tes clients, les paiements avec ton Stripe, la page de présentation. Pour un site : tes textes, tes pages, tes photos, ton formulaire ou la prise de rendez-vous. Tu n'écris pas une ligne de code."],
   ["Qu'est-ce que Bingoo! peut construire ?", "Quatre choses. Un logiciel en ligne (SaaS) avec ses comptes clients et ses abonnements. Un site web pour ton activité, avec ses pages, son blog et son formulaire. Un outil ou un jeu qu'on ouvre et qu'on utilise tout de suite, sans compte (convertisseur, simulateur, jeu de plateau). Une vidéo en motion design pour le présenter. Tout marche aussi sur téléphone, dans le navigateur. Les apps à publier sur l'App Store et Google Play seront disponibles dans la V2. Si une partie de ton idée ne peut pas marcher telle quelle, Bingoo! te le dit avant de construire et propose une autre façon de faire."],
   ["Je vois quoi avant de payer ?", "Après ton inscription gratuite : l'aperçu de ton idée (son nom, ses écrans, un vrai rendu de l'écran principal) et ce qui sera fait autrement. Ton premier outil ou jeu est même construit et mis en ligne gratuitement, sans carte bancaire. Pour un site ou un logiciel, tu paies seulement quand tu cliques sur « Construire »."],
-  ["Combien ça coûte ?", "Ton premier outil ou jeu : offert. Un SaaS : formule Lancer, 24,99 € par mois sans engagement, ou 19 € par mois à vie pour les 50 premiers membres. Un site web, un outil ou un jeu : formule Site, 9,99 € par mois, hébergement compris. Ton nom de domaine et le retrait du badge Bingoo! : offre Lancer Pro, à choisir dans ton abonnement. Explorer les SaaS et voir l'aperçu de ton idée sont gratuits. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes."],
+  ["Combien ça coûte ?", "Ton premier outil ou jeu : offert. Pour commencer : le pack de démarrage, 9,99 € une seule fois (ton site ou ton SaaS en ligne un mois, ou 10 vidéos motion design). Ensuite, sans engagement : Site 9,99 € par mois, SaaS 14,99 € par mois, Vidéo 9,99 € par mois (20 vidéos), et Pro 29,99 € par mois pour ton nom de domaine, sans badge Bingoo!. Explorer les SaaS et voir l'aperçu de ton idée sont gratuits. Tes clients te paient directement sur ton Stripe : Bingoo! ne prend rien sur tes ventes."],
   ["Ça prend combien de temps ?", "Une à deux minutes pour un outil ou un jeu, quelques minutes pour un site ou un SaaS simple, plus longtemps pour un SaaS de nombreux écrans : tu regardes Bingoo! écrire chaque écran, le tester comme un vrai client et corriger ce qui ne marche pas. Ensuite tu modifies ce que tu veux dans l'atelier, en une phrase ou d'un double-clic sur un texte."],
   ["« Un site qui te plaît » : c'est légal ?", "Bingoo! reprend l'ambiance d'un site (ses couleurs, ses polices, l'organisation de ses pages), qui ne se protègent pas. Il ne reprend jamais ses textes, ses images, son nom ni son logo : ta version porte ton nom, ton logo et tes propres textes."],
-  ["Mon projet est à moi ?", "Oui. Il est à ton nom (et sur ton propre nom de domaine avec l'offre Lancer Pro, proposée dans ton abonnement), et l'argent de tes clients arrive sur ton compte Stripe. Tu peux télécharger son code à tout moment, ou l'envoyer sur ton dépôt GitHub."],
+  ["Mon projet est à moi ?", "Oui. Il est à ton nom (et sur ton propre nom de domaine avec l'abonnement Pro), et l'argent de tes clients arrive sur ton compte Stripe. Tu peux télécharger son code à tout moment, ou l'envoyer sur ton dépôt GitHub."],
   ["Bingoo! garantit que ça va marcher ?", "Non, et personne ne peut le garantir. Bingoo! construit un produit qui fonctionne et t'aide ensuite à trouver tes premiers clients ; le reste dépend du marché et de ce que tu fais chaque jour."],
   ["D'où viennent les chiffres des SaaS ?", "Les revenus sont vérifiés directement chez l'outil de paiement des SaaS (Stripe et d'autres), via TrustMRR. Le reste vient de leurs pages publiques. Chaque chiffre a sa source sur la fiche."],
   ["Et si j'arrête mon abonnement ?", "Tu arrêtes quand tu veux. Ton projet est hébergé par Bingoo! tant que tu es abonné : avant d'arrêter, tu télécharges son code (ou tu l'envoies sur ton dépôt GitHub) pour l'héberger ailleurs, et Bingoo! te prévient avant toute mise hors ligne."],
@@ -517,17 +517,18 @@ export default function Landing() {
           {/* 8. Tarifs */}
           <section id="prix" className={SECTION}>
             <Tete n="06" rub="Tarifs" titre="Ton premier outil est offert. Tu paies pour aller plus loin." />
-            <div className="mt-12 grid overflow-hidden rounded-2xl border border-line md:grid-cols-3">
+            <div className="mt-12 grid overflow-hidden rounded-2xl border border-line md:grid-cols-2 lg:grid-cols-4">
               {[
                 ["Gratuit", "0 €", "Pour voir, et ton premier outil", ["Ton premier outil ou jeu, construit et en ligne", "L'aperçu de ton idée : nom, écrans, vrai rendu", "La lecture d'un site qui te plaît", "Les SaaS qui marchent, en aperçu"]],
-                ["Site", "9,99 €", "par mois, hébergement compris", ["Ton site, ton outil ou ton jeu, en ligne en quelques minutes", "Tes pages, ton blog, tes services et ton formulaire", "Ton espace pour gérer les demandes"]],
-                ["Lancer", "24,99 €", "par mois · 19 € à vie pour les 50 premiers", ["Ton SaaS, construit et testé", "Comptes clients et abonnements sur ton Stripe", "L'atelier, tes premiers clients, ta vidéo"]],
+                ["Site", "9,99 €", "par mois, hébergement compris", ["Ton site, ton outil ou ton jeu, en ligne", "30 modifications par mois", "5 vidéos motion design par mois"]],
+                ["Vidéo", "9,99 €", "par mois", ["20 vidéos motion design par mois", "À tes couleurs, tous les styles", "Retouches en discutant"]],
+                ["SaaS", "14,99 €", "par mois · pack de démarrage 9,99 €", ["Ton SaaS, construit et testé", "Comptes clients et paiements sur ton Stripe", "30 modifications et 5 vidéos par mois"]],
               ].map(([t, p, sous, l], k) => (
-                <div key={t} className={cx("p-7 sm:p-8", k > 0 && "border-t border-line md:border-l md:border-t-0", k === 2 && "bg-ink text-white")}>
-                  <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 2 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>
+                <div key={t} className={cx("p-7 sm:p-8", k > 0 && "border-t border-line lg:border-l lg:border-t-0", k === 3 && "bg-ink text-white")}>
+                  <p className={cx("text-[14px] font-bold uppercase tracking-wide", k === 3 ? "text-[#F6A06B]" : "text-accent")}>{t}</p>
                   <p className="mt-5 text-[44px] font-bold leading-none tracking-[-.03em] tnum">{p}</p>
-                  <p className={cx("mt-2 text-[13.5px]", k === 2 ? "text-white/65" : "text-ink-soft")}>{sous}</p>
-                  <ul className="mt-7 space-y-3 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2.5"><Check className={cx("mt-1 h-4 w-4 shrink-0", k === 2 ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
+                  <p className={cx("mt-2 text-[13.5px]", k === 3 ? "text-white/65" : "text-ink-soft")}>{sous}</p>
+                  <ul className="mt-7 space-y-3 text-[15px]">{l.map((x) => <li key={x} className="flex gap-2.5"><Check className={cx("mt-1 h-4 w-4 shrink-0", k === 3 ? "text-[#F6A06B]" : "text-accent")} />{x}</li>)}</ul>
                 </div>
               ))}
             </div>

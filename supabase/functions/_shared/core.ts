@@ -46,10 +46,13 @@ export const PLANS: Record<string, { label: string; price: number; factor: numbe
   essai: { label: "Aperçu gratuit", price: 0, factor: 0.5, seats: 1, credits: 0, ai: 0.02, quota: 0 },
   // Veille du marché SaaS, sans prospection (pas d'envoi, pas de tâches de prospection de nuit)
   explorer: { label: "Trouver", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
-  explorer_pro: { label: "Lancer", price: 24.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
+  // 27 nov. 2026 : grille « pack de démarrage puis abonnement » — Site 9,99 · SaaS 14,99 · Vidéo 9,99 · Pro 29,99
+  explorer_pro: { label: "SaaS", price: 14.99, factor: 0.5, seats: 1, credits: 0, ai: 4, quota: 0 },
   business: { label: "Lancer à plusieurs", price: 69.99, factor: 1, seats: 3, credits: 0, ai: 12, quota: 0 },
   // 20 nov. 2026 : formule supérieure de Lancer, toujours un seul SaaS, pour ceux qui modifient beaucoup
-  lancer_pro: { label: "Lancer Pro", price: 39.99, factor: 1, seats: 1, credits: 0, ai: 10, quota: 0 },
+  lancer_pro: { label: "Pro", price: 29.99, factor: 1, seats: 1, credits: 0, ai: 10, quota: 0 },
+  // Vidéos motion design seulement (20 par mois), sans site ni SaaS
+  video: { label: "Vidéo", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 1, quota: 0 },
   // 20 nov. 2026 : un site web (vitrine d'un commerce, d'un artisan, d'un indépendant), sans les données ni les outils SaaS
   site: { label: "Site", price: 9.99, factor: 0.5, seats: 1, credits: 0, ai: 2, quota: 0 },
   // Anciennes formules (prospection), plus vendues
@@ -68,13 +71,15 @@ export const MARQUE_BLANCHE = ["lancer_pro", "business", "fondateur"];
 export const marqueBlanche = (ws: { plan?: string | null; plan_status?: string | null } | null | undefined) => !!ws && MARQUE_BLANCHE.includes(ws.plan ?? "") && ["active", "trialing", "past_due"].includes(ws.plan_status ?? "");
 /** Aperçus d'idée offerts chaque mois sur l'offre gratuite. */
 export const APERCUS_GRATUITS = 2;
-export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; scripts: number; ia: number }> = {
-  explorer: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, scripts: 0, ia: 1 },
-  explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, scripts: 4, ia: 4 },
-  business: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12 },
-  lancer_pro: { construire: 3, modifier: 100, tiktok: 8, pareil: 40, scripts: 8, ia: 10 },
-  site: { construire: 2, modifier: 30, tiktok: 0, pareil: 0, scripts: 0, ia: 2 },
-  fondateur: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12 },
+// videos : vidéos motion design comprises chaque mois (au-delà : COUT_CREDITS.video la vidéo)
+export const LIMITES: Record<string, { construire: number; modifier: number; tiktok: number; pareil: number; scripts: number; ia: number; videos: number }> = {
+  explorer: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, scripts: 0, ia: 1, videos: 0 },
+  explorer_pro: { construire: 3, modifier: 30, tiktok: 4, pareil: 20, scripts: 4, ia: 4, videos: 5 },
+  business: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12, videos: 20 },
+  lancer_pro: { construire: 3, modifier: 100, tiktok: 8, pareil: 40, scripts: 8, ia: 10, videos: 20 },
+  site: { construire: 2, modifier: 30, tiktok: 0, pareil: 0, scripts: 0, ia: 2, videos: 5 },
+  video: { construire: 0, modifier: 0, tiktok: 0, pareil: 0, scripts: 0, ia: 1, videos: 20 },
+  fondateur: { construire: 10, modifier: 100, tiktok: 12, pareil: 60, scripts: 12, ia: 12, videos: 20 },
 };
 export const limitesDe = (plan?: string | null) => LIMITES[plan ?? ""] ?? LIMITES.explorer;
 /** Ce qui compte pour chaque limite (le type d'activité enregistré) */
@@ -89,42 +94,45 @@ export async function utiliseMois(wsId: string, k: Limite) {
 export async function limiteMois(wsId: string, plan: string | null | undefined, k: Limite) {
   const max = limitesDe(plan)[k];
   const utilise = await utiliseMois(wsId, k);
-  if (max <= 0) throw new HttpError(402, "Cette fonction est comprise dans la formule Lancer.");
+  if (max <= 0) throw new HttpError(402, plan === "video" ? "Ta formule Vidéo comprend les vidéos. Pour construire un site ou un SaaS, choisis la formule Site ou SaaS dans Abonnement." : "Cette fonction est comprise dans les formules Site, SaaS et Pro.");
   if (max === 0) throw new HttpError(402, k === "construire" || k === "modifier" ? "La construction de ton SaaS est incluse dans l'offre Lancer. Passe à Lancer depuis Abonnement pour que Bingoo! construise ta version." : `Ça fait partie de l'offre Lancer : passe à Lancer depuis Abonnement.`);
   if (utilise >= max) throw new HttpError(402, `Tu as utilisé tes ${max} ${NOMS_LIMITE[k]} du mois. Ça repart le 1er du mois${k === "modifier" || k === "construire" ? ", ou continue avec tes crédits" : ""}.`);
   return { utilise, max };
 }
 
 /** Prix fondateur : les 50 premiers abonnés au mois paient 19 € par mois à vie. */
-export const FOUNDER = { plan: "explorer_pro", price: 19, places: 50 };
+// 27 nov. 2026 : le SaaS passe à 14,99 € ; le prix fondateur (19 €) n'a plus de sens et n'est plus proposé (places 0)
+export const FOUNDER = { plan: "explorer_pro", price: 19, places: 0 };
 /** Formule en vente : « Lancer », un seul SaaS par abonnement, payé au mois, au trimestre ou à l'année (prix affichés par mois).
  *  Plus la durée est longue, plus elle comprend de choses. Les anciennes formules (Trouver, Lancer à plusieurs) restent pour leurs abonnés. */
 export const PERIODES: Record<string, { label: string; mois: number; parMois: number; inclus: string[] }> = {
-  mois: { label: "1 mois", mois: 1, parMois: 24.99, inclus: ["Ton SaaS construit et en ligne, à ton nom", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan sur 30 jours, avec l'étape du jour chaque matin par e-mail", "Tes 10 premiers clients : des établissements à contacter, trouvés pour toi", "40 scripts de vidéos par mois, prêts à tourner", "L'assistant IA de ton SaaS"] },
-  trimestre: { label: "3 mois", mois: 3, parMois: 16.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
-  an: { label: "12 mois", mois: 12, parMois: 9.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
+  mois: { label: "1 mois", mois: 1, parMois: 14.99, inclus: ["Ton SaaS en ligne, à ton nom : comptes clients, abonnements sur ton Stripe", "30 modifications par mois dans l'atelier", "5 vidéos motion design par mois pour en faire la pub", "Tes SaaS à succès, avec leur nom et leurs chiffres", "Ton plan pour tes 10 premiers clients", "L'assistant IA de ton SaaS"] },
 };
-export const VENTE = ["explorer_pro", "lancer_pro", "explorer", "site"];
+export const VENTE = ["site", "explorer_pro", "video", "lancer_pro"];
 /** « Trouver » : seulement les chiffres (pas de construction), au mois, sans engagement. Les autres formules suivent PERIODES. */
 export const PERIODES_PAR_PLAN: Record<string, typeof PERIODES> = {
   explorer: { mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Tous les revenus vérifiés, la croissance et le trafic", "Le classement et les SaaS à vendre", "Valider une idée, les applis, les niches", "Le connecteur Claude / ChatGPT (5 000 questions par mois)", "Sans engagement"] } },
 };
-// Lancer Pro : mêmes durées que Lancer, avec 100 modifications par mois et plus d'IA
+// Pro : site ou SaaS en marque blanche, 100 modifications et 20 vidéos par mois
 PERIODES_PAR_PLAN.lancer_pro = {
-  mois: { label: "1 mois", mois: 1, parMois: 39.99, inclus: ["Tout ce qu'il y a dans Lancer", "Ton nom de domaine, et sans le badge « Built by Bingoo! » ni le « Fait avec Bingoo! » des vidéos", "100 modifications par mois dans l'atelier (au lieu de 30)", "1 000 réponses de l'assistant IA de ton SaaS par mois", "Tes 10 premiers clients en 7 jours compris"] },
-  trimestre: { label: "3 mois", mois: 3, parMois: 29.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Moins cher chaque mois", "Facturé tous les 3 mois"] },
-  an: { label: "12 mois", mois: 12, parMois: 19.99, inclus: ["Tout ce qu'il y a dans 1 mois", "Le prix le plus bas par mois", "Changer de SaaS une fois dans l'année", "Réponse prioritaire par e-mail"] },
+  mois: { label: "1 mois", mois: 1, parMois: 29.99, inclus: ["Ton site ou ton SaaS, sur ton nom de domaine", "Sans le badge « Built by Bingoo! » ni le « Fait avec Bingoo! » des vidéos", "100 modifications par mois dans l'atelier", "20 vidéos motion design par mois", "1 000 réponses de l'assistant IA par mois"] },
+};
+// Vidéo : seulement des vidéos motion design
+PERIODES_PAR_PLAN.video = {
+  mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["20 vidéos motion design par mois, à tes couleurs", "Retouches en discutant", "Vertical, carré ou paysage", "Toute la bibliothèque de styles"] },
 };
 // Site : moins cher qu'un SaaS (pas de données de marché, pas de comptes clients ni d'abonnements à gérer)
 PERIODES_PAR_PLAN.site = {
-  mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Ton site en ligne, hébergement inclus", "Les demandes de tes clients reçues par e-mail et rangées", "Tes services, tes prix et tes horaires modifiables à tout moment", "Ton plan pour tes premiers clients du quartier", "30 modifications par mois dans l'atelier"] },
+  mois: { label: "1 mois", mois: 1, parMois: 9.99, inclus: ["Ton site en ligne, hébergement inclus", "Les demandes de tes clients reçues par e-mail et rangées", "Tes services, tes prix et tes horaires modifiables à tout moment", "Ton plan pour tes premiers clients du quartier", "30 modifications par mois dans l'atelier", "5 vidéos motion design par mois"] },
   an: { label: "12 mois", mois: 12, parMois: 7.99, inclus: ["Tout ce qu'il y a dans 1 mois", "95,88 € facturés une fois par an (2 € de moins chaque mois)", "Réponse prioritaire par e-mail"] },
 };
 /** Formules qui permettent de construire un SaaS (la formule Site ne construit que des sites) */
 export const CONSTRUIT_SAAS = ["explorer_pro", "lancer_pro", "business", "fondateur"];
+/** Pack de démarrage (paiement unique) : un mois de Site ou de SaaS, ou 10 vidéos, pour essayer avant l'abonnement */
+export const DEMARRAGE = { price: 9.99, jours: 30, choix: { site: "Site", explorer_pro: "SaaS", video: "Vidéos" } as Record<string, string>, creditsVideo: 20 };
 export const periodesDe = (plan: string) => PERIODES_PAR_PLAN[plan] ?? PERIODES;
 export const VEILLE_SEULE = ["explorer", "explorer_pro", "lancer_pro", "business", "site"];
-type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null };
+type PlanFields = { plan?: string; plan_status?: string; trial_ends?: string | null; pack_ends?: string | null; stripe_subscription?: string | null };
 /** Bloque les actions payantes quand l'essai est fini ou que l'abonnement n'est plus réglé. */
 export function assertPlan(ws: PlanFields) {
   const plan = ws.plan ?? "essai";
@@ -135,6 +143,9 @@ export function assertPlan(ws: PlanFields) {
     return;
   }
   if (!(plan in PLANS)) throw new HttpError(402, "Formule inconnue : choisis une formule dans Réglages → Abonnement.");
+  // Pack de démarrage : un mois, puis l'abonnement prend le relais
+  const fin = (ws as { pack_ends?: string | null }).pack_ends;
+  if (fin && !(ws as { stripe_subscription?: string | null }).stripe_subscription && fin < new Date().toISOString().slice(0, 10)) throw new HttpError(402, "Ton mois de démarrage est fini : choisis ton abonnement dans Abonnement pour continuer (ton projet est gardé).");
   // Liste blanche : seuls un abonnement réglé ou une période d'essai Stripe donnent accès aux actions payantes
   const st = ws.plan_status ?? "";
   if (st === "active" || st === "trialing") return;
@@ -201,7 +212,7 @@ export async function log(workspaceId: string, kind: string, summary: string) {
 
 /** Limite quotidienne d'actions IA par espace (protège le budget). */
 export async function quota(workspaceId: string, kind: string, max: number, wanted = 1, offert = false): Promise<number> {
-  const { data: w } = await admin.from("workspaces").select("plan, plan_status, trial_ends").eq("id", workspaceId).single();
+  const { data: w } = await admin.from("workspaces").select("plan, plan_status, trial_ends, pack_ends, stripe_subscription").eq("id", workspaceId).single();
   // offert : action de l'offre gratuite (aperçu d'une idée), ouverte même après la fin de l'essai
   if (!(offert && (w?.plan ?? "essai") === "essai")) assertPlan(w ?? {});
   max = Math.max(1, Math.round(max * (PLANS[w?.plan ?? "essai"]?.factor ?? 1)));
@@ -274,12 +285,12 @@ export const PACKS: Record<string, { label: string; price: number; credit: numbe
   l: { label: "Recharge L", price: 35, credit: 19, work: "environ 2 800 e-mails rédigés de plus" },
   p100: { label: "Recharge 100 prospects", price: 19, credit: 0, work: "100 prospects contactés de plus ce mois-ci", prospects: 100 },
   // Crédits Bingoo! (formule Lancer) : modification en plus 1, vidéo pub 10, autre SaaS 60
-  c20: { label: "20 crédits", price: 9.99, credit: 0, work: "20 modifications, ou 2 vidéos pub", credits: 20 },
-  c60: { label: "60 crédits", price: 24.99, credit: 0, work: "1 autre SaaS, ou 6 vidéos pub", credits: 60 },
-  c150: { label: "150 crédits", price: 49.99, credit: 0, work: "2 autres SaaS et 3 vidéos pub", credits: 150 },
+  c20: { label: "20 crédits", price: 9.99, credit: 0, work: "20 modifications, ou 10 vidéos", credits: 20 },
+  c60: { label: "60 crédits", price: 24.99, credit: 0, work: "1 autre SaaS, ou 2 autres sites, ou 30 vidéos", credits: 60 },
+  c150: { label: "150 crédits", price: 49.99, credit: 0, work: "2 autres SaaS et 15 vidéos", credits: 150 },
 };
 /** Ce que coûte chaque action en crédits Bingoo! */
-export const COUT_CREDITS = { modification: 1, video: 10, video_retouche: 3, saas: 60 };
+export const COUT_CREDITS = { modification: 1, video: 2, video_retouche: 1, saas: 60, site: 30 };
 export async function creditsSolde(wsId: string): Promise<number> {
   const { data } = await admin.rpc("credits_solde", { p_ws: wsId });
   return Number(data ?? 0);

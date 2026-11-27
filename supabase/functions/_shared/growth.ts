@@ -409,7 +409,7 @@ export async function checkout(ws: Workspace, userId: string, planKey: string, y
   const grille = periodesDe(planKey);
   const per = grille[yearly ? "an" : periodeKey] ?? grille.mois;
   const perKey = Object.keys(grille).find((k) => grille[k] === per) ?? "mois";
-  const fondateur = planKey === FOUNDER.plan && per.mois === 1 && ((ws as { founder_price?: boolean }).founder_price || (await founderSlots()).left > 0);
+  const fondateur = planKey === FOUNDER.plan && per.mois === 1 && FOUNDER.price < per.parMois && ((ws as { founder_price?: boolean }).founder_price || (await founderSlots()).left > 0);
   const total = fondateur ? FOUNDER.price : Math.round(per.parMois * per.mois * 100) / 100;
   const s = await stripe("/checkout/sessions", {
     mode: "subscription", customer, locale: "fr",
@@ -456,6 +456,34 @@ async function changerFormule(ws: Workspace, planKey: string, periodeKey: string
   await admin.from("workspaces").update({ plan: planKey, periode: perKey }).eq("id", ws.id);
   await log(ws.id, "abonnement", `Passage à ${p.label}`);
   return { ok: true, change: planKey };
+}
+
+/** Pack de démarrage (paiement unique, 9,99 €) : un mois de Site ou de SaaS, ou 10 vidéos. Activé à la confirmation du paiement. */
+export async function demarrage(ws: Workspace, userId: string, choix: string) {
+  const { DEMARRAGE } = await import("./core.ts");
+  if (!DEMARRAGE.choix[choix]) throw new HttpError(400, "Choisis ce que tu veux créer : un site, un SaaS ou des vidéos");
+  if (ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status)) throw new HttpError(400, "Tu as déjà un abonnement : le pack de démarrage sert à commencer.");
+  let customer = ws.stripe_customer;
+  if (!customer) {
+    const { data: u } = await admin.auth.admin.getUserById(userId);
+    const c = await stripe("/customers", { email: u?.user?.email ?? "", name: ws.legal_name || ws.profile?.nom || ws.name, "metadata[workspace_id]": ws.id, "preferred_locales[0]": "fr" });
+    customer = c.id;
+    await admin.from("workspaces").update({ stripe_customer: customer }).eq("id", ws.id);
+  }
+  const quoi = choix === "video" ? "10 vidéos motion design" : `ton ${choix === "site" ? "site" : "SaaS"} en ligne pendant 1 mois, 30 modifications et 5 vidéos`;
+  const s = await stripe("/checkout/sessions", {
+    mode: "payment", customer, locale: "fr",
+    "line_items[0][quantity]": "1",
+    "line_items[0][price_data][currency]": "eur",
+    "line_items[0][price_data][unit_amount]": String(Math.round(DEMARRAGE.price * 100)),
+    "line_items[0][price_data][product_data][name]": `Bingoo! Pack de démarrage : ${quoi}`,
+    "line_items[0][price_data][tax_behavior]": "exclusive",
+    "metadata[workspace_id]": ws.id, "metadata[kind]": "demarrage", "metadata[choix]": choix,
+    "invoice_creation[enabled]": "true", billing_address_collection: "required", "tax_id_collection[enabled]": "true",
+    "customer_update[name]": "auto", "customer_update[address]": "auto",
+    success_url: `${APP(ws)}/#/abonnement?paiement=ok`, cancel_url: `${APP(ws)}/#/abonnement?paiement=annule`,
+  });
+  return { url: s.url };
 }
 
 /** Achat d'une recharge IA (paiement unique). Créditée à la confirmation du paiement par Stripe. */
@@ -513,6 +541,23 @@ export async function stripeWebhook(req: Request) {
   const byCustomer = async () => (await admin.from("workspaces").select("id").eq("stripe_customer", String(o.customer ?? "")).maybeSingle()).data?.id ?? "";
   const id = wsId || await byCustomer();
   if (!id) return { skipped: "espace inconnu" };
+  if (ev.type === "checkout.session.completed" && o.metadata?.kind === "demarrage") {
+    // Pack de démarrage : une seule fois par paiement réglé (ref unique = session Stripe)
+    if (o.payment_status !== "paid") return { skipped: "pack non réglé" };
+    const { DEMARRAGE } = await import("./core.ts");
+    const choix = String(o.metadata?.choix ?? "");
+    if (!DEMARRAGE.choix[choix]) return { skipped: "choix inconnu" };
+    const { data: deja } = await admin.from("activity").select("id").eq("workspace_id", id).eq("kind", "demarrage").ilike("summary", `%${String(o.id)}%`).maybeSingle();
+    if (deja) return { ok: true, deja: true };
+    if (choix === "video") await admin.from("credits").insert({ workspace_id: id, delta: DEMARRAGE.creditsVideo, motif: "Pack de démarrage : 10 vidéos", ref: String(o.id) });
+    else {
+      const fin = new Date(Date.now() + DEMARRAGE.jours * 864e5).toISOString().slice(0, 10);
+      await admin.from("workspaces").update({ plan: choix, plan_status: "active", pack_ends: fin, trial_ends: null, stripe_customer: String(o.customer ?? "") }).eq("id", id).neq("plan", "fondateur");
+    }
+    await log(id, "demarrage", `Pack de démarrage ${DEMARRAGE.choix[choix]} payé (${String(o.id)})`);
+    await alerteJean(`Bingoo! : pack de démarrage ${DEMARRAGE.choix[choix]} (9,99 €)`, `Un membre vient d'acheter le pack de démarrage ${DEMARRAGE.choix[choix]}.`).catch(() => {});
+    return { ok: true };
+  }
   if (ev.type === "checkout.session.completed" && o.metadata?.kind === "recharge") {
     // Recharge IA : créditée une seule fois par paiement, seulement s'il est réglé
     const p = PACKS[String(o.metadata?.pack ?? "")];
@@ -539,15 +584,15 @@ export async function stripeWebhook(req: Request) {
       await log(id, "abonnement", "Paiement en cours de validation : l'abonnement démarre dès qu'il est confirmé");
       return { ok: true, pending: true };
     }
-    await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null, ...(PERIODES[String(o.metadata?.periode ?? "")] ? { periode: String(o.metadata.periode) } : {}), ...(o.metadata?.fondateur === "1" ? { founder_price: true } : {}) }).eq("id", id);
+    await admin.from("workspaces").update({ plan, plan_status: "active", stripe_subscription: String(o.subscription ?? ""), stripe_customer: String(o.customer ?? ""), trial_ends: null, pack_ends: null, ...(["mois", "trimestre", "an"].includes(String(o.metadata?.periode ?? "")) ? { periode: String(o.metadata.periode) } : {}), ...(o.metadata?.fondateur === "1" ? { founder_price: true } : {}) }).eq("id", id);
     await log(id, "abonnement", `Abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} activé`);
     { const montant = Number(o.amount_total ?? 0) / 100; const { data: w } = await admin.from("workspaces").select("name").eq("id", id).maybeSingle();
       await alerteJean(`Bingoo! : nouvel abonnement ${PLANS[o.metadata?.plan]?.label ?? ""} (${montant.toLocaleString("fr-FR")} €)`,
-        `${w?.name ?? "Un client"} vient de s'abonner à ${PLANS[o.metadata?.plan]?.label ?? "Bingoo!"} (${PERIODES[String(o.metadata?.periode ?? "")]?.label ?? "1 mois"}, ${montant.toLocaleString("fr-FR")} € encaissés).\n\nPense à recharger le crédit IA avec une partie de ce paiement pour que sa version puisse être construite, puis dis-le à Claude pour mettre le compteur à jour.`); }
+        `${w?.name ?? "Un client"} vient de s'abonner à ${PLANS[o.metadata?.plan]?.label ?? "Bingoo!"} (${periodesDe(String(o.metadata?.plan ?? ""))[String(o.metadata?.periode ?? "")]?.label ?? "1 mois"}, ${montant.toLocaleString("fr-FR")} € encaissés).\n\nPense à recharger le crédit IA avec une partie de ce paiement pour que sa version puisse être construite, puis dis-le à Claude pour mettre le compteur à jour.`); }
   } else if (ev.type.startsWith("customer.subscription.")) {
     const status = ev.type === "customer.subscription.deleted" ? "canceled" : String(o.status ?? "active");
     const end = o.current_period_end ?? o.items?.data?.[0]?.current_period_end;
-    await admin.from("workspaces").update({ plan_status: status, ...(o.metadata?.plan && status !== "canceled" ? { plan: o.metadata.plan } : {}), ...(PERIODES[String(o.metadata?.periode ?? "")] ? { periode: String(o.metadata.periode) } : {}), stripe_subscription: String(o.id ?? ""), period_end: end ? new Date(end * 1000).toISOString() : null }).eq("id", id);
+    await admin.from("workspaces").update({ plan_status: status, ...(o.metadata?.plan && status !== "canceled" ? { plan: o.metadata.plan } : {}), ...(["mois", "trimestre", "an"].includes(String(o.metadata?.periode ?? "")) ? { periode: String(o.metadata.periode) } : {}), stripe_subscription: String(o.id ?? ""), period_end: end ? new Date(end * 1000).toISOString() : null }).eq("id", id);
     if (status === "canceled") await log(id, "abonnement", "Abonnement arrêté");
   } else if (ev.type === "checkout.session.async_payment_succeeded") {
     await admin.from("workspaces").update({ plan_status: "active", trial_ends: null }).eq("id", id).neq("plan", "fondateur");

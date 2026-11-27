@@ -66,7 +66,7 @@ function WsSwitch({ ws, list, select, className }) {
 }
 
 // ---------------------------------------------------------------- Bingoo! : barre latérale fixe + barre du haut (recherche, compte et crédits)
-const FORMULE = { site: "Site", explorer_pro: "Lancer", lancer_pro: "Lancer Pro", business: "Business", fondateur: "Fondateur", explorer: "Trouver", essai: "Sans formule" };
+const FORMULE = { site: "Site", explorer_pro: "SaaS", lancer_pro: "Pro", video: "Vidéo", business: "Business", fondateur: "Fondateur", explorer: "Trouver", essai: "Sans formule" };
 const DUREE_F = { mois: "1 mois", trimestre: "3 mois", an: "12 mois" };
 function useCredits(ws, invite) {
   const loc = useLocation();

@@ -29,6 +29,13 @@ async function autreSaas(ws: { id: string; periode?: string }) {
   const { count: changes } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("statut", "remplace").gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
   return { deja: true, changement: ws.periode === "an" && (changes ?? 0) < 1, ids: autres.map((x) => x.id) };
 }
+/** Vidéo comprise dans la formule ce mois-ci (vidéos libres + vidéos pub déjà faites < quota du mois) */
+async function videoComprise(wsId: string, plan?: string | null) {
+  const max = limitesDe(plan).videos ?? 0;
+  if (max <= 0) return false;
+  const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).in("kind", ["video_libre", "video"]).gte("created_at", monthStart());
+  return (count ?? 0) < max;
+}
 const MSG_AUTRE = (solde: number) => `Ton abonnement comprend un SaaS, et le tien est déjà construit. Un autre SaaS coûte ${COUT_CREDITS.saas} crédits (ton premier reste en ligne)${solde < COUT_CREDITS.saas ? ` : il te manque ${COUT_CREDITS.saas - solde} crédits` : ""}.`;
 /** Logo de l'espace (fichier rangé dans le stockage, sans table) : { url, couleur } ou null. */
 async function logoEspace(wsId: string): Promise<{ url: string; couleur: string | null } | null> {
@@ -1586,7 +1593,8 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     const utilises = await Promise.all(ks.map((k) => utiliseMois(ws.id, k)));
     const [depense, budget] = await Promise.all([aiSpent(ws.id), aiBudget(ws.id)]);
     const fin = new Date(); fin.setUTCMonth(fin.getUTCMonth() + 1, 1); fin.setUTCHours(0, 0, 0, 0);
-    return { plan: ws.plan, repart: fin.toISOString(), mois: Object.fromEntries(ks.map((k, i) => [k, { utilise: utilises[i], max: lim[k] }])), ia: { pct: budget > 0 ? Math.min(100, Math.round((depense / budget) * 100)) : 0 } };
+    const { count: vids } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).in("kind", ["video_libre", "video"]).gte("created_at", monthStart());
+    return { plan: ws.plan, pack_ends: (ws as any).pack_ends ?? null, repart: fin.toISOString(), mois: { ...Object.fromEntries(ks.map((k, i) => [k, { utilise: utilises[i], max: lim[k] }])), videos: { utilise: vids ?? 0, max: lim.videos ?? 0 } }, ia: { pct: budget > 0 ? Math.min(100, Math.round((depense / budget) * 100)) : 0 } };
   },
   // Crédits Bingoo! : solde, derniers mouvements, ce que coûte chaque action
   async credits(req, b) {
@@ -1609,7 +1617,8 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     const dom = String((pr?.data as any)?.inspire?.domaine ?? "");
     const { data: cb } = dom ? await admin.from("saas_cibles").select("data").eq("workspace_id", ws.id).eq("domaine", dom).maybeSingle() : { data: null };
     await quota(ws.id, "video", 10);
-    await creditsDepenser(ws.id, COUT_CREDITS.video, "Vidéo pub");
+    const parCreditPub = !(await videoComprise(ws.id, ws.plan));
+    if (parCreditPub) await creditsDepenser(ws.id, COUT_CREDITS.video, "Vidéo pub");
     try {
       setAi({ ws: ws.id, live: true, feature: "video" });
       const { saasVideoScript } = await import("../_shared/app-video.ts");
@@ -1618,7 +1627,7 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
       await log(ws.id, "video", `Vidéo pub de ${app.spec.nom}`);
       return v;
     } catch (e) {
-      await creditsRendre(ws.id, COUT_CREDITS.video, "Vidéo échouée : crédits rendus");
+      if (parCreditPub) await creditsRendre(ws.id, COUT_CREDITS.video, "Vidéo échouée : crédits rendus");
       throw e;
     }
   },
@@ -1793,6 +1802,10 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
       const { count } = await admin.from("saas_videos").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).gte("at", monthStart());
       if ((count ?? 0) >= 1) throw new HttpError(402, "Tu as déjà ta vidéo gratuite du mois. Pour en créer d'autres et la retoucher, choisis une offre dans Abonnement.");
     }
+    // Formules payantes : les vidéos du mois sont comprises ; au-delà, COUT_CREDITS.video crédits la vidéo (rendus si elle échoue)
+    const parCredit = ws.plan !== "essai" && !(await videoComprise(ws.id, ws.plan));
+    if (parCredit) await creditsDepenser(ws.id, COUT_CREDITS.video, "Vidéo en plus");
+    try {
     setAi({ ws: ws.id, live: true, feature: "video" });
     const { videoLibre } = await import("../_shared/app-video.ts");
     // Son SaaS ou son site construit par Bingoo! : ses vrais écrans entrent dans la vidéo
@@ -1823,6 +1836,7 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     const { data: v } = await admin.from("saas_videos").insert({ app_id: null, workspace_id: ws.id, format, script: final, texte }).select("id, format, script, texte, at").single();
     await log(ws.id, "video_libre", `Vidéo : ${texte.slice(0, 80)}`);
     return v;
+    } catch (e) { if (parCredit) await creditsRendre(ws.id, COUT_CREDITS.video, "Vidéo échouée : crédits rendus"); throw e; }
   },
   async "video-retouche"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);

@@ -6,7 +6,6 @@ import { Badge, Button, Card, PageHead, useToast } from "../components/ui";
 import { cx } from "../lib/utils";
 import { SubNav } from "../components/SubNav";
 import { modeExplorer } from "../lib/mode";
-import ChoixFormule from "../components/ChoixFormule";
 
 // Prix affiché à la française : 19,99 € ; un prix rond reste rond (29 €)
 const eur = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ","));
@@ -111,10 +110,10 @@ function Credits({ ai, packs, busy, onBuy, saas }) {
   );
 }
 
-// Crédits Bingoo! (formule Lancer) : une modification en plus, une vidéo pub, un autre SaaS
-const ACTIONS_CREDITS = [["Une modification en plus", "modification", "au-delà des 30 du mois"], ["Une vidéo pub de ton SaaS", "video", "20 s en motion design, 2 formats"], ["Un autre SaaS", "saas", "ton premier reste en ligne"]];
+// Crédits Bingoo! : une modification en plus, une vidéo en plus, un autre site ou SaaS
+const ACTIONS_CREDITS = [["Une modification en plus", "modification", "au-delà de celles du mois"], ["Une vidéo en plus", "video", "au-delà de celles du mois"], ["Un autre site", "site", "le premier reste en ligne"], ["Un autre SaaS", "saas", "le premier reste en ligne"]];
 // Ce que l'abonné a utilisé ce mois-ci, face aux limites de sa formule
-const LIGNES_MOIS = [["construire", "Constructions de SaaS", "Reconstruire ou repartir de zéro"], ["modifier", "Modifications dans l'Atelier", "Au-delà : 1 crédit la modification"], ["tiktok", "Recherches TikTok", "Vidéos et comptes à étudier"], ["pareil", "Scripts « Faire pareil »", "Une vidéo TikTok adaptée à ton SaaS"], ["scripts", "Lots de 10 scripts vidéo", "Prêts à tourner, 40 par mois"]];
+const LIGNES_MOIS = [["construire", "Constructions de SaaS", "Reconstruire ou repartir de zéro"], ["modifier", "Modifications dans l'Atelier", "Au-delà : 1 crédit la modification"], ["videos", "Vidéos motion design", "Au-delà : 2 crédits la vidéo"], ["tiktok", "Recherches TikTok", "Vidéos et comptes à étudier"], ["pareil", "Scripts « Faire pareil »", "Une vidéo TikTok adaptée à ton SaaS"], ["scripts", "Lots de 10 scripts vidéo", "Prêts à tourner, 40 par mois"]];
 function MoisEnCours({ l }) {
   if (!l?.mois) return null;
   const ia = l.ia ?? { pct: 0 };
@@ -133,7 +132,7 @@ function MoisEnCours({ l }) {
             <div key={k}>
               <div className="flex items-baseline justify-between gap-2"><p className="text-[14px] font-semibold">{t}</p><p className="text-[13px] tnum"><b>{m.utilise}</b><span className="text-ink-soft"> / {m.max || "—"}</span></p></div>
               <div className="mt-1.5 h-1.5 rounded-full bg-paper overflow-hidden"><div className={cx("h-full rounded-full", pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-ink")} style={{ width: `${m.max ? pct : 0}%` }} /></div>
-              <p className="mt-1 text-[12px] text-ink-soft">{m.max ? sous : "Compris dans la formule Lancer"}</p>
+              <p className="mt-1 text-[12px] text-ink-soft">{m.max ? sous : "Pas compris dans ta formule"}</p>
             </div>
           );
         })}
@@ -159,7 +158,7 @@ function CreditsBingoo({ c, packs, busy, onBuy, payments }) {
         {ACTIONS_CREDITS.map(([l, k, sous]) => (
           <div key={k} className="rounded-xl bg-paper/70 border border-line px-3.5 py-2.5">
             <p className="text-[13.5px] font-semibold">{l}</p>
-            <p className="text-[12.5px] text-ink-soft"><b className="text-ink">{c?.couts?.[k] ?? { modification: 1, video: 10, saas: 60 }[k]} crédit{k === "modification" ? "" : "s"}</b> · {sous}</p>
+            <p className="text-[12.5px] text-ink-soft"><b className="text-ink">{c?.couts?.[k] ?? { modification: 1, video: 2, site: 30, saas: 60 }[k]} crédit{k === "modification" ? "" : "s"}</b> · {sous}</p>
           </div>
         ))}
       </div>
@@ -196,6 +195,7 @@ export default function Abonnement() {
   const [lim, setLim] = useState(null);
   useEffect(() => { fn("r/limites", { workspace_id: ws.id }).then(setLim).catch(() => {}); }, [ws.id]);
   const [pPack, setPPack] = useState(null);
+  const [demarrage, setDemarrage] = useState(null);
   const [quota, setQuota] = useState(null);
   useEffect(() => { fn("quota", { workspace_id: ws.id }).then(setQuota).catch(() => {}); }, [ws.id]);
   const [gar, setGar] = useState(null);
@@ -206,7 +206,7 @@ export default function Abonnement() {
   useEffect(() => { supabase.rpc("ai_month", { p_ws: ws.id }).then(({ data }) => setAi(data ?? null)); }, [ws.id]);
   const [payments, setPayments] = useState(true);
   const [fond, setFond] = useState(null);
-  useEffect(() => { fn("plans").then((r) => { setFond(r.fondateur ?? null); setPlans(r.plans ?? []); setPacks(r.packs ?? []); setCPacks(r.credit_packs ?? []); setPPack(r.prospect_pack ?? null); setPayments(r.payments !== false); }).catch(() => {}); }, []);
+  useEffect(() => { fn("plans").then((r) => { setFond(r.fondateur ?? null); setPlans(r.plans ?? []); setPacks(r.packs ?? []); setCPacks(r.credit_packs ?? []); setPPack(r.prospect_pack ?? null); setDemarrage(r.demarrage ?? null); setPayments(r.payments !== false); }).catch(() => {}); }, []);
   useEffect(() => {
     const q = new URLSearchParams(loc.search);
     if (q.get("paiement") === "ok") { toast("Paiement confirmé, merci ! Ton abonnement s'active dans quelques secondes.", "good"); setTimeout(reload, 4000); }
@@ -223,12 +223,17 @@ export default function Abonnement() {
     try {
       const r = await fn(route, { workspace_id: ws.id, plan, yearly, pack, periode });
       // Changement de formule sur place (Lancer → Lancer Pro) : pas de page de paiement, la différence est facturée au prorata
-      if (r?.change) { toast("C'est fait : tu es passé à Lancer Pro."); setTimeout(() => window.location.reload(), 900); return; }
+      if (r?.change) { toast("C'est fait : ta formule est changée."); setTimeout(() => window.location.reload(), 900); return; }
       window.location.href = r.url;
     }
     catch (e) { toast(e.message, "bad"); setBusy(null); }
   };
 
+  const goPack = async (choix) => {
+    setBusy("pack-" + choix);
+    try { const r = await fn("billing-demarrage", { workspace_id: ws.id, choix }); window.location.href = r.url; }
+    catch (e) { toast(e.message, "bad"); setBusy(null); }
+  };
   // Arrivée depuis l'atelier (« Passer à Lancer Pro ») : on amène directement à l'offre
   useEffect(() => { if (loc.hash === "#lancer-pro" && plans.length) setTimeout(() => document.getElementById("lancer-pro")?.scrollIntoView({ behavior: "smooth", block: "center" }), 200); }, [loc.hash, plans.length]);
   // Arrivée depuis « Lancer celui-ci » : on ouvre directement le paiement de la formule demandée
@@ -260,44 +265,50 @@ export default function Abonnement() {
       {saas ? <CreditsBingoo c={credits} packs={cPacks} payments={payments} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />
         : <Credits saas={saas} ai={ai} packs={packs.filter((p) => !p.prospects)} busy={busy} onBuy={(k) => go("billing-recharge", undefined, k)} />}
 
-      <h2 className="font-serif text-2xl mb-1">Lancer ton SaaS</h2>
-      <p className="text-sm text-ink-soft mb-6">Un SaaS par abonnement. Plus la durée est longue, moins c'est cher par mois et plus c'est complet.</p>
-      <ChoixFormule periodes={plans.find((p) => p.key === "explorer_pro")?.periodes} fondateur={fond && (ws.founder_price || fond.left > 0) ? fond.price : null}
-        actuelle={ws.plan === "explorer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status) ? (ws.periode ?? "mois") : null}
-        busy={busy} onChoisir={(k) => go("billing-checkout", "explorer_pro", undefined, k)} />
       {(() => {
-        const lp = plans.find((p) => p.key === "lancer_pro");
-        if (!lp) return null;
-        const actif = ws.plan === "lancer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status);
-        const surLancer = ws.plan === "explorer_pro" && ["active", "trialing", "past_due"].includes(ws.plan_status);
-        const per = lp.periodes?.find((x) => x.key === (surLancer ? ws.periode ?? "mois" : "mois")) ?? lp.periodes?.[0];
-        return (
-          <Card id="lancer-pro" className="mt-6 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-2 border-[#E8571C]/40">
-            <div className="min-w-0">
-              <p className="font-semibold">Tu modifies beaucoup ton SaaS ? Lancer Pro, {eur(per?.parMois ?? lp.price)} € HT par mois</p>
-              <p className="text-sm text-ink-soft mt-1">Toujours un seul SaaS, avec <b>100 modifications par mois</b> dans l'atelier au lieu de 30, et 1 000 réponses de l'assistant IA de ton SaaS. {surLancer ? "Tu gardes ta durée ; la différence est facturée au prorata, sans repasser par le paiement." : ""}</p>
-            </div>
-            {actif ? <span className="shrink-0 rounded-xl bg-good/10 text-good px-4 py-2.5 text-sm font-semibold">Ta formule actuelle</span>
-              : <button disabled={!!busy} onClick={() => go("billing-checkout", "lancer_pro", undefined, surLancer ? ws.periode ?? "mois" : "mois")} className="shrink-0 rounded-xl bg-[#E8571C] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50">{surLancer ? "Passer à Lancer Pro" : "Choisir Lancer Pro"}</button>}
-          </Card>
-        );
-      })()}
-      <p className="mt-3 text-[12.5px] text-ink-faint">En payant, tu acceptes les <a href="#/conditions" className="underline hover:text-ink">conditions générales</a> et tu demandes l'accès immédiat. Particulier : tu peux te rétracter sous 14 jours, seul le temps déjà utilisé est retenu.</p>
-      {(() => {
-        const t = plans.find((p) => p.key === "explorer");
-        if (!t) return null;
-        const actif = ws.plan === "explorer" && ["active", "trialing", "past_due"].includes(ws.plan_status);
-        const prix = t.periodes?.[0]?.parMois ?? t.price;
-        return (
-          <Card className="mt-6 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="font-semibold">Juste les chiffres : Trouver, {String(prix).replace(".", ",")} € HT par mois</p>
-              <p className="text-sm text-ink-soft mt-1">Tous les revenus vérifiés, la croissance, le trafic, le classement, les SaaS à vendre et le connecteur Claude / ChatGPT. Sans construction de SaaS : pour ça, c'est Lancer. Sans engagement.</p>
-            </div>
-            {actif ? <span className="shrink-0 rounded-xl bg-good/10 text-good px-4 py-2.5 text-sm font-semibold">Ta formule actuelle</span>
-              : <button disabled={!!busy} onClick={() => go("billing-checkout", "explorer", undefined, "mois")} className="shrink-0 rounded-xl border-2 border-ink bg-white px-4 py-2.5 text-sm font-bold hover:bg-paper disabled:opacity-50">Choisir Trouver</button>}
-          </Card>
-        );
+        const actifSub = ws.stripe_subscription && ["active", "trialing", "past_due"].includes(ws.plan_status);
+        const finPack = ws.pack_ends && !ws.stripe_subscription ? new Date(ws.pack_ends) : null;
+        const ordre = ["site", "explorer_pro", "video", "lancer_pro"];
+        const sous = { site: "Pour ton site", explorer_pro: "Pour ton SaaS ou ton appli", video: "Seulement des vidéos", lancer_pro: "Site ou SaaS, à ton nom" };
+        return (<>
+          {!actifSub && demarrage && (
+            <Card className="p-5 sm:p-6 mb-6 border-2 border-[#E8571C]/40">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#E8571C]">Pour commencer</p>
+              <p className="font-serif text-2xl mt-1">Pack de démarrage : {eur(demarrage.price)} € HT, une seule fois</p>
+              <p className="text-sm text-ink-soft mt-1">Tu essaies pendant un mois, puis tu choisis ton abonnement pour garder ton projet en ligne. Sans engagement.</p>
+              {finPack && <p className="text-sm mt-2"><b>Ton mois de démarrage</b> va jusqu'au {finPack.toLocaleDateString("fr-FR")} : choisis ton abonnement ci-dessous pour continuer après.</p>}
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {[["site", "Un site", "Ton site en ligne 1 mois, 30 modifications, 5 vidéos"], ["explorer_pro", "Un SaaS ou une appli", "Ton SaaS en ligne 1 mois, 30 modifications, 5 vidéos"], ["video", "Des vidéos", "10 vidéos motion design, à tes couleurs"]].map(([k, t, d]) => (
+                  <button key={k} disabled={!!busy || !payments} onClick={() => goPack(k)} className="text-left rounded-xl border-2 border-line bg-white p-4 hover:border-[#E8571C] disabled:opacity-50">
+                    <p className="font-semibold">{t}</p><p className="text-[13px] text-ink-soft mt-1">{d}</p>
+                    <p className="mt-3 text-sm font-bold text-[#E8571C]">{busy === "pack-" + k ? "…" : `Commencer pour ${eur(demarrage.price)} €`}</p>
+                  </button>))}
+              </div>
+            </Card>
+          )}
+          <h2 className="font-serif text-2xl mb-1">Ton abonnement</h2>
+          <p className="text-sm text-ink-soft mb-6">Selon ce que tu crées. Sans engagement : tu changes ou tu arrêtes quand tu veux.</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {ordre.map((k) => plans.find((p) => p.key === k)).filter(Boolean).map((p) => {
+              const per = p.periodes?.find((x) => x.key === "mois") ?? p.periodes?.[0];
+              const an = p.periodes?.find((x) => x.key === "an");
+              const actif = ws.plan === p.key && ["active", "trialing", "past_due"].includes(ws.plan_status) && !!ws.stripe_subscription;
+              return (
+                <Card key={p.key} id={p.key === "lancer_pro" ? "lancer-pro" : undefined} className={cx("p-5 flex flex-col", p.key === "explorer_pro" && "border-2 border-[#E8571C]/50")}>
+                  <p className="text-[12px] font-semibold text-ink-soft">{sous[p.key]}</p>
+                  <p className="font-serif text-2xl mt-0.5">{p.label}</p>
+                  <p className="mt-2"><span className="font-serif text-3xl tnum">{eur(per?.parMois ?? p.price)} €</span><span className="text-ink-soft text-sm"> HT / mois</span></p>
+                  {an && <p className="text-[12px] text-ink-soft">ou {eur(an.parMois)} € par mois à l'année</p>}
+                  <ul className="mt-3 space-y-1.5 text-[13px] flex-1">{(per?.inclus ?? []).map((x) => <li key={x} className="flex gap-2"><span className="text-good">✓</span><span>{x}</span></li>)}</ul>
+                  {actif ? <span className="mt-4 rounded-xl bg-good/10 text-good px-4 py-2.5 text-sm font-semibold text-center">Ta formule actuelle</span>
+                    : <button disabled={!!busy || !payments} onClick={() => go("billing-checkout", p.key, undefined, "mois")} className={cx("mt-4 rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-50", p.key === "explorer_pro" ? "bg-[#E8571C] text-white hover:opacity-90" : "border-2 border-ink bg-white hover:bg-paper")}>{busy === p.key ? "…" : `Choisir ${p.label}`}</button>}
+                  {!actif && an && <button disabled={!!busy || !payments} onClick={() => go("billing-checkout", p.key, undefined, "an")} className="mt-2 text-[12.5px] underline text-ink-soft hover:text-ink">Payer à l'année</button>}
+                </Card>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-[12.5px] text-ink-faint">En payant, tu acceptes les <a href="#/conditions" className="underline hover:text-ink">conditions générales</a> et tu demandes l'accès immédiat. Particulier : tu peux te rétracter sous 14 jours, seul le temps déjà utilisé est retenu.</p>
+        </>);
       })()}
       <Card className="mt-6 p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4 bg-paper/50">
         <div><p className="font-semibold">Plusieurs SaaS, une équipe, un incubateur ?</p><p className="text-sm text-ink-soft mt-1">Formule sur devis : utilisateurs et SaaS sur mesure, accompagnement au lancement.</p></div>

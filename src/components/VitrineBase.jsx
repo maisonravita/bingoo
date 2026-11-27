@@ -204,7 +204,7 @@ export function BingooIA({ go }) {
             <h2 className="mt-6 text-[34px] sm:text-[52px] font-bold leading-[1.04] tracking-[-.035em]">Demande à ton IA.<br /><span className="fx-texte">Elle fouille dans Bingoo!</span></h2>
             <p className="mt-5 max-w-[480px] text-[17px] leading-[1.55] text-white/70">Branche Bingoo! à ton IA : Claude, ChatGPT, Le Chat, Gemini, Perplexity… Pose ta question comme tu la penses : ton IA cherche dans les SaaS suivis et te répond avec leurs vrais chiffres.</p>
             <button onClick={go} className="fx-brille mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-[16px] font-bold text-[#15171F] hover:bg-white/90 transition">Brancher Bingoo! à mon IA</button>
-            <p className="mt-3 text-[13px] text-white/50">Essai gratuit, sans carte. Les chiffres complets sont inclus dans la formule Lancer.</p>
+            <p className="mt-3 text-[13px] text-white/50">Essai gratuit, sans carte. Les chiffres complets sont inclus dans la formule SaaS.</p>
           </div>
 
           <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[.04] p-4 sm:p-5">
