@@ -821,6 +821,9 @@ if (CONSTRUIRE === "modeles-video") {
   // La galerie des modèles vidéo de l'accueil, vue par un visiteur
   const c = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-FR" }); const p = await c.newPage();
   await p.goto(`${SITE}/?c=${Date.now()}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(2000);
+  for (let k = 0; k < 14 && !(await p.getByText("Des pubs en motion design").count()); k++) { await p.mouse.wheel(0, 900); await p.waitForTimeout(500); }
+  await p.getByText("Des pubs en motion design").first().scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(1500);
+  await p.evaluate(() => { const r = document.querySelector(".videos-rang"); if (r) r.style.animation = "none"; });
   const v = p.locator('video[src*="atelio"], video:has(source[src*="atelio"])').first();
   const n = await v.count(); console.log("vidéo Atelio sur l'accueil :", n ? "✓" : "✗");
   if (n) { await v.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(4500); await p.screenshot({ path: `${DOSSIER}/modeles-video.png` }); const ok = await v.evaluate((x) => x.readyState >= 2 && !x.paused).catch(() => false); console.log("elle joue :", ok ? "✓" : "✗"); }
