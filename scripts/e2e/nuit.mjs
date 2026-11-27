@@ -56,8 +56,7 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
   });
   await etape(`[${label}] Démo d'un SaaS livré`, async () => {
     await page.goto(`${SITE}/?e2e=${Date.now()}#/app/${APP}`, { waitUntil: "networkidle", timeout: 45000 });
-    const cadre = page.frameLocator("iframe").first();
-    await cadre.getByText("Voir la démo en 30 s").first().click({ timeout: 20000 });
+    const cadre = await ouvrirDemo(page, APP);
     await cadre.getByText(/1\/\d · /).first().waitFor({ timeout: 15000 });
     await page.waitForTimeout(2500);
     const txt = await cadre.locator("body").innerText();
@@ -65,6 +64,14 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
     sansErreur();
   });
   await ctx.close();
+}
+// Ouvre la démo d'un SaaS : par le bouton de sa page d'accueil s'il en a un, sinon par le lien direct (?tour=1),
+// car les SaaS à page vitrine (site) ou de type outil n'affichent pas ce bouton
+async function ouvrirDemo(page, slug) {
+  const cadre = page.frameLocator("iframe").first();
+  const ok = await cadre.getByText("Voir la démo en 30 s").first().click({ timeout: 6000 }).then(() => true).catch(() => false);
+  if (!ok) { await page.goto(`${SITE}/?e2e=${Date.now()}&tour=1#/app/${slug}`, { waitUntil: "networkidle", timeout: 45000 }); await page.waitForTimeout(3000); }
+  return page.frameLocator("iframe").first();
 }
 // 3) Chaque SaaS livré : sa démo s'ouvre et chacun de ses écrans s'affiche sans erreur
 const TOUTES = [...(await (await fetch(`${SITE}/sitemap-apps.xml`)).text()).matchAll(/\/p\/([a-z0-9-]+)</g)].map((m) => m[1]);
@@ -75,8 +82,7 @@ const TOUTES = [...(await (await fetch(`${SITE}/sitemap-apps.xml`)).text()).matc
       const page = await ctx.newPage(); const erreurs = [];
       page.on("pageerror", (e) => erreurs.push(e.message));
       await page.goto(`${SITE}/?e2e=${Date.now()}#/app/${slug}`, { waitUntil: "networkidle", timeout: 45000 });
-      const cadre = page.frameLocator("iframe").first();
-      await cadre.getByText("Voir la démo en 30 s").first().click({ timeout: 20000 });
+      const cadre = await ouvrirDemo(page, slug);
       await page.waitForTimeout(2500);
       await page.mouse.click(5, 300); // arrête la visite guidée
       const liens = cadre.locator("aside button, aside a, nav button");
