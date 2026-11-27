@@ -1,0 +1,21 @@
+{
+  "gen": {
+    "at": "2026-11-27T11:25:17.730Z",
+    "cout": 0.2686,
+    "appels": 4,
+    "entree": 100199,
+    "modele": "claude-sonnet-5-5",
+    "sortie": 4487,
+    "duree_s": 45,
+    "journal": [
+      "Premier écran : composition Moitié",
+      "Plan : hero, services, photos, horaires, contact",
+      "Images : 3 générée(s), 0.083 €",
+      "Sections : services=liste, photos=duo",
+      "Essai 1 : photos (Texte : « au cœur de » (« 9 rue Sainte-Catherine, au cœur de)"
+    ],
+    "images_eur": 0.0828,
+    "corrections": 1
+  },
+  "sections": 6
+}

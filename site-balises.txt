@@ -1,0 +1,16 @@
+<title>Barbe &amp; Lame · Barbier à Bordeaux</title>
+<meta name="description" content="Barbe &amp; Lame, barbier pour hommes au centre de Bordeaux, coupe, taille de barbe et rasage à l&#39;ancienne.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Barbe &amp; Lame">
+<meta property="og:title" content="Barbe &amp; Lame · Barbier à Bordeaux">
+<meta property="og:description" content="Barbe &amp; Lame, barbier pour hommes au centre de Bordeaux, coupe, taille de barbe et rasage à l&#39;ancienne.">
+<meta property="og:url" content="https://www.bingoo.fr/s/barbe-lame-4z11">
+<meta property="og:image" content="https://www.bingoo.fr/api/og?slug=barbe-lame-4z11&amp;v=12-137638">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="https://www.bingoo.fr/api/og?slug=barbe-lame-4z11&amp;v=12-137638">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Barbe &amp; Lame · Barbier à Bordeaux">
+<meta name="twitter:description" content="Barbe &amp; Lame, barbier pour hommes au centre de Bordeaux, coupe, taille de barbe et rasage à l&#39;ancienne.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness","name":"Barbe & Lame","description":"Barbe & Lame, barbier pour hommes au centre de Bordeaux, coupe, taille de barbe et rasage à l'ancienne.","url":"https://www.bingoo.fr/s/barbe-lame-4z11","image":"https://www.bingoo.fr/api/og?slug=barbe-lame-4z11&v=12-137638","telephone":"05 56 11 22 33","address":"9 rue Sainte-Catherine, 33000 Bordeaux","areaServed":"Bordeaux","openingHoursSpecification":[{"@type":"OpeningHoursSpecification","dayOfWeek":"Tuesday","opens":"10:00","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Wednesday","opens":"10:00","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Thursday","opens":"10:00","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Friday","opens":"10:00","closes":"19:00"},{"@type":"OpeningHoursSpecification","dayOfWeek":"Saturday","opens":"10:00","closes":"19:00"}],"makesOffer":[{"@type":"Offer","name":"Coupe homme","description":"Une coupe adaptée à votre visage et à votre style.","price":25,"priceCurrency":"EUR"},{"@type":"Offer","name":"Taille de barbe","description":"Mise en forme et entretien de votre barbe.","price":18,"priceCurrency":"EUR"},{"@type":"Offer","name":"Rasage à l'ancienne","description":"Rasage traditionnel au rasoir, avec serviette chaude et soin après rasage.","price":30,"priceCurrency":"EUR"}]}</script>
