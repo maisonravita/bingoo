@@ -1411,7 +1411,7 @@ const DECLIC = {
   mots(ctx, s, e) {
     const { W, H, u, t, d, nom, vertical } = s, mots = String(e.texte || "").split(".").map((x) => x.trim()).filter(Boolean).slice(0, 3);
     const pr = eo(prog(t, 0, 0.35)), mw = W * (vertical ? 0.7 : 0.28), mx = vertical ? W * 0.15 : W * 0.6, my = H * (vertical ? 0.08 : 0.24);
-    ctx.save(); ctx.translate((1 - pr) * W * 0.5, 0); pageMini(ctx, mx, my, mw * 0.62, mw * 0.5, u, e.accent || "Plan de lancement", ["Brief", "Maquettes", "Mise en ligne"]);
+    ctx.save(); ctx.translate((1 - pr) * W * 0.5, 0); pageMini(ctx, mx, my, mw * 0.62, mw * 0.5, u, e.accent || nom, ["Brief", "Maquettes", "Mise en ligne"]);
     feuille(ctx, mx + mw * 0.68, my, mw * 0.4, mw * 0.5, u, { r: 12 }); lignes(ctx, mx + mw * 0.72, my + mw * 0.06, mw * 0.3, 4, u * 0.8);
     calendrier(ctx, mx, my + mw * 0.56, mw * 1.08, mw * 0.56, u * 0.7, t, { pop: 0 }); ctx.restore();
     const tp = (vertical ? 120 : 92) * u, x = W * (vertical ? 0.1 : 0.15), y0 = vertical ? H * 0.58 : H * 0.36;
