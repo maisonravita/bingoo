@@ -25,6 +25,9 @@ export { slugs } from "./${S}/deep.ts";
 export { invitesToday, officeHours } from "./${S}/linkedin-auto.ts";
 export { masquer, MASQUE, PAYANT_SEUL, QUOTA_GRATUIT } from "./${S}/mcp-bingoo.ts";
 export { alignerCode, couvrirDemo } from "./${S}/contrat-donnees.ts";
+export { fidelite, consigneFidelite, ecranCalendrier } from "./${S}/fidelite.ts";
+export { cibleOutil } from "./${S}/connexions.ts";
+export { agendaDe } from "./${S}/app-runtime.ts";
 export { controlerSection, doublonsServices, sujetDejaTraite } from "./${S}/gen-nettoyage.ts";
 export { choisirComposition, choisirSections } from "./${S}/gen-compositions.ts";
 export { modeleDe, specReservation, specDevis, specEcriture, specCrm, specProjets, specSupport, specBoutique, specFormation, specRecrutement, specReseaux, specFormulaires, specNotes } from "./${S}/modeles.ts";
@@ -364,6 +367,29 @@ await test("deux sections sur le même sujet : signalé, pas pour le nom, la vil
   assert.equal(T.sujetDejaTraite("vins", "<section><h2>Trois couleurs, un même sol</h2></section>", prec, "Domaine").length, 0);
   assert.equal(T.sujetDejaTraite("x", "<section><h2>Le Luberon autrement</h2></section>", [{ id: "a", html: "<h2>Vins du Luberon</h2>" }], "Domaine Luberon").length, 0);
 });
+console.log("Logique des applications et branchements");
+await test("un seul calendrier par logiciel : les autres écrans doivent le retirer", () => {
+  const c = "function Ecran(){return html`<${ui.Calendrier}/>`}";
+  const spec = { famille: "x", ecrans: [{ id: "accueil", titre: "Accueil", code: c }, { id: "mes_outils", titre: "Mes outils", code: c }, { id: "reservation", titre: "Réservation", code: c }, { id: "avis", titre: "Avis", code: "function Ecran(){}" }] };
+  assert.equal(T.ecranCalendrier(spec), "reservation");
+  const f = T.fidelite(spec, {});
+  assert.deepEqual(Object.keys(f).sort(), ["accueil", "mes_outils"]);
+  assert.match(T.consigneFidelite(spec, spec.ecrans[0], {}), /N'utilise PAS ui\.Calendrier/);
+  assert.equal(T.consigneFidelite(spec, spec.ecrans[2], {}), "");
+});
+await test("agenda trouvé tout seul : rendez-vous d'un site, location sur plusieurs jours", () => {
+  const site = T.agendaDe({ collections: [{ nom: "services", champs: [{ nom: "titre", type: "texte" }] }, { nom: "demandes", champs: [{ nom: "nom", type: "texte" }, { nom: "service", type: "texte" }, { nom: "date_souhaitee", type: "date" }] }] });
+  assert.equal(site.collection, "demandes"); assert.equal(site.champ_date, "date_souhaitee"); assert.equal(site.champ_heure, "heure");
+  const loc = T.agendaDe({ collections: [{ nom: "locations", champs: [{ nom: "date_debut", type: "date" }, { nom: "date_retour", type: "date" }, { nom: "total", type: "montant" }] }] });
+  assert.equal(loc.champ_fin, "date_retour");
+  assert.equal(T.agendaDe({ collections: [{ nom: "notes", champs: [{ nom: "texte", type: "texte" }] }] }), null);
+});
+await test("Notion et Airtable : la base est reconnue depuis le lien copié", () => {
+  assert.deepEqual(T.cibleOutil("notion", "https://www.notion.so/monespace/Clients-0123456789abcdef0123456789abcdef?v=fedcba9876543210fedcba9876543210"), { base: "0123456789abcdef0123456789abcdef" });
+  assert.deepEqual(T.cibleOutil("airtable", "https://airtable.com/appAbCdEf12345678/tblXyZ98765432109/viwQQQ?blocks=hide"), { base: "appAbCdEf12345678", table: "tblXyZ98765432109" });
+  assert.equal(T.cibleOutil("airtable", "https://airtable.com/appAbCdEf12345678"), null);
+});
+
 console.log(`\n${ok} réussi${ok > 1 ? "s" : ""}, ${ko} échec${ko > 1 ? "s" : ""}`);
 writeFileSync(join(dir, "done"), "");
 process.exit(ko ? 1 : 0);
