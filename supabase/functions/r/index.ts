@@ -20,12 +20,13 @@ async function secret(name: string) {
 }
 // Limites du mois par formule : voir LIMITES dans core.ts
 const quotaMois = (wsId: string, plan: string, kind: "construire" | "modifier") => limiteMois(wsId, plan, kind);
-// Un SaaS par abonnement. Un autre SaaS : 60 crédits (le premier reste en ligne), ou le changement gratuit une fois dans l'année avec la durée de 12 mois.
+// Projets compris : LIMITES.projets (Essentiel 1, Pro 3). Au-delà : 30 crédits un site, 60 un SaaS (les autres restent en ligne), ou le changement gratuit une fois dans l'année avec la durée de 12 mois.
 // Vérifié AVANT toute dépense d'IA (préparation et construction).
-async function autreSaas(ws: { id: string; periode?: string }) {
+async function autreSaas(ws: { id: string; periode?: string; plan?: string }) {
   // Compte les SaaS réellement construits ou en construction (pas une page de précommande, pas une construction échouée, pas un SaaS remplacé ni retiré par Bingoo!)
   const { data: autres } = await admin.from("saas_apps").select("id").eq("workspace_id", ws.id).not("statut", "in", "(remplace,erreur,validation,retire)");
-  if (!autres?.length) return { deja: false, changement: false, ids: [] as string[] };
+  const max = Math.max(1, limitesDe(ws.plan).projets ?? 1);
+  if ((autres?.length ?? 0) < max) return { deja: false, changement: false, ids: [] as string[] };
   const { count: changes } = await admin.from("saas_apps").select("id", { count: "exact", head: true }).eq("workspace_id", ws.id).eq("statut", "remplace").gte("at", new Date(Date.now() - 365 * 864e5).toISOString());
   return { deja: true, changement: ws.periode === "an" && (changes ?? 0) < 1, ids: autres.map((x) => x.id) };
 }
@@ -36,7 +37,11 @@ async function videoComprise(wsId: string, plan?: string | null) {
   const { count } = await admin.from("activity").select("id", { count: "exact", head: true }).eq("workspace_id", wsId).in("kind", ["video_libre", "video"]).gte("created_at", monthStart());
   return (count ?? 0) < max;
 }
-const MSG_AUTRE = (solde: number) => `Ton abonnement comprend un SaaS, et le tien est déjà construit. Un autre SaaS coûte ${COUT_CREDITS.saas} crédits (ton premier reste en ligne)${solde < COUT_CREDITS.saas ? ` : il te manque ${COUT_CREDITS.saas - solde} crédits` : ""}.`;
+const coutAutre = (type?: string) => (["site", "outil"].includes(String(type ?? "")) ? COUT_CREDITS.site : COUT_CREDITS.saas);
+const MSG_AUTRE = (solde: number, type?: string, plan?: string) => {
+  const c = coutAutre(type), quoi = c === COUT_CREDITS.site ? "site" : "SaaS", n = Math.max(1, limitesDe(plan).projets ?? 1);
+  return `Ton abonnement comprend ${n > 1 ? `${n} sites ou SaaS` : "1 site ou SaaS"}, déjà construit${n > 1 ? "s" : ""}. Un autre ${quoi} coûte ${c} crédits (les autres restent en ligne)${solde < c ? ` : il te manque ${c - solde} crédits` : ""}${n < 3 ? ". Avec Pro, tu en as jusqu'à 3" : ""}.`;
+};
 /** Logo de l'espace (fichier rangé dans le stockage, sans table) : { url, couleur } ou null. */
 async function logoEspace(wsId: string): Promise<{ url: string; couleur: string | null } | null> {
   try { const { data } = await admin.storage.from("apps").download(`espaces/${wsId}/logo.json`); if (!data) return null; const j = JSON.parse(await data.text()); return typeof j?.url === "string" ? j : null; } catch { return null; }
@@ -354,10 +359,10 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-lancer"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer" || ws.plan === "site") throw new HttpError(402, "« Lancer le même » est dans la formule Lancer.");
+    if (ws.plan === "explorer" || ws.plan === "site") throw new HttpError(402, "« Lancer le même » est dans les formules Essentiel et Pro.");
     // Déjà un SaaS construit : pas de préparation (payante en IA) sans le droit d'en construire un autre
-    const au = await autreSaas(ws as { id: string; periode?: string });
-    if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
+    const au = await autreSaas(ws as { id: string; periode?: string; plan?: string });
+    if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < coutAutre(b.type)) throw new HttpError(402, MSG_AUTRE(solde, b.type, ws.plan)); }
     await quota(ws.id, "lancer", 10);
     const { saasAdd, domaineDe } = await import("../_shared/saas-base.ts");
     const domaine = domaineDe(String(b.domaine ?? ""));
@@ -611,14 +616,14 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   // Le projet né d'une idée (même suite qu'un projet « concurrent » : questions, paiement, construction, vérification)
   async "saas-lancer-idee"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon idée » est dans la formule Lancer.");
+    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon idée » est dans les formules Essentiel et Pro.");
     // Compte gratuit : son premier outil ou jeu est offert ; tout le reste demande une offre
     const offert = ws.plan === "essai" && await outilOffert(ws.id, b.type);
-    if (ws.plan === "essai" && !offert) throw new HttpError(402, String(b.type ?? "") === "outil" ? "Ton premier outil ou jeu était offert et tu l'as déjà construit. Pour en construire un autre, choisis l'offre Site ou Lancer dans Abonnement." : "Ton premier outil ou jeu est offert. Un site ou un logiciel fait partie des offres payantes : choisis Site ou Lancer dans Abonnement.");
+    if (ws.plan === "essai" && !offert) throw new HttpError(402, String(b.type ?? "") === "outil" ? "Ton premier outil ou jeu était offert et tu l'as déjà construit. Pour en construire un autre, choisis l'offre Essentiel ou Lancer dans Abonnement." : "Ton premier outil ou jeu est offert. Un site ou un logiciel fait partie des offres payantes : choisis Essentiel ou Pro dans Abonnement.");
     // La formule Site construit des sites, pas des SaaS
-    if (ws.plan === "site" && !["site", "outil"].includes(String(b.type ?? "saas"))) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Lancer.");
-    const au = await autreSaas(ws as { id: string; periode?: string });
-    if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < COUT_CREDITS.saas) throw new HttpError(402, MSG_AUTRE(solde)); }
+    if (ws.plan === "site" && !["site", "outil"].includes(String(b.type ?? "saas"))) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Essentiel.");
+    const au = await autreSaas(ws as { id: string; periode?: string; plan?: string });
+    if (au.deja && !au.changement) { const solde = await creditsSolde(ws.id); if (solde < coutAutre(b.type)) throw new HttpError(402, MSG_AUTRE(solde, b.type, ws.plan)); }
     await quota(ws.id, "lancer", 10);
     const texte = String(b.texte ?? "").trim().slice(0, 400), apercu = b.apercu && typeof b.apercu === "object" ? b.apercu : null;
     if (texte.length < 6 || !apercu?.nom || !Array.isArray(apercu.ecrans)) throw new HttpError(400, "Idée ou aperçu manquant : refais l'aperçu de ton idée");
@@ -640,28 +645,29 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
   },
   async "saas-construire"(req, b) {
     const { ws } = await membreOuCron(req, b.workspace_id);
-    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans la formule Lancer.");
+    if (ws.plan === "explorer") throw new HttpError(402, "« Construire mon SaaS » est dans les formules Essentiel et Pro.");
     const { data: pr } = await admin.from("saas_projets").select("id, data, statut").eq("id", String(b.projet_id ?? "")).eq("workspace_id", ws.id).maybeSingle();
     // Compte gratuit : seul le projet offert (premier outil ou jeu) se construit
     const offert = ws.plan === "essai" && (pr?.data as any)?.offert === true && (pr?.data as any)?.idee?.type === "outil";
-    if (ws.plan === "essai" && !offert) throw new HttpError(402, "La construction fait partie des offres payantes : choisis Site ou Lancer dans Abonnement pour que Bingoo! construise ton projet.");
+    if (ws.plan === "essai" && !offert) throw new HttpError(402, "La construction fait partie des offres payantes : choisis Essentiel ou Pro dans Abonnement pour que Bingoo! construise ton projet.");
     if (!pr || pr.statut !== "pret") throw new HttpError(404, "Projet introuvable");
-    if (ws.plan === "site" && !["site", "outil"].includes((pr.data as any)?.idee?.type)) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Lancer.");
+    if (ws.plan === "site" && !["site", "outil"].includes((pr.data as any)?.idee?.type)) throw new HttpError(402, "Ta formule Site construit des sites web, des outils et des jeux. Pour un SaaS, passe à la formule Essentiel.");
     const { data: ex } = await admin.from("saas_apps").select("id, statut, maj, etape").eq("projet_id", pr.id).maybeSingle();
     if (ex?.statut === "en_cours" && Date.now() - new Date(ex.maj).getTime() < 10 * 60e3) return { id: ex.id, statut: "en_cours" };
     // Un seul SaaS par abonnement (toutes formules) : un autre SaaS = 60 crédits, sauf le changement annuel de la durée 12 mois (il remplace le premier)
     let remplacer: string[] = [], parCredits = false;
     if (!ex && !req.headers.get("x-cron-key")) {
-      const au = await autreSaas(ws as { id: string; periode?: string });
+      const au = await autreSaas(ws as { id: string; periode?: string; plan?: string });
       if (au.deja) {
         if (au.changement && b.credits !== true) remplacer = au.ids;
         else if (b.credits === true) parCredits = true;
-        else throw new HttpError(402, MSG_AUTRE(await creditsSolde(ws.id)));
+        else throw new HttpError(402, MSG_AUTRE(await creditsSolde(ws.id), (pr.data as any)?.idee?.type, ws.plan));
       }
     }
     // Une reprise après échec ne compte pas : le client n'a rien obtenu
     if (!req.headers.get("x-cron-key") && !parCredits && ex?.statut !== "erreur") { await quota(ws.id, "construire", 3); if (!offert) await quotaMois(ws.id, ws.plan, "construire"); }
-    if (parCredits) await creditsDepenser(ws.id, COUT_CREDITS.saas, "Autre SaaS");
+    const typeP = (pr.data as any)?.idee?.type;
+    if (parCredits) await creditsDepenser(ws.id, coutAutre(typeP), coutAutre(typeP) === COUT_CREDITS.site ? "Autre site" : "Autre SaaS");
     if (remplacer.length) await admin.from("saas_apps").update({ statut: "remplace", public: false }).in("id", remplacer);
     setAi({ ws: ws.id, live: true, feature: "construire" });
     const { saasConstruire, nouveauSlug } = await import("../_shared/app-build.ts");
@@ -1093,7 +1099,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     // Code sur le dépôt GitHub du membre (sens unique, un commit par envoi). Voir _shared/github.ts
     if (["github-brancher", "github-debrancher", "github-envoyer"].includes(b.quoi)) {
-      if (ws.plan === "essai") throw new HttpError(402, "L'envoi du code sur GitHub fait partie des offres Site et Lancer");
+      if (ws.plan === "essai") throw new HttpError(402, "L'envoi du code sur GitHub fait partie des formules Essentiel et Pro");
       const g = await import("../_shared/github.ts");
       const dire = (e: unknown) => new HttpError(400, String((e as Error)?.message ?? e).slice(0, 240));
       if (b.quoi === "github-debrancher") {
@@ -1134,7 +1140,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     }
     // Connexions sortantes (Zapier, Make, n8n…) : adresses prévenues à chaque demande ou fiche. Voir _shared/connexions.ts
     if (["connexion-ajouter", "connexion-supprimer", "connexion-tester"].includes(b.quoi)) {
-      if (ws.plan === "essai") throw new HttpError(402, "Les connexions font partie des offres Site et Lancer");
+      if (ws.plan === "essai") throw new HttpError(402, "Les connexions font partie des formules Essentiel et Pro");
       const cx = await import("../_shared/connexions.ts");
       const { data: a } = await admin.from("saas_apps").select("slug, spec, connexions").eq("id", app.id).single();
       const liste: any[] = Array.isArray((a?.connexions as any)?.liste) ? (a!.connexions as any).liste : [];
@@ -1237,7 +1243,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
     if (b.quoi === "stripe-connect") return await o.stripeConnectLien(app.id, ws.id);
     // Marque blanche : le nom de domaine et le retrait du badge « Built by Bingoo! » sont dans l'offre Lancer Pro
     if ((b.quoi === "domaine" && String(b.domaine ?? "").trim()) || b.quoi === "badge") {
-      if (!marqueBlanche(ws as any)) throw new HttpError(402, "Ton nom de domaine et le retrait du badge « Built by Bingoo! » font partie de l'offre Lancer Pro : passe à Lancer Pro dans Abonnement.");
+      if (!marqueBlanche(ws as any)) throw new HttpError(402, "Ton nom de domaine et le retrait du badge « Built by Bingoo! » font partie de la formule Pro : passe à Lancer Pro dans Abonnement.");
     }
     if (b.quoi === "badge") {
       const { data: a } = await admin.from("saas_apps").select("spec, version").eq("id", app.id).single();
@@ -1324,7 +1330,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
         if (titre.length < 2) throw new HttpError(400, "Donne un titre à la page (« À propos », « Tarifs »…)");
         if (consigne.length < 10) throw new HttpError(400, "Dis en une ou deux phrases ce que la page doit contenir");
         if (pages.length >= 8) throw new HttpError(400, "8 pages supplémentaires au plus");
-        if (ws.plan === "essai") throw new HttpError(402, "Les pages supplémentaires font partie des offres Site et Lancer");
+        if (ws.plan === "essai") throw new HttpError(402, "Les pages supplémentaires font partie des formules Essentiel et Pro");
         await quota(ws.id, "page_site", 10);
         setAi({ ws: ws.id, live: true, feature: "construire/page" });
         const { ecrirePageSite } = await import("../_shared/site-gen.ts");
@@ -1576,11 +1582,12 @@ Clés JSON : resume (une phrase), etapes (2 à 6 étapes courtes et concrètes, 
     setAi({ ws: ws.id, live: true, feature: "support" });
     const { ask } = await import("../_shared/core.ts");
     const reponse = await ask(`Question du membre : « ${question} »\n\nSon compte : ${contexte}`, { fast: true, maxTokens: 500, cacheSystem: true, system: `Tu es l'assistance de Bingoo! (bingoo.fr), en français, en tutoyant, en 2 à 5 phrases simples, concrètes, sans jargon.
-Bingoo! crée pour des commerçants, artisans et indépendants : des sites (offre Site 9,99 €/mois), des SaaS et apps (offre Lancer 24,99 €/mois, 19 € à vie pour les 50 premiers), des vidéos motion design, et aide à trouver les premiers clients.
+Bingoo! crée pour des commerçants, artisans et indépendants : des sites, des SaaS et apps, des vidéos motion design, et aide à trouver les premiers clients.
+Offres : Gratuit (premier outil ou jeu, 1 vidéo par mois) ; Essentiel 9,99 € HT/mois (1 site ou SaaS en ligne, 30 modifications, 5 vidéos par mois) ; Pro 24,99 € HT/mois (jusqu'à 3 sites ou SaaS, nom de domaine, sans badge, 100 modifications, 20 vidéos par mois). Pack de démarrage 9,99 € une fois. Crédits : 1 par modification en plus, 2 par vidéo en plus, 30 un autre site, 60 un autre SaaS. Les anciennes formules (Site, Lancer, Lancer Pro, Vidéo) restent valables pour ceux qui les ont.
 Ce qu'il faut savoir :
-- L'atelier (menu Mon SaaS ou Atelier) : on écrit ce qu'on veut changer, Bingoo! le fait. Gratuit et sans limite : modifier un texte (clic sur le texte), remplacer une image (outil Image), choisir les polices (outil Police), réordonner les sections (outil Sections). Les autres demandes comptent dans les modifications du mois (30 en Lancer et Site, 100 en Lancer Pro), puis 1 crédit chacune.
+- L'atelier (menu Mon SaaS ou Atelier) : on écrit ce qu'on veut changer, Bingoo! le fait. Gratuit et sans limite : modifier un texte (clic sur le texte), remplacer une image (outil Image), choisir les polices (outil Police), réordonner les sections (outil Sections). Les autres demandes comptent dans les modifications du mois (30 en Essentiel, 100 en Pro), puis 1 crédit chacune.
 - Tu ne paies jamais nos erreurs : un défaut trouvé par le test de Bingoo! est corrigé gratuitement, et une modification annulée dans les 48 h (« Pas ce que tu voulais ? Annule ») est rendue.
-- Crédits : rechargeables dans Abonnement. Vidéo pub : dans Vidéos. Nom de domaine et retrait du badge « Built by Bingoo! » : offre Lancer Pro.
+- Crédits : rechargeables dans Abonnement. Vidéo pub : dans Vidéos. Nom de domaine et retrait du badge « Built by Bingoo! » : formule Pro.
 - Paiements des clients du membre : sur son propre compte Stripe, Bingoo! ne prend aucune commission.
 - Arrêter l'abonnement : Abonnement, en un clic.
 Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement, une facture ou une question sensible : dis-le franchement et invite à cliquer sur le bouton « Parler à un humain » sous la conversation (réponse par e-mail le jour même). N'invente jamais une fonction, un prix ni une gratuité : seuls sont gratuits les points listés ci-dessus.` });
@@ -1883,7 +1890,7 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
   },
   async "saas-clients"(req, b) {
     const { ws } = await requireMember(req, b.workspace_id);
-    if (ws.plan === "explorer" || ws.plan === "site") throw new HttpError(402, "« Qui démarcher » est dans la formule Lancer.");
+    if (ws.plan === "explorer" || ws.plan === "site") throw new HttpError(402, "« Qui démarcher » est dans les formules Essentiel et Pro.");
     await quota(ws.id, "recherche", 200);
     const { saasClients } = await import("../_shared/saas-base.ts");
     return await saasClients({ domaine: b.domaine ? String(b.domaine) : null, categorie: b.categorie ? String(b.categorie) : null, tag: b.tag ? String(b.tag) : null });
