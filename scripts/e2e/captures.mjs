@@ -619,6 +619,75 @@ if (CONSTRUIRE === "marche") {
   if (add.j.id) await api("remove", { col: "locations", id: add.j.id }, tok);
   console.log("fiche d'essai retirée");
 }
+if (CONSTRUIRE === "marche-paye") {
+  // Paiement entre deux membres d'une vraie place de marché, de bout en bout, en MODE TEST Stripe (aucun vrai argent) :
+  // le loueur active son compte de versement (page Stripe), le locataire règle sa location par carte de test, la fiche passe « payée ».
+  const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "outilvoisin-6n5b";
+  const api = async (act, corps, jeton) => { const r = await fetch(`${SB}/functions/v1/t/app/${slug}/${act}`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json", ...(jeton ? { "x-app-token": jeton } : {}) }, body: JSON.stringify(corps) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  const t = Date.now(), mdp = crypto.randomBytes(14).toString("base64url") + "9a";
+  const A = await api("signup", { email: `robot+loueur${t}@maisonravita.fr`, password: mdp, nom: "Marc Loueur" }), B2 = await api("signup", { email: `robot+locataire${t}@maisonravita.fr`, password: mdp, nom: "Julie Locataire" });
+  const ta = A.j.token, tb = B2.j.token;
+  console.log("deux membres créés :", ta && tb ? "✓" : `✗ ${A.status} ${B2.status} ${JSON.stringify(A.j).slice(0, 120)}`);
+  const RET = `${SITE}/#/app/${slug}`;
+  const navig = async (jeton) => { const c = await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "fr-FR" }); await c.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch (e) {} }, [`bingoo-app:${slug}`, jeton]); return { c, p: await c.newPage() }; };
+  const texte = async (p) => (await p.evaluate(() => document.body.innerText.replace(/\s+/g, " ").slice(0, 260)).catch(() => ""));
+  try {
+    const me = await api("me", {}, ta); console.log("paiements entre membres annoncés :", me.j.paiements_membres ? "✓" : "✗");
+    const outil = await api("add", { col: "outils", data: { nom: "Perceuse à percussion Bosch", categorie: "Bricolage", description: "Avec coffret et forets béton.", prix_jour: 12, caution: 80, quartier: "Croix-Rousse", disponible: true } }, ta);
+    const loc = await api("add", { col: "locations", data: { outils_id: outil.j.id, date_debut: "2026-12-05", date_retour: "2026-12-07", total: 36, commission: 3.6, caution: 80, statut: "acceptée" } }, tb);
+    console.log("location créée par le locataire :", loc.j.id ? `✓ ${loc.j.total} €` : `✗ ${JSON.stringify(loc.j).slice(0, 120)}`);
+    const avant = await api("payer-membre", { col: "locations", id: loc.j.id, retour: RET }, tb);
+    console.log("payer avant que le loueur ait activé ses versements :", avant.status === 409 ? `✓ refusé (« ${avant.j.error} »)` : `✗ ${avant.status} ${JSON.stringify(avant.j).slice(0, 120)}`);
+    // 1. Le loueur : « Mon compte » puis l'activation chez Stripe
+    { const { c, p } = await navig(ta);
+      await p.goto(`${RET}?c=${t}`, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(9000);
+      const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+      await fr.locator('button[title="Mon compte"]').first().click().catch(() => console.log("✗ bouton Mon compte"));
+      await p.waitForTimeout(3500); await p.screenshot({ path: `${DOSSIER}/mp-1-mon-compte.png` });
+      console.log("carte « Recevoir des paiements » :", (await fr.getByText("Recevoir des paiements").count()) ? "✓" : "✗");
+      const en = await api("encaisser", { retour: RET }, ta);
+      if (!en.j.url) console.log("✗ encaisser", en.status, JSON.stringify(en.j).slice(0, 200));
+      else {
+        await p.goto(en.j.url, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(5000);
+        await p.screenshot({ path: `${DOSSIER}/mp-2-stripe-activation.png` }); console.log("page Stripe :", await texte(p));
+        for (let i = 0; i < 14 && !p.url().startsWith(SITE); i++) {
+          const essais = [/Use test phone number|numéro de téléphone de test|Utiliser le numéro de test/i, /Skip this form|Ignorer ce formulaire|Passer ce formulaire/i, /Use test account|Utiliser un compte de test/i, /Use test code|code de test/i, /^Continue$|^Continuer$/i, /Agree and submit|Accepter et envoyer|Soumettre|^Submit$|^Envoyer$/i, /^Done$|^Terminé$/i];
+          let fait = false;
+          for (const re of essais) { const b = p.getByRole("button", { name: re }).first(); if (await b.isVisible().catch(() => false)) { await b.click().catch(() => null); fait = true; console.log("   clic :", String(re).slice(1, 40)); break; } const l = p.getByRole("link", { name: re }).first(); if (await l.isVisible().catch(() => false)) { await l.click().catch(() => null); fait = true; console.log("   lien :", String(re).slice(1, 40)); break; } }
+          const otp = p.locator('input[autocomplete="one-time-code"], input[inputmode="numeric"][maxlength="1"]').first();
+          if (!fait && await otp.isVisible().catch(() => false)) { await otp.click(); await p.keyboard.type("000000"); fait = true; console.log("   code de test saisi"); }
+          await p.waitForTimeout(4500); await p.screenshot({ path: `${DOSSIER}/mp-2-stripe-etape-${i}.png` });
+          if (!fait) { console.log("   page bloquée :", await texte(p)); break; }
+        }
+        await p.waitForTimeout(6000); await p.screenshot({ path: `${DOSSIER}/mp-3-retour-loueur.png` });
+        console.log("retour sur l'application :", p.url().startsWith(SITE) ? "✓" : `✗ ${p.url().slice(0, 80)}`);
+      }
+      const et = await api("encaisser-etat", {}, ta); console.log("versements du loueur :", JSON.stringify(et.j));
+      await c.close(); }
+    // 2. Le locataire règle sa location par carte de test
+    const pay = await api("payer-membre", { col: "locations", id: loc.j.id, retour: RET }, tb);
+    if (!pay.j.url) console.log("✗ paiement", pay.status, JSON.stringify(pay.j).slice(0, 200));
+    else { const { c, p } = await navig(tb);
+      await p.goto(pay.j.url, { waitUntil: "load", timeout: 60000 }).catch(() => null); await p.waitForTimeout(5000);
+      await p.screenshot({ path: `${DOSSIER}/mp-4-stripe-paiement.png` }); console.log("page de paiement :", await texte(p));
+      const rem = async (sel, v) => { const x = p.locator(sel).first(); if (await x.isVisible().catch(() => false)) await x.fill(v); };
+      await rem("#email", `robot+locataire${t}@maisonravita.fr`); await rem("#cardNumber", "4242 4242 4242 4242"); await rem("#cardExpiry", "12 / 34"); await rem("#cardCvc", "123"); await rem("#billingName", "Julie Locataire");
+      await p.waitForTimeout(800); await p.screenshot({ path: `${DOSSIER}/mp-5-carte-test.png` });
+      await p.locator(".SubmitButton, button[type=submit]").first().click().catch(() => console.log("✗ bouton payer"));
+      await p.waitForURL((u) => u.toString().startsWith(SITE), { timeout: 60000 }).catch(() => null);
+      await p.waitForTimeout(9000); await p.screenshot({ path: `${DOSSIER}/mp-6-retour-locataire.png` });
+      console.log("retour après paiement :", p.url().startsWith(SITE) ? "✓" : `✗ ${p.url().slice(0, 80)}`);
+      await c.close(); }
+    const [r] = await q(`select data->>'_paye' p, data->>'_paye_montant' m from saas_app_rows where id = ${lit(loc.j.id)}`);
+    console.log("location marquée payée :", r?.p === "true" ? `✓ ${r.m} €` : "✗ non");
+    const deux = await api("payer-membre", { col: "locations", id: loc.j.id, retour: RET }, tb);
+    console.log("payer une deuxième fois :", deux.status === 409 ? "✓ refusé" : `✗ ${deux.status}`);
+    const baisse = await api("update", { col: "locations", id: loc.j.id, data: { total: 1 } }, tb); console.log("baisser le montant après paiement :", Number(baisse.j.total) === 36 ? "✓ refusé" : `✗ ${baisse.j.total}`);
+  } catch (e) { console.log("✗", e.message.slice(0, 200)); }
+  const ids = await q(`select id from saas_app_users where app_id = (select id from saas_apps where slug = ${lit(slug)}) and email like ${lit(`robot+%${t}@maisonravita.fr`)}`);
+  for (const u of ids) { await q(`delete from saas_app_rows where espace_id = ${lit(u.id)}`); await q(`delete from saas_app_comptes where espace_id = ${lit(u.id)}`); await q(`delete from saas_app_users where id = ${lit(u.id)}`); }
+  console.log("membres d'essai retirés :", ids.length);
+}
 if (CONSTRUIRE === "automatisations") {
   // Automatisations d'un logiciel, jouées par le serveur : réglées par le propriétaire, déclenchées par un utilisateur de démonstration
   const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "changeo-5u0t";
@@ -1260,7 +1329,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

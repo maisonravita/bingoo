@@ -118,10 +118,10 @@ function cssTaste(spec) {
 }
 const policeUrl = (st) => "https://fonts.googleapis.com/css2?" + [...new Set([st.police, st.titres])].map((p) => "family=" + p.replace(/ /g, "+") + (p === "Fraunces" ? ":opsz,wght@9..144,500;9..144,700" : p === "Playfair Display" || p === "Bebas Neue" || p === "DM Serif Display" ? (p === "Playfair Display" ? ":wght@500;700;800" : "") : ":wght@400;500;600;700;800")).join("&") + "&display=swap";
 
-export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false, ancre = null, enLigne = false }) {
+export function appHtml({ spec, slug, api, token = null, apercu = false, paiement = null, retour = null, retourPaiement = false, session = null, encaisse = false, ab = null, variante = "A", invite = null, tour = false, articles = [], blog = null, source = null, ecran = null, validation = null, precommande = null, verif = false, page = null, capture = null, essai = false, ancre = null, enLigne = false }) {
   // Capture (vidéo pub) : mêmes données d'exemple que la vérification, aucune requête au serveur
   if (capture) verif = true;
-  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture, essai, ancre: typeof ancre === "string" && /^[a-z0-9-]{1,40}$/.test(ancre) ? ancre : null, enLigne: !!enLigne };
+  const boot = { style: styleDe(spec), spec, slug, api, token, apercu, paiement: paiement ?? { actif: false, essai_jours: 14 }, retour, retourPaiement, session, encaisse: !!encaisse, ab: ab ?? { actif: false }, variante, invite, tour, articles, blog, source, ecran, validation, precommande, verif, page, capture, essai, ancre: typeof ancre === "string" && /^[a-z0-9-]{1,40}$/.test(ancre) ? ancre : null, enLigne: !!enLigne };
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${String(spec.nom ?? "Mon SaaS").replace(/[<&]/g, "")}</title>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.13/dist/index.global.js"></script>
@@ -316,10 +316,10 @@ const db = {
 };
 // Retour de Stripe dans un logiciel : la fiche réglée est relue chez Stripe par le serveur, puis marquée « payée »
 if (S.type !== "site" && !B.verif && !B.capture && !B.essai) {
-  const u = new URLSearchParams(location.search), sess = u.get("session");
-  const nettoyer = () => { try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {} };
-  if (u.get("paiement") === "ok" && /^cs_/.test(sess ?? "")) setTimeout(() => call("paye-membre", { session: sess }).then((r) => { toast("Paiement de " + String(Number(r.montant).toFixed(2)).replace(".", ",") + " € reçu, merci"); bus.emit("col:" + r.col); nettoyer(); }, () => {}), 1200);
-  else if (u.get("encaisser") === "ok") setTimeout(() => { toast("Compte de versement enregistré : Stripe termine sa vérification"); nettoyer(); }, 1200);
+  const u = new URLSearchParams(location.search), sess = B.session || (u.get("paiement") === "ok" ? u.get("session") : null);
+  const nettoyer = () => { try { if (location.search) history.replaceState(null, "", location.pathname + location.hash); } catch (e) {} };
+  if (/^cs_/.test(sess ?? "")) setTimeout(() => call("paye-membre", { session: sess }).then((r) => { toast("Paiement de " + String(Number(r.montant).toFixed(2)).replace(".", ",") + " € reçu, merci"); bus.emit("col:" + r.col); nettoyer(); }, () => {}), 1200);
+  else if (B.encaisse || u.get("encaisser") === "ok") setTimeout(() => { toast("Compte de versement enregistré : Stripe termine sa vérification"); nettoyer(); }, 1200);
 }
 const mkUseCollection = (dbx) => function useCollection(col, where) {
   const [rows, setRows] = useState([]), [loading, setLoading] = useState(true), [error, setError] = useState(null);
@@ -959,8 +959,8 @@ function Panier() {
 }
 // Retour d'un paiement sur un site : relu chez Stripe par le serveur, rangé chez le commerçant, puis un mot de remerciement
 if (S.type === "site" && !B.verif && !B.capture) {
-  const u = new URLSearchParams(location.search), sess = u.get("session");
-  if (u.get("paiement") === "ok" && sess) call("site-paye", { session: sess }).then((r) => {
+  const u = new URLSearchParams(location.search), sess = B.session || (u.get("paiement") === "ok" ? u.get("session") : null);
+  if (sess) call("site-paye", { session: sess }).then((r) => {
     if (!r?.ok) return;
     const m = document.createElement("div"); m.setAttribute("role", "status");
     m.style.cssText = "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:60;max-width:min(560px,92vw);padding:14px 20px;border-radius:16px;background:#0f5132;color:#fff;font:500 15px/1.45 system-ui,sans-serif;box-shadow:0 18px 40px -18px rgba(0,0,0,.45)";

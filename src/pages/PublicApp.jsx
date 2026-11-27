@@ -16,9 +16,9 @@ export default function PublicApp({ slug, domaine }) {
   const [natif] = useState(() => param("natif") === "1");
   const [ios, setIos] = useState(() => { try { return !natif && /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone && !localStorage.getItem("bingoo-ios-vu"); } catch { return false; } });
   // Retour du paiement Stripe (?paiement=ok), invitation d'équipe (?invite=…), démo animée (?tour=1)
-  const [ctx] = useState(() => ({ retour: param("paiement") === "ok", invite: param("invite"), tour: param("tour") === "1", ecran: param("ecran"), page: param("page") && param("e") ? { id: param("page"), espace: param("e") } : null, precommande: param("precommande"), source: param("src") || (document.referrer && !document.referrer.includes(window.location.host) ? (() => { try { return new URL(document.referrer).hostname.replace(/^www\./, "").split(".")[0]; } catch { return null; } })() : null) }));
+  const [ctx] = useState(() => ({ retour: param("paiement") === "ok" && !param("session"), session: param("paiement") === "ok" && /^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(param("session") ?? "") ? param("session") : null, encaisse: param("encaisser") === "ok", invite: param("invite"), tour: param("tour") === "1", ecran: param("ecran"), page: param("page") && param("e") ? { id: param("page"), espace: param("e") } : null, precommande: param("precommande"), source: param("src") || (document.referrer && !document.referrer.includes(window.location.host) ? (() => { try { return new URL(document.referrer).hostname.replace(/^www\./, "").split(".")[0]; } catch { return null; } })() : null) }));
   useEffect(() => {
-    if (ctx.retour || ctx.invite || ctx.precommande) window.history.replaceState(null, "", window.location.href.replace(/[?&](paiement=ok|invite=[a-f0-9]+|precommande=cs_[A-Za-z0-9_]+)/g, ""));
+    if (ctx.retour || ctx.session || ctx.encaisse || ctx.invite || ctx.precommande) window.history.replaceState(null, "", window.location.href.replace(/[?&](paiement=ok|session=cs_[A-Za-z0-9_]+|encaisser=ok|invite=[a-f0-9]+|precommande=cs_[A-Za-z0-9_]+)/g, ""));
     const q = domaine ? supabase.rpc("saas_app_par_domaine", { p_domaine: domaine }) : supabase.rpc("saas_app_public", { p_slug: slug });
     q.then(async ({ data }) => {
       // Dans l'aperçu de l'atelier (cadre du même site, membre connecté), le mode brouillon montre le brouillon :
@@ -60,7 +60,7 @@ export default function PublicApp({ slug, domaine }) {
   if (app.suspendu) return <div className="min-h-screen grid place-items-center bg-paper p-6 text-center"><div><p className="text-[20px] font-bold text-ink">{app.spec?.nom}</p><p className="mt-2 text-ink-soft">Ce service est momentanément indisponible. Reviens un peu plus tard.</p></div></div>;
   return (
     <>
-      <AppCadre enLigne={enLigne} page={ctx.page} slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} invite={ctx.invite} tour={ctx.tour} source={ctx.source} ecran={ctx.ecran} validation={app.validation} precommande={ctx.precommande} className="fixed inset-0 w-full h-full border-0" />
+      <AppCadre enLigne={enLigne} page={ctx.page} slug={app.slug} spec={app.spec} version={app.version} paiement={app.paiement} domaine={app.domaine} ab={app.ab} articles={app.articles} retourPaiement={ctx.retour} session={ctx.session} encaisse={ctx.encaisse} invite={ctx.invite} tour={ctx.tour} source={ctx.source} ecran={ctx.ecran} validation={app.validation} precommande={ctx.precommande} className="fixed inset-0 w-full h-full border-0" />
       {traceurs && cookies === "demande" && (
         <div role="dialog" aria-label="Cookies" className="fixed inset-x-3 bottom-3 z-20 mx-auto max-w-[560px] rounded-2xl bg-white p-4 text-[14px] text-[#0F172A] shadow-xl ring-1 ring-black/10">
           <p>Nous utilisons des cookies de mesure d'audience{app.spec.connecteurs.pixel ? " et de publicité" : ""} pour améliorer ce site. Vous pouvez accepter ou refuser.</p>

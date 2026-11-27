@@ -815,7 +815,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (ok) await admin.from("saas_app_comptes").update({ pret: true, maj: new Date().toISOString() }).eq("app_id", app.id).eq("espace_id", esp);
         return ok;
       };
-      if (action === "encaisser-etat") { const c = await compteDe(espace); return { status: 200, body: { branche: !!c?.acct, pret: await pret(c, espace), commission: Number(pay.commission) || 0 } }; }
+      if (action === "encaisser-etat") { const c = await compteDe(espace); return { status: 200, body: { branche: !!c?.acct, pret: await pret(c, espace), commission: Number(pay.commission ?? 10) || 0 } }; }
       const retour = retourOk(String(b.retour ?? ""));
       if (!retour) throw new Err(400, "Adresse de retour invalide");
       const sep = retour.includes("?") ? "&" : "?";
@@ -851,7 +851,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (!(montant >= 1)) throw new Err(400, "Aucun montant à régler sur cette fiche");
         const c = await compteDe(receveur);
         if (!(await pret(c, receveur))) throw new Err(409, "Ce membre n'a pas encore activé la réception des paiements");
-        const pct = Math.max(0, Math.min(50, Number(pay.commission) || 0)), frais = Math.round(montant * pct);
+        const pct = Math.max(0, Math.min(50, Number(pay.commission ?? 10) || 0)), frais = Math.round(montant * pct);
         const nom = String(d.titre ?? d.nom ?? d.objet ?? regleColApp(app, col)?.titre ?? col).slice(0, 100);
         const sess = await stripe(key, "checkout/sessions", {
           mode: "payment", locale: "fr", customer_email: user.email,
