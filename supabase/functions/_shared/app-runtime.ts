@@ -875,6 +875,8 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         const nom = String(d.titre ?? d.nom ?? d.objet ?? visee?.titre ?? visee?.nom ?? regleColApp(app, col)?.label ?? col).slice(0, 100);
         const sess = await stripe(key, "checkout/sessions", {
           mode: "payment", locale: "fr", customer_email: user.email,
+          // Carte (Apple Pay et Google Pay compris), toujours en euros : le montant payé est celui que les deux membres voient
+          "payment_method_types[0]": "card", "adaptive_pricing[enabled]": "false",
           "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "eur",
           "line_items[0][price_data][unit_amount]": String(Math.round(montant * 100)),
           "line_items[0][price_data][product_data][name]": nom || "Règlement",
