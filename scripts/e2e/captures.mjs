@@ -824,9 +824,9 @@ if (CONSTRUIRE === "modeles-video") {
   for (let k = 0; k < 14 && !(await p.getByText("Des pubs en motion design").count()); k++) { await p.mouse.wheel(0, 900); await p.waitForTimeout(500); }
   await p.getByText("Des pubs en motion design").first().scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(1500);
   await p.evaluate(() => { const r = document.querySelector(".videos-rang"); if (r) r.style.animation = "none"; });
-  const v = p.locator('video[src*="atelio"], video:has(source[src*="atelio"])').first();
-  const n = await v.count(); console.log("vidéo Atelio sur l'accueil :", n ? "✓" : "✗");
-  if (n) { await v.scrollIntoViewIfNeeded().catch(() => null); await p.waitForTimeout(4500); await p.screenshot({ path: `${DOSSIER}/modeles-video.png` }); const ok = await v.evaluate((x) => x.readyState >= 2 && !x.paused).catch(() => false); console.log("elle joue :", ok ? "✓" : "✗"); }
+  const v = p.locator('video[src*="atelier-meche"], video:has(source[src*="atelier-meche"])').first();
+  const n = await v.count(); console.log("vidéo Atelier Mèche sur l'accueil :", n ? "✓" : "✗");
+  if (n) { await p.evaluate(() => { const h = [...document.querySelectorAll("h2")].find((x) => /motion design/.test(x.textContent)); if (h) scrollTo(0, h.getBoundingClientRect().top + scrollY - 140); document.querySelectorAll("section").forEach((x) => (x.scrollLeft = 0)); }); await p.waitForTimeout(4500); await p.screenshot({ path: `${DOSSIER}/modeles-video.png` }); const ok = await v.evaluate((x) => x.readyState >= 2 && !x.paused).catch(() => false); console.log("elle joue :", ok ? "✓" : "✗"); }
   await c.close();
 }
 if (CONSTRUIRE === "automatisations") {
