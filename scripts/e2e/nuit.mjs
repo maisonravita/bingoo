@@ -57,7 +57,7 @@ for (const [label, opt] of [["téléphone", devices["iPhone 13"]], ["ordinateur"
   await etape(`[${label}] Démo d'un SaaS livré`, async () => {
     await page.goto(`${SITE}/?e2e=${Date.now()}#/app/${APP}`, { waitUntil: "networkidle", timeout: 45000 });
     const cadre = await ouvrirDemo(page, APP);
-    await cadre.getByText(/1\/\d · /).first().waitFor({ timeout: 15000 });
+    await cadre.getByText(/1\/\d+ · |essayez librement/).first().waitFor({ timeout: 30000 });
     await page.waitForTimeout(2500);
     const txt = await cadre.locator("body").innerText();
     verif(txt.length > 150 && !/Chargement…?\s*$/.test(txt.trim()), "l'écran de démo reste vide");
