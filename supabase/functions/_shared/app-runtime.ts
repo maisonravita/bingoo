@@ -824,7 +824,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
         if (!c?.acct) {
           let a: any;
           try {
-            a = await stripe(key, "accounts", { "controller[fees][payer]": "application", "controller[losses][payments]": "application", "controller[stripe_dashboard][type]": "express", "controller[requirement_collection]": "stripe", country: "FR", email: user.email, "capabilities[card_payments][requested]": "true", "capabilities[transfers][requested]": "true", "business_profile[product_description]": `Membre de ${(app.spec as any)?.nom ?? slug}`.slice(0, 200), "metadata[app]": slug, "metadata[espace]": espace });
+            a = await stripe(key, "accounts", { "controller[fees][payer]": "account", "controller[losses][payments]": "stripe", "controller[stripe_dashboard][type]": "full", "controller[requirement_collection]": "stripe", country: "FR", email: user.email, "capabilities[card_payments][requested]": "true", "capabilities[transfers][requested]": "true", "business_profile[product_description]": `Membre de ${(app.spec as any)?.nom ?? slug}`.slice(0, 200), "metadata[app]": slug, "metadata[espace]": espace });
           } catch (e) {
             console.error("connect", app.id, String((e as Error).message).slice(0, 160));
             throw new Err(400, "Le créateur de l'application doit d'abord activer Stripe Connect sur son compte Stripe pour que les membres puissent recevoir des paiements.");
