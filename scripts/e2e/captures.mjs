@@ -765,6 +765,16 @@ if (CONSTRUIRE === "flux") {
   await q(`delete from saas_app_rows where app_id = ${lit(a.id)} and col = 'demandes' and data->>'nom' = 'Robot agenda'`); await q(`delete from saas_app_attente where app_id = ${lit(a.id)} and col = 'demandes' and data->>'nom' = 'Robot agenda'`);
   console.log("demande d'essai retirée");
 }
+if (CONSTRUIRE === "semis") {
+  // Exemples d'une place de marché pour un nouveau membre : des transactions envoyées ET reçues
+  const slug = process.env.IDEE && /-/.test(process.env.IDEE) ? process.env.IDEE : "outilvoisin-6n5b";
+  const api = async (act, corps, jeton) => { const r = await fetch(`${SB}/functions/v1/t/app/${slug}/${act}`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json", ...(jeton ? { "x-app-token": jeton } : {}) }, body: JSON.stringify(corps) }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
+  const t = Date.now(), u = await api("signup", { email: `robot+semis${t}@maisonravita.fr`, password: crypto.randomBytes(14).toString("base64url") + "9a", nom: "Robot semis" });
+  await api("me", {}, u.j.token);
+  for (const col of ["locations", "avis"]) { const l = await api("list", { col }, u.j.token); const xs = Array.isArray(l.j) ? l.j : []; console.log(`${col} : ${xs.length} exemples, ${xs.filter((x) => x._recu).length} reçus, ${xs.filter((x) => !x._recu).length} envoyés`, xs.filter((x) => !x._recu).length && xs.filter((x) => x._recu).length ? "✓" : "✗"); }
+  const ids = await q(`select id from saas_app_users where email like ${lit(`robot+semis${t}@maisonravita.fr`)}`);
+  for (const x of ids) { await q(`delete from saas_app_rows where espace_id = ${lit(x.id)}`); await q(`delete from saas_app_users where id = ${lit(x.id)}`); }
+}
 if (CONSTRUIRE === "automatisations") {
   // Automatisations d'un logiciel, jouées par le serveur : réglées par le propriétaire, déclenchées par un utilisateur de démonstration
   const slug = /-/.test(process.env.IDEE ?? "") ? process.env.IDEE : "changeo-5u0t";
@@ -1406,7 +1416,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "semis" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);
