@@ -833,7 +833,7 @@ Consigne : ${consigne}${texte ? `\n\nTexte ou données fournis :\n"""\n${texte}\
           try {
             a = await stripe2(key, "core/accounts", {
               dashboard: "full",
-              defaults: { currency: "eur", locales: ["fr-FR"], responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
+              defaults: { responsibilities: { fees_collector: "stripe", losses_collector: "stripe" } },
               configuration: { merchant: { capabilities: { card_payments: { requested: true } } }, recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
               metadata: { app: slug, espace },
             });
