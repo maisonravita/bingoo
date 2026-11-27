@@ -61,6 +61,33 @@ Variables déjà disponibles (ne les redéclare pas) :
 Le tableau ui.Table ajoute déjà tout seul la recherche, le tri, l'export et la pagination, et met en forme dates, nombres et statuts : ne les refais pas. Choisis les composants de la FAMILLE du logiciel (consignes de famille plus bas) : un éditeur pour un outil d'écriture, des cartes pour un outil de projets, une conversation pour un assistant IA, un calendrier pour ce qui est daté. Un tableau ou des indicateurs seulement là où la famille les prévoit.
 Règles : tout en français, vouvoiement (« vous », « votre », « Ajoutez… ») ; un vrai écran utile et complet (création, modification, suppression confirmée par if (!await demander("Supprimer … ?", { ok: "Supprimer", danger: true })) return; (jamais confirm ni alert : fenêtres intégrées demander(message, { ok, danger }) → Promise<boolean> et avertir(message)), recherche ou filtres quand c'est utile, états vides) ; calcule les indicateurs à partir des données ; jamais de fausses données en dur (les données d'exemple sont déjà dans la base) ; chaque bouton fait une vraie action et chaque formulaire enregistre vraiment (le robot de vérification clique sur « Ajouter », remplit, enregistre et clique sur chaque bouton : un bouton qui ne fait rien est refusé) ; aucune fonction annoncée qui ne marche pas ; pas de fetch, pas de localStorage, pas de window.parent ; code compact : 180 lignes au plus, pas de commentaires, pas de répétition (factorise les formulaires dans une petite fonction).`;
 
+// Inventaire de couverture : une correspondance lexicale est un indice, jamais une preuve de fonctionnement.
+export function auditCouverture(spec: any, projet: any) {
+  const demandes = (Array.isArray(projet?.scan?.modules) && projet.scan.modules.length
+    ? projet.scan.modules.map((m: any) => ({ nom: String(m.nom ?? ""), detail: String(m.fait ?? ""), donnees: m.donnees ?? [] }))
+    : (projet?.equivalences ?? []).map((m: any) => ({ nom: String(m.chez_toi ?? ""), detail: String(m.chez_toi ?? ""), donnees: [] }))).slice(0, 20);
+  const mots = (s: unknown) => [...new Set(String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().match(/[a-z]{4,}/g) ?? [])]
+    .filter((w) => !["avec","pour","dans","plus","leur","leurs","vous","votre","cette","faire","permet","depuis","ainsi","utilisateur","utilisateurs","gestion","suivi","donnees","module","page","ecran","client","clients"].includes(w));
+  const ecrans = (spec?.ecrans ?? []).map((e: any) => ({ id: e.id, titre: e.titre, mots: new Set(mots([e.titre, e.but, ...(e.fonctions ?? [])].join(" "))) }));
+  const cols = new Set((spec?.collections ?? []).map((c: any) => c.nom));
+  const modules = demandes.filter((m: any) => m.nom || m.detail).map((m: any) => {
+    const essentiels = mots(m.nom);
+    const secondaires = mots(m.detail);
+    const correspondances = ecrans.map((e: any) => {
+      const principaux = essentiels.filter((w) => e.mots.has(w)).length;
+      const autres = secondaires.filter((w) => e.mots.has(w)).length;
+      return { id: e.id, titre: e.titre, points: principaux * 3 + autres };
+    }).filter((e: any) => e.points >= (essentiels.length ? 3 : 2)).sort((a: any, b: any) => b.points - a.points).slice(0, 2);
+    return { nom: m.nom, detail: m.detail, ecrans: correspondances.map((e: any) => ({ id: e.id, titre: e.titre })),
+      statut: correspondances.length ? "a_tester" : "non_couvert",
+      donnees_a_verifier: (Array.isArray(m.donnees) ? m.donnees : []).filter((d: any) => ![...cols].some((c: any) => mots(d).some((w) => mots(c).includes(w)))).slice(0, 8) };
+  });
+  return { version: 1, source: projet?.scan?.modules?.length ? "scan_public" : "equivalences", modules,
+    total: modules.length, a_tester: modules.filter((m: any) => m.statut === "a_tester").length,
+    non_couverts: modules.filter((m: any) => m.statut === "non_couvert").length,
+    avertissement: "Une correspondance entre fonctionnalités et écrans n'atteste pas que le parcours fonctionne. Tests de bout en bout nécessaires." };
+}
+
 // Page publique : ouverte par les clients de l'utilisateur, sans compte
 export const DOC_PUBLIC = (e: any) => `
 
@@ -368,6 +395,8 @@ ${CONSIGNE_TEXTES_FR}`, { maxTokens: 16000 });
   const { ecrans: _e, ...visible } = spec;
   Object.assign(spec, sansIdentite(visible, p.inspire ?? {}, p.nom).valeur);
   if (!spec.ecrans.length) throw new Error("La conception de l'application a échoué, réessaie");
+  // Audit persistant, avant livraison : ne jamais présenter un écran prévu comme une fonction validée.
+  spec.couverture = auditCouverture(spec, p);
   if (modele) {
     // Écrans promis ajoutés au modèle : leurs collections reçoivent aussi des données d'exemple (sinon blocs vides au premier test)
     spec.demo = await completerDemo(spec, { nom: spec.nom ?? p.nom, pitch: spec.pitch ?? p.pitch ?? "" }, { ...(spec.demo ?? {}) }).catch((x) => { console.error("demo modèle", x); return spec.demo; });
