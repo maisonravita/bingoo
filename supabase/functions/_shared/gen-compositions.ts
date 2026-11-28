@@ -5,7 +5,7 @@
 import type { TypeProjet } from "./design-fiches.ts";
 
 export type Composition = {
-  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento" | "affiche" | "carte" | "ruban" | "moitie" | "arche" | "bandeau" | "paysage" | "mosaique";
+  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento" | "affiche" | "carte" | "ruban" | "moitie" | "arche" | "bandeau" | "paysage" | "vitrine-duo" | "mosaique";
   nom: string;
   /** Il faut une photo d'en-tête (générée ou du membre) */
   photo: boolean;
@@ -21,6 +21,25 @@ export type Composition = {
 const HONNETE = "Tous les textes viennent du brief : aucun chiffre, prix, note, nombre de clients, date, zone ou rayon d'intervention inventés (pas de « partout en France » si le brief ne le dit pas). Une ligne d'infos ou une carte sans fait réel du brief n'existe pas (retire-la).";
 
 export const COMPOSITIONS: Record<Composition["id"], Composition> = {
+  // 28 nov. 2026 : texte à gauche, deux visuels carrés qui se chevauchent à droite, chiffres sous les boutons (galerie, boutique)
+  "vitrine-duo": {
+    id: "vitrine-duo", nom: "Vitrine en duo", photo: true,
+    image: "IMG_1 is a square studio render: one soft abstract 3D sculpture (stacked translucent discs, frosted glass and matte ceramic) in pastel peach, sky blue and pearl white, floating on a pale pastel gradient background, soft diffused light, gentle shadows, centered, minimal, premium, no text, no logo.",
+    structure: `<section id="hero" class="hero hero-duo">
+  <div class="hero-duo__texte">
+    <h1 class="hero-duo__titre">(ce qu'il propose, 4 à 6 mots, sur deux lignes)</h1>
+    <p>(une phrase concrète, 15 à 25 mots, un chiffre en <b>gras</b> si le brief en donne un)</p>
+    <div class="hero-duo__btns"><a class="btn btn--primary" href="#contact">(bouton principal)</a><a class="btn btn--ghost" href="#contact">(bouton secondaire)</a></div>
+    <dl class="hero-duo__chiffres"><div><dt>(chiffre)</dt><dd>(ce qu'il compte)</dd></div><div><dt>(chiffre)</dt><dd>(…)</dd></div><div><dt>(chiffre)</dt><dd>(…)</dd></div></dl>
+  </div>
+  <div class="hero-duo__visuels" aria-hidden="true">
+    <img class="hero-duo__un" src="IMG_1" alt="">
+    <span class="hero-duo__deux"></span>
+    <span class="hero-duo__points"></span>
+  </div>
+</section>
+Les chiffres viennent du brief ; sans chiffre dans le brief, retire le bloc dl.`,
+  },
   // 28 nov. 2026 : paysage illustré plein cadre (titre centré, bouton vert), le bas de l'illustration se fond dans la page
   paysage: {
     id: "paysage", nom: "Paysage illustré", photo: true,
@@ -311,6 +330,7 @@ export function nettoyerHeroCompo(html: string): string {
     .replace(/\sstyle\s*=\s*("|')([^"']*)\1/gi, (_m, q, css) => { const garde = String(css).split(";").map((x) => x.trim()).filter((x) => /^--(lettres|h|p)\s*:/.test(x)); return garde.length ? ` style=${q}${garde.join(";")}${q}` : ""; });
 }
 const CLES: Record<Composition["id"], string[]> = {
+  "vitrine-duo": ["hero-duo__titre", "hero-duo__visuels", "hero-duo__un"],
   paysage: ["hero-paysage__fond", "hero-paysage__titre", "hero-paysage__btn"],
   cinema: ["hero-cine__fond", "hero-cine__titre", "hero-cine__bas"],
   "mot-geant": ["hero-mot__fond", "hero-mot__mot", "hero-mot__carte"],

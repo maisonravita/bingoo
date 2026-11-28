@@ -26,6 +26,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /restaurant|bistrot|brasserie|caf[ée]\b|bar\b|boulang|p[âa]tiss|traiteur|pizz|burger|cr[êe]pe|food|cuisine|chocolat|glac|[ée]picerie|boucher|charcut|poissonn|sushi|cantine/ },
   { id: "vallee-verte", nom: "Vallée Verte", slug: "vallee-verte-modele", pour: "Immobilier nature, campagne",
     mots: /campagne|montagne|nature|vall[ée]e|chalet|maison(s)? (de|à|en) (campagne|montagne)|[ée]colo|for[êe]t|lac\b|rural|village|vercors|alpes|pyr[ée]n|jura|vosges/ },
+  { id: "onde", nom: "Onde", slug: "onde-modele", pour: "Galerie, boutique d'œuvres, enchères", genre: "portfolio",
+    mots: /galerie|[œo]euvres?|art\b|artistes?|ench[èe]re|collection|boutique|e-?commerce|vente en ligne|march[ée] en ligne|place de march[ée]|tirages?|affiches?|cr[ée]ations? num[ée]riques|nft|objets? d.art|antiquit|brocante|vintage/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
@@ -49,7 +51,7 @@ export const modeleSiteParId = (id?: string | null) => MODELES_SITE.find((m) => 
 /** Ce qu'on reprend d'un modèle : premier écran, plan, mises en page des sections, design, HTML de référence et photo d'en-tête. */
 export type RefModele = { id: string; nom: string; compo: string | null; plan: string[]; mises: Record<string, string>; design: any; sections: { id: string; html: string }[]; nav: { mot: string; ancre: string }[]; photo: string | null; prompts: Record<string, string> };
 
-const NOMS_COMPO: Record<string, string> = { "Cinéma": "cinema", "Mot géant": "mot-geant", "Hublot": "hublot", "Lueur": "lueur", "Galerie courbe": "galerie", "Bento vivant": "bento", "Affiche": "affiche", "Carte": "carte", "Ruban": "ruban", "Moitié": "moitie", "Arche": "arche", "Bandeau": "bandeau", "Mosaïque": "mosaique", "Paysage illustré": "paysage" };
+const NOMS_COMPO: Record<string, string> = { "Cinéma": "cinema", "Mot géant": "mot-geant", "Hublot": "hublot", "Lueur": "lueur", "Galerie courbe": "galerie", "Bento vivant": "bento", "Affiche": "affiche", "Carte": "carte", "Ruban": "ruban", "Moitié": "moitie", "Arche": "arche", "Bandeau": "bandeau", "Mosaïque": "mosaique", "Paysage illustré": "paysage", "Vitrine en duo": "vitrine-duo" };
 
 export async function refModele(id: string): Promise<RefModele | null> {
   const m = modeleSiteParId(id);
