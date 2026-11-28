@@ -32,6 +32,7 @@ export const sections = [
     header.nav .nav__bar { max-width: none !important; padding: 16px 30px !important; }
     header.nav .nav__logo { display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fff !important; font-family: Michroma, sans-serif; font-size: 9px; letter-spacing: .1em; }
     header.nav .nav__links { justify-content: center; gap: 40px !important; } header.nav .nav__link { color: #fff !important; font-family: Michroma, sans-serif; font-size: 9px; letter-spacing: .14em; }
+    header.nav:not(.nav--sur-photo) { background: rgb(30 42 51 / .92) !important; }
     header.nav .bv-ic { display: flex; gap: 4px; } header.nav .bv-ic i { width: 18px; height: 18px; border-radius: 50%; border: 1px solid #fff; } header.nav .bv-pa { padding: 4px 8px; border: 1px solid #fff; color: #fff; font-family: Michroma, sans-serif; font-size: 8px; letter-spacing: .1em; }
   </style>
   <div class="wrap nav__bar">
@@ -45,7 +46,7 @@ export const sections = [
   <style>
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; height: clamp(560px, 62vw, 700px); padding: clamp(160px, 14vw, 190px) 24px 0 !important; text-align: center; color: #fff; background: #1E2A33 !important; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
-    #hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgb(10 25 40 / .35), transparent 40%, rgb(221 228 234 / .9) 100%); }
+    #hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgb(10 25 40 / .45), rgb(10 25 40 / .25) 55%, rgb(221 228 234 / .95) 100%); }
     #hero small { font-family: Michroma, sans-serif; font-size: 11px; letter-spacing: .2em; color: #fff; } #hero small b { font-weight: 400; opacity: .7; }
     #hero h1 { margin: 14px auto 0; font-family: Michroma, sans-serif; font-weight: 400; font-size: clamp(48px, 7.4vw, 108px); line-height: 1; letter-spacing: .06em; color: #fff; -webkit-text-stroke: 0; }
     #hero p { margin: 18px 0 0; font-family: Michroma, sans-serif; font-size: 11px; letter-spacing: .3em; color: #fff; } #hero .bv-ch { display: block; margin-top: 50px; font-size: 22px; transform: scaleX(1.6); }
@@ -59,17 +60,17 @@ export const sections = [
   { id: "hexa", html: `<section id="hexa" class="section hero-immersif bv-hexa" aria-label="Découvrir">
   <style>
     #hexa { padding: 30px 24px 80px !important; background: linear-gradient(180deg, #DDE4EA, #CFD9E1) !important; }
-    #hexa .bv-g { position: relative; width: 560px; max-width: 100%; height: 760px; margin: 0 auto; }
-    .bv-h { position: absolute; width: 190px; height: 218px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); overflow: hidden; display: block; text-decoration: none; }
+    #hexa .bv-g { position: relative; width: 910px; max-width: 100%; height: 880px; margin: 0 auto; }
+    .bv-h { position: absolute; width: 300px; height: 346px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); overflow: hidden; display: block; text-decoration: none; }
     .bv-h img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.85); transition: transform .6s; } .bv-h:hover img { transform: scale(1.06); }
     .bv-h span { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgb(20 35 48 / .25); padding-top: 50px; }
-    .bv-h b { font-family: Michroma, sans-serif; font-weight: 400; font-size: 11.5px; letter-spacing: .14em; color: #fff; } .bv-h i { padding: 5px 12px; border: 1px solid #fff; font-style: normal; font-family: Michroma, sans-serif; font-size: 6.5px; letter-spacing: .12em; color: #fff; }
-    @media (max-width: 599px) { #hexa .bv-g { transform: scale(.6); transform-origin: top center; height: 460px; } }
+    .bv-h b { font-family: Michroma, sans-serif; font-weight: 400; font-size: 15px; letter-spacing: .14em; color: #fff; } .bv-h i { padding: 5px 12px; border: 1px solid #fff; font-style: normal; font-family: Michroma, sans-serif; font-size: 8px; letter-spacing: .12em; color: #fff; }
+    @media (max-width: 599px) { #hexa .bv-g { transform: scale(.4); transform-origin: top left; height: 360px; } }
   </style>
   <div class="bv-g">
-    ${hexa("IMG_2", "ATHLÈTES", "left:0;top:0")}${hexa("IMG_3", "BOUTIQUE", "left:185px;top:0")}${hexa("IMG_4", "AVENTURES", "left:370px;top:0")}
-    ${hexa("IMG_5", "TECHNOLOGIE", "left:92px;top:160px")}${hexa("IMG_6", "BAGAGES", "left:277px;top:160px")}
-    ${hexa("IMG_7", "LA MARQUE", "left:185px;top:320px")}
+    ${hexa("IMG_2", "ATHLÈTES", "left:0;top:0")}${hexa("IMG_3", "BOUTIQUE", "left:305px;top:0")}${hexa("IMG_4", "AVENTURES", "left:610px;top:0")}
+    ${hexa("IMG_5", "TECHNOLOGIE", "left:152px;top:264px")}${hexa("IMG_6", "BAGAGES", "left:457px;top:264px")}
+    ${hexa("IMG_7", "LA MARQUE", "left:305px;top:528px")}
   </div>
 </section>` },
   { id: "mission", html: `<footer class="footer closing hero-immersif bv-mission" id="mission" aria-labelledby="mission-h">
