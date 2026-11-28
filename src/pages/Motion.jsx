@@ -34,7 +34,8 @@ export default function Motion() {
   const [videos, setVideos] = useState(null);
   const [sel, setSel] = useState(null);
   const [fil, setFil] = useState([]); // échanges : { moi, etat: encours|ok|ko, note, erreur }
-  const [saisie, setSaisie] = useState("");
+  // Idée de vidéo gardée pendant le passage à une formule (le gratuit ne comprend pas de vidéo)
+  const [saisie, setSaisie] = useState(() => { try { const x = localStorage.getItem("bingoo-video-idee") ?? ""; localStorage.removeItem("bingoo-video-idee"); return x; } catch { return ""; } });
   const [busy, setBusy] = useState(false);
   const [format, setFormat] = useState("vertical");
   const [lecture, setLecture] = useState(true);
@@ -212,6 +213,8 @@ export default function Motion() {
     // « Ajoute mon logo » : il faut le fichier, on ouvre le choix d'image
     if (/\blogo\b/i.test(t) && t.length < 60 && !/(enl[eè]ve|retire|supprime|sans)/i.test(t)) { setSaisie(""); fichier.current?.click(); return; }
     const creer = nouvelle || !sel;
+    // Sans formule : on garde l'idée et on amène aux formules (Essentiel : 5 vidéos par mois)
+    if (creer && (!ws.plan || ws.plan === "essai")) { try { localStorage.setItem("bingoo-video-idee", t); } catch { /* stockage indisponible */ } nav("/abonnement"); return; }
     const n = fil.length;
     setFil((l) => [...l, { moi: t, etat: "encours", creer }]); setSaisie(""); setBusy(true);
     try {
