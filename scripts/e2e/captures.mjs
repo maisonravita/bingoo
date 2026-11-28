@@ -225,6 +225,7 @@ if (CONSTRUIRE === "modele-site") {
     // Le site vit dans un cadre qui défile seul : une photo par écran, du haut en bas (assemblées ensuite)
     const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
     const haut = await fr.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)).catch(() => vw.height);
+    console.log("   diag :", JSON.stringify(await fr.evaluate(async () => { const f = document.querySelector("#hero img"); const css = [...document.querySelectorAll('link[rel=stylesheet]')].map((l) => l.href).filter((h) => /taste/.test(h)); let a = null; try { a = (await (await fetch(css[0])).text()).includes("hero-paysage"); } catch (x) { a = String(x).slice(0, 60); } return { hero: document.querySelector("#hero")?.className, pos: f ? getComputedStyle(f).position : null, css, contient: a }; }).catch((e) => String(e).slice(0, 120))));
     let k = 0;
     for (let y = 0; y < Math.min(haut, 9000); y += vw.height, k++) {
       await fr.evaluate((yy) => scrollTo(0, yy), y); await p.waitForTimeout(1600);
