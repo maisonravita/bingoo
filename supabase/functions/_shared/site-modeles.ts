@@ -40,6 +40,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /carross|peinture auto|garage|m[ée]cani|automobile|voitures?|v[ée]hicules?|\bauto\b|motos?\b|pneu|d[ée]bosselage|covering|detailing|lavage auto|concession/ },
   { id: "escale", nom: "Escale", slug: "escale-modele", pour: "Véhicule, produit phare, constructeur", genre: "lancement",
     mots: /vans?\b|camping-car|v[ée]lo|trottinette|bateau|voilier|constructeur|fabricant|mod[èe]le phare|produit phare|[ée]lectrique|lancement d.un produit|pr[ée]commande|engin|drone/ },
+  { id: "houle", nom: "Houle", slug: "houle-modele", pour: "Surf, sport de glisse, mer",
+    mots: /surf|glisse|plage|oc[ée]an|mer\b|voile|kitesurf|plong[ée]e|paddle|cano[ëe]|kayak|bodyboard|nautique|[ée]cole de (surf|voile)/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
