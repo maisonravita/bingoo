@@ -13,7 +13,7 @@ export const design = {
 const O = "#F26B1D";
 const barres = (h, fort = 6) => h.map((v, i) => `<i style="height:${v}%;${i === fort ? `background:${O}` : ""}"></i>`).join("");
 export const images = [
-  { id: "IMG_1", pour: "hero", taille: { width: 1920, height: 1088 }, prompt: "Photograph of a soft bright sky full of fluffy white and cream clouds lit by a warm peach and apricot sunrise light, pastel, airy, upper sky, no horizon, no birds, no text." },
+  { id: "IMG_2", pour: "hero", taille: { width: 1920, height: 1088 }, prompt: "Photograph of a soft bright high-key sky full of fluffy white clouds glowing with warm peach and apricot sunrise light, very light pastel tones, overexposed, airy, no dark clouds, upper sky, no horizon, no birds, no text." },
 ];
 export const nav = [{ mot: "Accueil", ancre: "hero" }, { mot: "Solution", ancre: "defi" }, { mot: "Ressources", ancre: "outils" }, { mot: "Tarifs", ancre: "tarifs" }];
 const tab = (cls) => `<div class="sg-tab ${cls}"><aside><b>✦ Signal.</b><span>Votre société</span><span class="on">Tableau de bord</span><span>Suivi</span><span>Analyses</span><span>Stocks</span><span>Livreurs</span></aside><div class="sg-ct"><small>Bonjour Camille,</small><h4>Bon après-midi !</h4><p>● 12 envois à vérifier aujourd'hui</p><div class="sg-p2"><div class="sg-pn"><b>Analyse des envois</b><div class="sg-hist">${barres([20, 28, 34, 30, 40, 52, 96, 60, 50, 44, 36, 30, 26, 22], 6)}</div></div><div class="sg-pn"><b>Temps de travail moyen</b><strong>48,64 %</strong><div class="sg-pil"><i></i><i></i><i class="o"></i><i></i><i class="o"></i><i class="o"></i></div></div></div></div></div>`;
@@ -40,6 +40,7 @@ export const sections = [
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(130px, 12vw, 160px) 24px 0 !important; text-align: center; background: #fff !important; }
     #hero::after { display: none !important; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 !important; -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
+    #hero::before { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgb(255 214 186 / .55), rgb(255 236 222 / .5) 60%, #fff); }
     #hero > :not(img) { position: relative; z-index: 1; }
     #hero h1 { margin: 0 auto; font-weight: 500; font-size: clamp(40px, 4.6vw, 64px); line-height: 1.05; letter-spacing: -.04em; color: #141414 !important; -webkit-text-fill-color: #141414; }
     #hero > p { margin: 22px auto 0; max-width: 480px; font-size: 15px; line-height: 1.6; color: #4A4540 !important; -webkit-text-fill-color: #4A4540; }
@@ -53,9 +54,9 @@ export const sections = [
     #hero .t1 { left: 12%; right: 0; top: 0; bottom: 0; transform: rotate(-4deg); transform-origin: bottom left; } #hero .t2 { left: 0; top: 40px; bottom: 0; width: 180px; grid-template-columns: 1fr; transform: rotate(-8deg); } #hero .t2 .sg-ct { display: none; }
     @media (max-width: 767px) { #hero .t2 { display: none; } #hero .t1 { left: 0; transform: none; } }
   </style>
-  <img src="IMG_1" alt="">
+  <img src="IMG_2" alt="">
   <h1>Des décisions fondées<br>sur vos données, grâce à l'IA</h1>
-  <p>Analysez de gros volumes de données, repérez les tendances et décidez mieux, en quelques minutes.</p>
+  <p data-lisible="1">Analysez de gros volumes de données, repérez les tendances et décidez mieux, en quelques minutes.</p>
   <div class="sg-act"><a href="#tarifs">Essai gratuit</a><a href="#tarifs"><i></i>Réserver une démo</a></div>
   <div class="sg-scene" aria-label="Aperçu du tableau de bord">${tab("t2")}${tab("t1")}</div>
 </section>` },
@@ -67,7 +68,7 @@ export const sections = [
     #defi .sg-tete a { padding: 9px 16px; border-radius: 999px; border: 1px solid #ECE7E2; font-size: 12.5px; color: #141414; text-decoration: none; white-space: nowrap; }
     #defi .sg-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 40px; }
     #defi article { padding: 20px; border-radius: 18px; background: #F7F5F3; } #defi article.on { background: linear-gradient(180deg, ${O}, #FF9B5E); color: #fff; }
-    #defi article > div { display: flex; gap: 14px; } #defi article i { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: ${O}; color: #fff; font-style: normal; } #defi article.on i { background: #fff; color: ${O}; }
+    #defi article > div { display: flex; gap: 14px; } #defi article i { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: ${O}; color: #fff; font-style: normal; } #defi article.on > div > i { background: #fff; color: ${O}; }
     #defi h3 { margin: 4px 0 8px; font-size: 14px; font-weight: 600; color: inherit; } #defi article p { margin: 0; font-size: 11.5px; line-height: 1.55; color: inherit; opacity: .8; }
     #defi .sg-mini { margin-top: 22px; padding: 12px; border-radius: 12px; background: #fff; color: #141414; font-size: 10px; } #defi .sg-mini .sg-hist { height: 60px; }
     @media (max-width: 899px) { #defi .sg-g { grid-template-columns: 1fr; } #defi .sg-tete { flex-direction: column; align-items: start; } }
