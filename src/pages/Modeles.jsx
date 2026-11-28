@@ -120,7 +120,7 @@ export default function Modeles() {
 
   const [genre, setGenre] = useState("tous");
   // Repartir d'une réalisation : son idée est posée dans l'aperçu, où le membre la modifie avant de construire
-  const reprendre = ([, , , texte, g]) => { ecrire("bingoo-idee", { texte, type: g ?? "saas", at: Date.now() }); ecrire("bingoo-copie", null); nav("/explorer/idee"); };
+  const reprendre = ([id, , , texte, g]) => { ecrire("bingoo-idee", { texte, type: g ?? "saas", modele_site: id, at: Date.now() }); ecrire("bingoo-copie", null); nav("/explorer/idee"); };
   const choisir = (m) => { setOuvert(m.id); setF({ metier: "", nom: "", couleur: m.couleur }); setErr(null); };
   const lancer = async (m) => {
     if (estInvite(session) || !ws) { demanderCompte("Crée ton compte gratuit pour lancer ton SaaS à partir de ce modèle."); return; }

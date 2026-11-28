@@ -75,8 +75,10 @@ export async function refModele(id: string): Promise<RefModele | null> {
 }
 
 /** Les modèles proposés dans l'aperçu, avec la photo d'en-tête de chacun (aucune IA : ce sont de vrais sites déjà construits). */
-export async function modelesApercu(texte: string, genre = "vitrine") {
-  const ms = modelesSitePour(texte, genre, 3);
+export async function modelesApercu(texte: string, genre = "vitrine", prefere: string | null = null) {
+  // Modèle choisi dans la galerie (« Partir de celui-ci ») : il passe en premier
+  const p = modeleSiteParId(prefere);
+  const ms = p ? [p, ...modelesSitePour(texte, genre, 3).filter((m) => m.id !== p.id)].slice(0, 3) : modelesSitePour(texte, genre, 3);
   const { data } = await admin.from("saas_apps").select("slug, spec->site->page->images->IMG_1->>url").in("slug", ms.map((m) => m.slug));
   const photo = new Map((data ?? []).map((x: any) => [x.slug, x.url ?? null]));
   return ms.map((m) => ({ id: m.id, nom: m.nom, pour: m.pour, slug: m.slug, photo: photo.get(m.slug) ?? null }));

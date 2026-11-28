@@ -231,7 +231,7 @@ export default function Idee() {
   const charger = async (rep = []) => {
     setEtat("charge"); setErr(null);
     try {
-      const x = await fn("r/saas-idee-apercu", { workspace_id: ws.id, texte: idee.texte, type: idee.type, reponses: rep });
+      const x = await fn("r/saas-idee-apercu", { workspace_id: ws.id, texte: idee.texte, type: idee.type, reponses: rep, modele_site: idee.modele_site ?? null });
       setR(x); setEtat(x.refus ? "refus" : x.questions ? "questions" : "apercu");
       // Même idée déjà construite ou nommée sur cet appareil : on garde le nom choisi la première fois
       if (x.apercu) { const garde = nomGarde(idee.texte); setNom(idee.nom || garde || x.apercu.nom); ecrire("bingoo-idee", { ...idee, ...(garde && !idee.nom ? { nom: garde } : {}), reponses: rep, apercu: x.apercu, proches: x.proches }); }

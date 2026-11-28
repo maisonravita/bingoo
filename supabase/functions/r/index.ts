@@ -606,7 +606,7 @@ Les accroches et les conseils ne promettent QUE ce que fait le logiciel décrit 
       if ((count ?? 0) >= APERCUS_GRATUITS) throw new HttpError(402, `Tu as utilisé tes ${APERCUS_GRATUITS} aperçus gratuits du mois. Ils reviennent le 1er du mois, ou choisis une offre pour construire ton idée tout de suite.`);
     }
     const { ideeApercu } = await import("../_shared/idee.ts");
-    const r = await ideeApercu(ws.id, String(b.texte ?? ""), String(b.type ?? "saas"), Array.isArray(b.reponses) ? b.reponses : [], { sansImages: gratuit });
+    const r = await ideeApercu(ws.id, String(b.texte ?? ""), String(b.type ?? "saas"), Array.isArray(b.reponses) ? b.reponses : [], { sansImages: gratuit, modeleSite: b.modele_site ? String(b.modele_site) : null });
     // Mesuré par entrée : idée de SaaS ou idée de site
     const pre = String(b.type ?? "") === "site" ? "site" : String(b.type ?? "") === "outil" ? "outil" : "idee";
     if ((r as any).apercu) await log(ws.id, `${pre}_apercu`, `Aperçu d'idée : ${String(b.texte ?? "").slice(0, 120)}`);
