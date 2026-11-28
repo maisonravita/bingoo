@@ -39,7 +39,7 @@ export const sections = [
   <style>
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(130px, 12vw, 160px) 24px 0 !important; text-align: center; background: #fff !important; }
     #hero::after { display: none !important; }
-    #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 !important; -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
+    #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 !important; filter: brightness(1.18) saturate(1.25) sepia(.2); -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
     #hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgb(255 214 186 / .5), rgb(255 236 222 / .5) 60%, #fff); }
     #hero > :not(img) { position: relative; z-index: 2; }
     #hero h1 { margin: 0 auto; font-weight: 500; font-size: clamp(40px, 4.6vw, 64px); line-height: 1.05; letter-spacing: -.04em; color: #141414 !important; -webkit-text-fill-color: #141414; }
@@ -70,7 +70,7 @@ export const sections = [
     #defi article { padding: 20px; border-radius: 18px; background: #F7F5F3; } #defi article.on { background: linear-gradient(180deg, ${O}, #FF9B5E); color: #fff; }
     #defi article > div { display: flex; gap: 14px; } #defi article > div > i { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: ${O}; color: #fff; font-style: normal; } #defi article.on > div > i { background: #fff; color: ${O}; }
     #defi h3 { margin: 4px 0 8px; font-size: 14px; font-weight: 600; color: inherit; } #defi article p { margin: 0; font-size: 11.5px; line-height: 1.55; color: inherit; opacity: .8; }
-    #defi .sg-mini { margin-top: 22px; padding: 12px; border-radius: 12px; background: #fff; color: #141414; font-size: 10px; } #defi .sg-mini .sg-hist { height: 60px; }
+    #defi .sg-mini { margin-top: 22px; padding: 12px; border-radius: 12px; background: #fff; color: #141414; font-size: 10px; } #defi .sg-mini .sg-hist { height: 60px; display: flex !important; } #defi .sg-hist i { display: block !important; flex: 1 1 0; min-width: 6px; border-radius: 3px 3px 0 0; background: #EAE4DE; }
     @media (max-width: 899px) { #defi .sg-g { grid-template-columns: 1fr; } #defi .sg-tete { flex-direction: column; align-items: start; } }
   </style>
   <div class="sg-in"><small class="sg-k">POURQUOI SIGNAL</small>
