@@ -78,6 +78,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /fintech|banque|carte bancaire|paiement|argent|budget|n[ée]obanque|portefeuille|transferts?|virement/ },
   { id: "forge", nom: "Forge", slug: "forge-modele", pour: "École, formation, bootcamp",
     mots: /[ée]cole|formation|bootcamp|acad[ée]mie|cours|stage|apprentissage|enseignement|certificat|mentor/ },
+  { id: "bivouac", nom: "Bivouac", slug: "bivouac-modele", pour: "Marque outdoor, randonnée, vélo, montagne",
+    mots: /outdoor|randonn|montagne|v[ée]lo|cyclisme|trail|escalade|ski|camping|bivouac|aventure|[ée]quipement sportif|bagagerie/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
