@@ -70,6 +70,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /service client|support|chatbot|assistant ia|relation client|helpdesk|sav|multilingue|discussion/ },
   { id: "unpas", nom: "Un pas", slug: "unpas-modele", pour: "Application de tâches, productivité",
     mots: /t[âa]ches?|to-?do|productivit|organisation|planning|gestion de projet|habitudes|objectifs|kanban/ },
+  { id: "signal", nom: "Signal", slug: "signal-modele", pour: "Analyse de données, tableaux de bord, IA",
+    mots: /analyse|donn[ée]es|data|statistiques|reporting|tableaux? de bord|business intelligence|bi\b|logistique|livraison/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
