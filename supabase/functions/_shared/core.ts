@@ -582,6 +582,15 @@ export async function ask(prompt: string, opts: AskOpts = {}): Promise<string> {
       await alerteSolde("stop", 0).catch(() => null);
       throw new HttpError(503, "Bingoo! fait une courte pause de maintenance sur l'IA. Réessaie un peu plus tard."); // Jean est prévenu par e-mail
     }
+    if (r.status === 401 || /x-api-key|authentication/i.test(msg)) {
+      // Clé de l'IA refusée : Jean est prévenu par e-mail (au plus une fois par heure), le visiteur voit un message propre
+      const { data: d } = await admin.from("app_secrets").select("value").eq("name", "ia_cle_refusee_at").maybeSingle();
+      if (!d?.value || Date.now() - new Date(String(d.value)).getTime() > 3600e3) {
+        await admin.from("app_secrets").upsert({ name: "ia_cle_refusee_at", value: new Date().toISOString() }).then(() => null, () => null);
+        await alerteJean("Bingoo! : la clé de l'IA est refusée", "Anthropic refuse la clé ANTHROPIC_API_KEY : plus aucun aperçu, construction ni vidéo ne marche. Crée une nouvelle clé sur console.anthropic.com et remplace-la dans Supabase → Edge Functions → Secrets.").catch(() => null);
+      }
+      throw new HttpError(503, "Bingoo! fait une courte pause de maintenance sur l'IA. Réessaie un peu plus tard.");
+    }
     throw new HttpError(502, "IA : " + msg);
   }
   const out = text(r.data);
