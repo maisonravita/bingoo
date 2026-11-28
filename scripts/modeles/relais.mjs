@@ -43,7 +43,7 @@ export const sections = [
     <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
 </header>` },
-  { id: "hero", html: `<section id="hero" class="hero hero-immersif re-hero">
+  { id: "hero", html: `<section id="hero" class="hero re-hero">
   <style>
     #hero { position: relative; min-height: clamp(700px, 100svh, 920px) !important; padding: 0 !important; overflow: hidden; isolation: isolate; color: #15151A; background: #F7F4F1; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% center; z-index: -2; }
