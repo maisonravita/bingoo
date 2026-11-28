@@ -22,7 +22,7 @@ export const sections = [
   <style>
     header.nav { top: 70px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); width: min(960px, calc(100% - 40px)) !important; background: transparent !important; border: 0 !important; }
     header.nav .nav__bar { max-width: none !important; padding: 14px 18px !important; }
-    header.nav .nav__logo { color: #fff !important; font-size: 19px; font-weight: 500; letter-spacing: -.02em; } header.nav .nav__links { display: none !important; }
+    header.nav .nav__actions { margin-left: auto !important; } header.nav .nav__logo { color: #fff !important; font-size: 19px; font-weight: 500; letter-spacing: -.02em; } header.nav .nav__links { display: none !important; }
     header.nav .ab-plus { color: #fff; font-size: 24px; font-weight: 300; text-decoration: none; }
     header.nav:not(.nav--sur-photo) { top: 0 !important; width: 100% !important; background: rgb(255 255 255 / .9) !important; } header.nav:not(.nav--sur-photo) .nav__logo, header.nav:not(.nav--sur-photo) .ab-plus { color: #141414 !important; }
   </style>
@@ -37,7 +37,7 @@ export const sections = [
   <style>
     #hero { min-height: 0 !important; padding: 60px 20px 0 !important; background: linear-gradient(180deg, #F7E6E1, #FFF 40%) !important; }
     #hero .ab-carte { position: relative; overflow: hidden; isolation: isolate; max-width: 960px; margin: 0 auto; height: clamp(700px, 70vw, 840px); border-radius: 14px 14px 0 0; text-align: center; color: #fff; background: linear-gradient(180deg, #E8B4A6, #F2CDBF 50%, #fff 100%); box-shadow: 0 40px 80px -30px rgb(120 60 40 / .25); }
-    #hero .ab-carte > img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 76%; object-fit: cover; object-position: center bottom; z-index: -1; -webkit-mask: linear-gradient(180deg, transparent 0, #000 22%, #000 72%, transparent 100%); mask: linear-gradient(180deg, transparent 0, #000 22%, #000 72%, transparent 100%); }
+    #hero .ab-carte > img { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 66%; object-fit: cover; object-position: center 70%; z-index: -1; -webkit-mask: linear-gradient(180deg, transparent 0, #000 22%, #000 72%, transparent 100%); mask: linear-gradient(180deg, transparent 0, #000 22%, #000 72%, transparent 100%); }
     #hero h1 { margin: 0 auto; padding-top: 70px; font-weight: 500; font-size: clamp(40px, 5vw, 64px); line-height: 1.08; letter-spacing: -.045em; color: #fff; }
     #hero p { margin: 22px auto 0; max-width: 380px; font-size: 15px; line-height: 1.55; color: rgb(255 255 255 / .95); }
   </style>
@@ -56,7 +56,7 @@ export const sections = [
     #vision p { margin: 26px auto 0; max-width: 560px; font-size: 15.5px; line-height: 1.55; color: #6B625C; }
     #vision .ab-champ { display: flex; justify-content: space-between; align-items: center; width: min(360px, 100%); margin: 30px auto 0; padding: 4px 4px 4px 14px; border-radius: 10px; background: #F6F2EF; font-size: 12.5px; color: #6B625C; }
     #vision .ab-champ a { padding: 10px 18px; border-radius: 8px; background: #141414; color: #fff; font-size: 12.5px; text-decoration: none; }
-    #vision .ab-carte > img { display: block; width: 100%; max-width: 760px; margin: 60px auto 0; -webkit-mask: linear-gradient(180deg, transparent, #000 25%); mask: linear-gradient(180deg, transparent, #000 25%); }
+    #vision .ab-carte > img { display: block; width: 100%; max-width: 760px; margin: 60px auto 0; -webkit-mask: linear-gradient(180deg, transparent, #000 25%); mask: radial-gradient(ellipse 60% 70% at 50% 60%, #000 55%, transparent 100%); }
   </style>
   <div class="ab-carte">
     <h2 id="vision-h">Là où votre vision<br>trouve sa <img src="IMG_2" alt=""> maison.</h2>
