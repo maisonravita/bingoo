@@ -74,6 +74,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /analyse|donn[ée]es|data|statistiques|reporting|tableaux? de bord|business intelligence|bi\b|logistique|livraison/ },
   { id: "prisme", nom: "Prisme", slug: "prisme-modele", pour: "Logiciel collaboratif, outil d'équipe",
     mots: /collaborat|[ée]quipe|teams?|workspace|espace de travail|projets?|design|produit|startup|saas/ },
+  { id: "azur", nom: "Azur", slug: "azur-modele", pour: "Fintech, gestion d'argent, cartes bancaires",
+    mots: /fintech|banque|carte bancaire|paiement|argent|budget|n[ée]obanque|portefeuille|transferts?|virement/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
