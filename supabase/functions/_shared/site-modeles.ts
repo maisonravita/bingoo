@@ -50,6 +50,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /agence|marketing|communication|publicit|r[ée]seaux sociaux|growth|acquisition|seo|r[ée]f[ée]rencement|community|brand|branding/ },
   { id: "halo", nom: "Halo", slug: "halo-modele", pour: "Logiciel SaaS, application, outil en ligne",
     mots: /saas|logiciel|application|app\b|outil en ligne|plateforme|startup|tableau de bord|dashboard|ia\b|intelligence artificielle|productivit/ },
+  { id: "elan", nom: "Élan", slug: "elan-modele", pour: "Outil IA, assistant, logiciel en ligne",
+    mots: /outil ia|assistant|chatbot|agent|ia\b|intelligence artificielle|gpt|automatis|saas|logiciel|template/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
