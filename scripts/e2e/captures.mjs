@@ -1179,7 +1179,7 @@ if (CONSTRUIRE === "visiteur-apercu") {
     p.on("pageerror", (e) => console.log("   erreur JS :", e.message.slice(0, 160)));
     p.on("response", (r) => { if (r.status() === 403) console.log("   refusé au visiteur :", new URL(r.url()).pathname); });
     await p.goto(`${SITE}/?c=${t0}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null);
-    await p.getByRole("button", { name: /^\s*Vidéo\s*$/ }).first().click().catch(() => null); await p.waitForTimeout(500);
+    await p.getByText("Vidéo", { exact: true }).first().click().catch((e) => console.log("   clic Vidéo :", e.message.slice(0, 80))); await p.waitForTimeout(500);
     await p.locator("#idee").fill("Une pub pour ma boulangerie artisanale à Nantes");
     await p.screenshot({ path: `${DOSSIER}/visiteur-video-accueil.png` });
     await p.getByRole("button", { name: /Construire mon idée|Créer ma vidéo|Créer/ }).first().click().catch(() => null);
