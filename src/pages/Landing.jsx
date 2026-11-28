@@ -169,6 +169,7 @@ function ChantierFlou({ texte, genre, children }) {
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 export const VITRINE = [
   // Modèles recopiés des maquettes de Jean (28/11) : paysage illustré, horizon, vitrine en duo
+  ["halo", "Halo", "Site de logiciel SaaS", "La page de lancement de mon logiciel, avec un aperçu du tableau de bord", "site"],
   ["cadran", "Cadran", "Site d'agence marketing", "Le site de mon agence marketing, avec nos résultats et nos services", "site"],
   ["altiere", "Altière", "Site de groupe immobilier", "Le site de mon groupe immobilier et hôtelier, avec nos projets et le contact", "site"],
   ["houle", "Houle", "Site d'école de surf", "Le site de mon école de surf dans les Landes, avec les cours et les réservations", "site"],
