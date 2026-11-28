@@ -10,7 +10,7 @@ export const design = {
   couleurs: { background: "#000000", foreground: "#FFFFFF", primary: "#2F35F5", on_primary: "#FFFFFF", card: "#0A0A2A", muted: "#0A0A2A", border: "#24247A", muted_foreground: "#B9BBF0", accent: "#2F35F5", secondary: "#0A0A2A", ring: "#2F35F5", on_accent: "#FFFFFF" },
 };
 const B = "#2F35F5";
-const FAISCEAUX = `background: radial-gradient(ellipse 22% 60% at 8% 10%, rgb(255 255 255 / .55), transparent 70%), conic-gradient(from 200deg at 50% 120%, transparent 0deg, #1B1FD8 40deg, transparent 75deg, transparent 285deg, #1B1FD8 320deg, transparent 360deg), radial-gradient(ellipse 50% 40% at 50% 100%, #2B30F0, transparent 70%), #000 !important;`;
+const FAISCEAUX = `background: radial-gradient(ellipse 22% 60% at 6% 8%, rgb(255 255 255 / .6), transparent 70%), radial-gradient(ellipse 40% 45% at 50% 100%, #3A3FFF, transparent 75%), linear-gradient(58deg, transparent 30%, rgb(32 38 235 / .95) 44%, rgb(20 24 200 / .6) 52%, transparent 64%), linear-gradient(-58deg, transparent 30%, rgb(32 38 235 / .95) 44%, rgb(20 24 200 / .6) 52%, transparent 64%), #000 !important;`;
 const tel = (corps, cls = "") => `<div class="ny-tel ${cls}"><div class="ny-ilot"></div><div class="ny-etat"><span>07:15</span><span>●●● ▮</span></div>${corps}</div>`;
 export const images = [
   { id: "IMG_1", pour: "hero", taille: "square_hd", prompt: "3D render of an abstract pie chart cylinder: a tall rounded cylinder cut into slices, one slice lifted, matte gradient materials from warm orange to violet and deep blue, soft studio light, centered, isolated on a smooth violet-blue gradient background (#5A55E8 to #2F35F5), no text, no logo." },
@@ -46,8 +46,8 @@ export const sections = [
     #hero .ny-pil { position: relative; display: inline-block; margin-top: 30px; padding: 9px 20px; border-radius: 999px; background: #fff; color: #000; font-size: 12.5px; text-decoration: none; }
     #hero .ny-pil::after { content: ""; position: absolute; right: -12px; bottom: -16px; width: 18px; height: 18px; background: #8A8FFF; clip-path: polygon(0 0, 100% 45%, 55% 55%, 40% 100%); }
     #hero .ny-scene { position: relative; height: clamp(300px, 26vw, 400px); margin-top: 40px; }
-    #hero .ny-geant { position: absolute; left: 0; right: 0; bottom: -0.2em; margin: 0; font-size: clamp(160px, 26vw, 400px); font-weight: 500; line-height: .8; letter-spacing: -.04em; text-align: left; white-space: nowrap; padding-left: 1vw; background: linear-gradient(180deg, #fff 30%, #C9CBFF); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    #hero .ny-tel { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 230px; height: 560px; background: linear-gradient(180deg, rgb(110 105 255 / .55), rgb(60 60 230 / .45)); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+    #hero .ny-geant { position: absolute; left: 0; right: 0; bottom: -0.2em; margin: 0; font-size: clamp(160px, 26vw, 400px); font-weight: 500; line-height: .8; letter-spacing: -.04em; text-align: left; white-space: nowrap; padding-left: 1vw; color: #fff; text-shadow: 0 0 40px rgb(140 145 255 / .35); z-index: 0; }
+    #hero .ny-tel { z-index: 1; position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 230px; height: 560px; background: linear-gradient(180deg, rgb(110 105 255 / .55), rgb(60 60 230 / .45)); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
     @media (max-width: 767px) { #hero .ny-geant { font-size: 120px; } }
   </style>
   <h1>Des données<br>à l'avantage stratégique</h1>
