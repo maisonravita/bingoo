@@ -32,7 +32,7 @@ export const sections = [
     .nav .nav__links { display: none !important; } .nav .nav__actions { display: none !important; }
     .al-rail { position: fixed; left: 0; top: 0; bottom: 0; z-index: 60; width: 82px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 34px 0; background: #17171B; border-right: 1px solid #2B2B31; }
     .al-rail .al-grille { display: grid; grid-template-columns: repeat(3, 4px); gap: 4px; } .al-rail .al-grille i { width: 4px; height: 4px; background: #fff; }
-    .al-rail nav { display: flex; flex-direction: column; gap: 28px; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 12px; } .al-rail nav a { color: #9C9CA3; text-decoration: none; } .al-rail nav a:last-child { color: #fff; text-decoration: underline; }
+    .al-rail nav { display: flex; flex-direction: column; align-items: center; gap: 28px; font-size: 12px; } .al-rail nav a { writing-mode: vertical-rl; transform: rotate(180deg); } .al-rail nav a { color: #9C9CA3; text-decoration: none; } .al-rail nav a:last-child { color: #fff; text-decoration: underline; }
     .al-rail .al-marque { display: grid; grid-template-columns: repeat(4, 5px); gap: 2px; } .al-rail .al-marque i { width: 5px; height: 5px; background: #fff; } .al-rail .al-marque i:nth-child(2n) { background: transparent; }
     main { padding-left: 82px; }
     @media (max-width: 767px) { .al-rail { display: none; } main { padding-left: 0; } .nav { left: 0 !important; } }
