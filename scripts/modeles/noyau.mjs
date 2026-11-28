@@ -46,7 +46,7 @@ export const sections = [
     #hero .ny-pil { position: relative; display: inline-block; margin-top: 30px; padding: 9px 20px; border-radius: 999px; background: #fff; color: #000; font-size: 12.5px; text-decoration: none; }
     #hero .ny-pil::after { content: ""; position: absolute; right: -12px; bottom: -16px; width: 18px; height: 18px; background: #8A8FFF; clip-path: polygon(0 0, 100% 45%, 55% 55%, 40% 100%); }
     #hero .ny-scene { position: relative; height: clamp(300px, 26vw, 400px); margin-top: 40px; }
-    #hero .ny-geant { position: absolute; left: 0; right: 0; bottom: -0.2em; margin: 0; font-size: clamp(160px, 26vw, 400px); font-weight: 500; line-height: .8; letter-spacing: -.04em; text-align: left; white-space: nowrap; padding-left: 1vw; color: #fff; text-shadow: 0 0 40px rgb(140 145 255 / .35); z-index: 0; }
+    #hero .ny-geant { position: absolute; left: 0; right: 0; bottom: -0.2em; margin: 0; font-size: clamp(200px, 37vw, 560px); font-weight: 500; line-height: .8; letter-spacing: -.04em; text-align: left; white-space: nowrap; padding-left: 1vw; color: #fff; text-shadow: 0 0 40px rgb(140 145 255 / .35); z-index: 0; }
     #hero .ny-tel { z-index: 1; position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 230px; height: 560px; background: linear-gradient(180deg, rgb(110 105 255 / .55), rgb(60 60 230 / .45)); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
     @media (max-width: 767px) { #hero .ny-geant { font-size: 120px; } }
   </style>
