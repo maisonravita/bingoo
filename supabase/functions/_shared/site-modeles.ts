@@ -64,6 +64,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /conseil|consultant|cabinet|strat[ée]gie|expert-comptable|comptable|audit|gestion de patrimoine|finance|accompagnement/ },
   { id: "pilier", nom: "Pilier", slug: "pilier-modele", pour: "Finances personnelles, épargne, budget",
     mots: /[ée]pargne|budget|finances personnelles|banque|n[ée]obanque|fintech|investir|investissement|placement|argent|patrimoine/ },
+  { id: "abri", nom: "Abri", slug: "abri-modele", pour: "Promoteur immobilier, villas, architecte",
+    mots: /villas?|promoteur|promotion|architecte|architecture|maison d.architecte|construction|constructeur|programme neuf|immobilier de luxe/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
