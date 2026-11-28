@@ -30,6 +30,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /galerie|[œo]euvres?|art\b|artistes?|ench[èe]re|collection|boutique|e-?commerce|vente en ligne|march[ée] en ligne|place de march[ée]|tirages?|affiches?|cr[ée]ations? num[ée]riques|nft|objets? d.art|antiquit|brocante|vintage/ },
   { id: "orbe", nom: "Orbe", slug: "orbe-modele", pour: "Outil créatif, IA, logiciel", genre: "lancement",
     mots: /\bia\b|intelligence artificielle|cr[ée]ateurs?|retouche|montage|[ée]dition (photo|vid[ée]o)|logiciel|saas|outil en ligne|automatis|start-?up|tech|d[ée]veloppeur|no-?code|futur|espace|cin[ée]ma/ },
+  { id: "lyra", nom: "Lyra", slug: "lyra-modele", pour: "Appli, assistant, produit mobile", genre: "lancement",
+    mots: /\bappli|application mobile|assistant|iphone|android|t[ée]l[ée]chargement|abonnement|produit num[ée]rique|\bia\b/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];

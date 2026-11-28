@@ -70,6 +70,8 @@ Cette page est construite SUR CE MODÈLE. Reprends sa structure à l'identique :
 Ce qui change, et seulement ça : TOUS les textes (ceux du membre, jamais ceux du modèle), les noms d'ancres, les jetons d'images (IMG_n ou PHOTO_n de CETTE page), les données (prestations, horaires, adresse) et le vocabulaire du métier.
 Jamais un mot, un nom, une ville, un prix ni une adresse du modèle sur la page du membre. Une section du modèle qui n'a pas de sens pour ce métier est remplacée par une section du même gabarit sur un sujet de ce métier.
 Plan du modèle : ${ref.plan.join(" > ")}
+${ref.compo ? "" : "Premier écran : reproduis la section hero du modèle À L'IDENTIQUE (mêmes balises, mêmes classes, même <style> scopé #hero) : seuls les textes et les jetons d'images changent.\n"}Images du modèle (garde le même style, le même cadrage et la même lumière, avec le sujet de CE membre) :
+${Object.entries(ref.prompts).map(([k, v]) => `${k} : ${v}`).join("\n").slice(0, 3000)}
 HTML du modèle (référence de mise en page, textes à remplacer) :
 ${html}` };
   }
@@ -87,7 +89,8 @@ ${html}` };
   const imagesPossibles = nbPhotos > 0 || (!boucheP && !!Deno.env.get("FAL_KEY"));
   const voulue = e.compo && e.compo in COMPOSITIONS ? COMPOSITIONS[e.compo as keyof typeof COMPOSITIONS] : null;
   const duModele = ref?.compo && ref.compo in COMPOSITIONS ? COMPOSITIONS[ref.compo as keyof typeof COMPOSITIONS] : null;
-  let compo = duModele && (!duModele.photo || imagesPossibles) ? duModele : voulue && (!voulue.photo || imagesPossibles) ? voulue : choisirComposition({ type: typeP, texte: `${e.brief} ${e.metier ?? ""}`, images: imagesPossibles });
+  // Modèle à premier écran sur mesure (sans composition du kit) : on reproduit son HTML et son style, pas de composition
+  let compo = ref && !ref.compo ? null : duModele && (!duModele.photo || imagesPossibles) ? duModele : voulue && (!voulue.photo || imagesPossibles) ? voulue : choisirComposition({ type: typeP, texte: `${e.brief} ${e.metier ?? ""}`, images: imagesPossibles });
   if ((compo?.nbImages ?? 1) === 3 && nbPhotos > 0 && nbPhotos < 3) compo = choisirComposition({ type: typeP, texte: "nature", images: true });
   // Avec les photos du membre, la composition les utilise (PHOTO_n) à la place des images générées
   const jetonPhoto = (n: number) => (nbPhotos ? `PHOTO_${n}` : `IMG_${n}`);
