@@ -24,11 +24,11 @@ export const sections = [
   { id: "nav", html: `<header class="nav">
   <style>
     .cd-rond { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none; } .cd-rond svg { width: 15px; height: 15px; }
-    header.nav { top: 18px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); width: min(760px, calc(100% - 32px)) !important; background: rgb(38 40 66 / .72) !important; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid rgb(255 255 255 / .08) !important; border-radius: 22px; }
+    header.nav { top: 18px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); width: min(900px, calc(100% - 32px)) !important; background: rgb(38 40 66 / .72) !important; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid rgb(255 255 255 / .08) !important; border-radius: 22px; }
     header.nav .nav__bar { max-width: none !important; padding: 8px 8px 8px 16px !important; min-height: 0 !important; }
     header.nav .nav__logo { display: inline-flex; align-items: center; gap: 10px; color: #fff !important; font-weight: 600; font-size: 18px; letter-spacing: -.02em; }
     header.nav .cd-logo { width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #F4B5FF, #B45CF0 55%, #7A3BE0); display: grid; place-items: center; color: #fff; font-size: 17px; font-weight: 400; }
-    header.nav .nav__link { color: #fff !important; font-size: 13.5px; }
+    header.nav .nav__link { color: #fff !important; font-size: 13.5px; } header.nav .nav__links { margin-left: 40px; margin-right: auto; gap: 6px !important; } header.nav .nav__actions { margin-left: 24px; }
     header.nav .cd-cta { display: inline-flex; align-items: center; gap: 12px; padding: 6px 6px 6px 20px; border-radius: 16px; background: rgb(255 255 255 / .14); color: #fff; font-size: 14px; text-decoration: none; }
   </style>
   <div class="wrap nav__bar">
@@ -127,7 +127,7 @@ export const sections = [
     #realisations .cd-in { max-width: 1180px; margin: 0 auto; width: 100%; }
     #realisations h2 { margin: 0 0 28px; font-size: clamp(28px, 2.8vw, 40px); font-weight: 500; letter-spacing: -.04em; color: #14152B; }
     #realisations .cd-g { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
-    #realisations figure { position: relative; margin: 0; border-radius: 28px; overflow: hidden; aspect-ratio: 1.45; } #realisations img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #realisations figure { position: relative; margin: 0; border-radius: 28px; overflow: hidden; height: clamp(260px, 30vw, 400px); } #realisations img { width: 100%; height: 100%; object-fit: cover; display: block; }
     #realisations figcaption { position: absolute; left: 18px; bottom: 18px; padding: 10px 16px; border-radius: 14px; background: rgb(255 255 255 / .9); font-size: 14px; color: #14152B; } #realisations figcaption b { color: ${BLEU}; }
     @media (max-width: 899px) { #realisations .cd-g { grid-template-columns: 1fr; } }
   </style>
