@@ -48,9 +48,9 @@ export const sections = [
     #hero .es-annonce a { color: #111; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
     #hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgb(0 0 0 / .25), transparent 35%, transparent 60%, rgb(0 0 0 / .35)); }
-    #hero h1 { margin: 0; padding-top: calc(var(--nav) + 64px); font-weight: 500; font-size: clamp(30px, 3vw, 44px); line-height: 1.12; letter-spacing: -.01em; color: #fff; }
+    #hero h1 { margin: 0; padding-top: calc(var(--nav) + 48px); text-shadow: 0 2px 18px rgb(0 0 0 / .45); font-weight: 500; font-size: clamp(30px, 3vw, 44px); line-height: 1.12; letter-spacing: -.01em; color: #fff; }
     #hero .es-bas { position: absolute; left: 0; right: 0; bottom: 28px; }
-    #hero .es-bas p { margin: 0 auto; max-width: 300px; font-size: 13px; line-height: 1.45; }
+    #hero .es-bas p { text-shadow: 0 1px 10px rgb(0 0 0 / .5); margin: 0 auto; max-width: 300px; font-size: 13px; line-height: 1.45; }
     #hero .es-btns { display: flex; justify-content: center; gap: 10px; margin-top: 16px; }
     #hero .es-btns a { min-width: 128px; padding: 11px 18px; border-radius: 999px; font-size: 12.5px; font-weight: 600; text-decoration: none; }
     #hero .es-btns a:first-child { background: #fff; color: #111; } #hero .es-btns a + a { border: 1px solid rgb(255 255 255 / .7); color: #fff; }
@@ -74,7 +74,7 @@ export const sections = [
     #modele { position: relative; padding-block: clamp(48px, 6vw, 88px) clamp(56px, 7vw, 104px) !important; text-align: center; overflow: hidden; }
     #modele .es-scene { position: relative; max-width: 1100px; margin-inline: auto; }
     #modele h2 { margin: 0; font-weight: 600; font-size: clamp(140px, 19vw, 300px); line-height: .8; letter-spacing: -.05em; color: #111; }
-    #modele img { position: relative; display: block; width: 100%; margin-top: -9vw; aspect-ratio: 2; object-fit: cover; mix-blend-mode: multiply; }
+    #modele img { position: relative; display: block; width: 100%; margin-top: -13vw; aspect-ratio: 2.4; object-fit: cover; object-position: center 62%; -webkit-mask-image: radial-gradient(ellipse 58% 62% at 50% 55%, #000 72%, transparent 100%); mask-image: radial-gradient(ellipse 58% 62% at 50% 55%, #000 72%, transparent 100%); }
     #modele .es-ligne { margin: 4px 0 0; font-size: 17px; font-weight: 500; }
     #modele .es-prix { margin: 8px 0 0; font-size: 12.5px; color: #4A4845; }
     #modele .es-btns { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
@@ -93,7 +93,7 @@ export const sections = [
   <style>
     #aventure { padding-block: clamp(72px, 9vw, 128px) !important; text-align: center; overflow: hidden; }
     #aventure h2 { margin: 0 auto; max-width: 14ch; font-weight: 500; font-size: clamp(32px, 3.4vw, 52px); line-height: 1.08; letter-spacing: -.02em; }
-    #aventure .es-onglets { display: inline-flex; gap: 4px; margin-top: 24px; padding: 4px; border-radius: 999px; background: #fff; font-size: 12.5px; }
+    #aventure .es-onglets { width: auto !important; max-width: max-content; margin-inline: auto !important; display: flex; gap: 4px; margin-top: 24px; padding: 4px; border-radius: 999px; background: #fff; font-size: 12.5px; }
     #aventure .es-onglets span { padding: 8px 18px; border-radius: 999px; } #aventure .es-onglets span.on { background: #111; color: #fff; }
     #aventure .es-rang { display: grid; grid-template-columns: .9fr 1.3fr .9fr; gap: 16px; margin: 40px -6vw 0; }
     #aventure figure { margin: 0; text-align: left; } #aventure img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; border-radius: 14px; }
