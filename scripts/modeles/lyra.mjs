@@ -100,7 +100,7 @@ export const sections = [
     #tarifs h2 { position: relative; text-align: center; margin: 0 0 clamp(36px, 4vw, 56px); font-weight: 500; font-size: clamp(30px, 3vw, 46px); letter-spacing: -.02em; }
     #tarifs .ly-plans { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; max-width: 960px; margin-inline: auto; }
     #tarifs .ly-plan { border-radius: 22px; padding: 28px; ${VERRE} }
-    #tarifs .ly-plan.on { background: linear-gradient(160deg, rgb(230 210 255 / .6), rgb(170 130 255 / .35)); }
+    #tarifs .ly-plan.on { background: linear-gradient(160deg, #9A6CF0, #5B36B8) !important; } #tarifs .ly-plan, #tarifs .ly-plan b, #tarifs .ly-plan p, #tarifs .ly-plan li { color: #fff !important; }
     #tarifs .ly-plan p { margin: 0; font-size: 14px; opacity: .85; }
     #tarifs .ly-plan b { display: block; margin: 12px 0 16px; font-size: 40px; font-weight: 500; letter-spacing: -.02em; }
     #tarifs .ly-plan b small { font-size: 15px; opacity: .8; }
