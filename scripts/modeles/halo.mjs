@@ -36,11 +36,12 @@ export const sections = [
   <style>
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(230px, 23vw, 280px) 24px 0 !important; text-align: center; color: #fff; background: #05071A !important; }
     #hero .hl-rayons { position: absolute; left: 50%; top: 0; width: 520px; height: 300px; transform: translateX(-50%); z-index: -2; background: repeating-linear-gradient(90deg, rgb(120 150 255 / .0) 0 26px, rgb(120 150 255 / .09) 26px 30px, rgb(120 150 255 / 0) 30px 52px); -webkit-mask: linear-gradient(180deg, transparent, #000 60%, transparent); mask: linear-gradient(180deg, transparent, #000 60%, transparent); }
-    #hero .hl-arc { position: absolute; left: 50%; top: 125px; width: 760px; height: 760px; transform: translateX(-50%); border-radius: 50%; z-index: -1; background: #05071A;
+    #hero .hl-ciel { position: absolute; left: 50%; top: -75px; width: 1200px; height: 760px; transform: translateX(-50%); z-index: -1; -webkit-mask: radial-gradient(ellipse 52% 62% at 50% 20%, #000 50%, transparent 100%); mask: radial-gradient(ellipse 52% 62% at 50% 20%, #000 50%, transparent 100%); }
+    #hero .hl-arc { position: absolute; left: 50%; top: 200px; width: 760px; height: 760px; transform: translateX(-50%); border-radius: 50%; background: #05071A;
       box-shadow: 0 -2px 0 0 #DCE5FF, 0 -10px 24px 2px rgb(140 170 255 / .9), 0 -30px 80px 10px rgb(90 120 255 / .55), 0 -60px 160px 40px rgb(60 90 230 / .25); }
     #hero .hl-arc::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 40px 70px -30px rgb(110 140 255 / .35); }
     #hero .hl-pastille { display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px; border-radius: 12px; border: 1px solid rgb(160 180 255 / .45); background: rgb(80 100 200 / .22); font-size: 14.5px; color: #E6EBFF; }
-    #hero h1 { margin: 26px auto 0; max-width: 14ch; font-weight: 700; font-size: clamp(44px, 5.4vw, 72px); line-height: 1.02; letter-spacing: -.035em; color: #fff; }
+    #hero h1 { margin: 26px auto 0; max-width: none; font-weight: 700; font-size: clamp(44px, 5.4vw, 72px); line-height: 1.02; letter-spacing: -.035em; color: #fff; }
     #hero h1 span { background: linear-gradient(180deg, #B8C8FF, #6F8DFF); -webkit-background-clip: text; background-clip: text; color: transparent; }
     #hero p { margin: 28px auto 0; max-width: 430px; font-size: 16px; line-height: 1.6; color: #D6DBF3; }
     #hero .hl-actions { display: flex; justify-content: center; gap: 12px; margin-top: 36px; }
@@ -50,29 +51,29 @@ export const sections = [
     #hero .hl-socle { position: relative; max-width: 820px; margin: 0 auto; } #hero .hl-socle::before { content: ""; position: absolute; left: 0; right: 0; top: -60px; height: 120px; background: radial-gradient(ellipse 50% 60% at 50% 100%, rgb(110 140 255 / .55), transparent 70%); z-index: -1; }
     #hero .hl-app { display: grid; grid-template-columns: 124px 1fr 150px; max-width: 820px; margin: 0 auto; border-radius: 16px 16px 0 0; border: 1px solid #262C52; border-bottom: 0; outline: 8px solid rgb(30 36 80 / .45); background: #080A1C; text-align: left; font-size: 9.5px; color: #8C93B8; overflow: hidden; }
     #hero .hl-app aside { padding: 16px 14px; border-right: 1px solid #1C2142; } #hero .hl-app aside b { display: flex; gap: 6px; align-items: center; color: #fff; font-size: 11px; margin-bottom: 18px; } #hero .hl-app aside span { display: block; margin: 10px 0; } #hero .hl-app aside span.on { color: #C9D2F0; }
-    #hero .hl-app main { padding: 12px 16px 0; padding-left: 16px !important; } #hero .hl-app .hl-top { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid #1C2142; } #hero .hl-app .hl-top em { font-style: normal; color: #fff; }
+    #hero .hl-app .hl-centre { padding: 12px 16px 0; min-width: 0; } #hero .hl-app .hl-top { display: flex; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid #1C2142; } #hero .hl-app .hl-top em { font-style: normal; color: #fff; }
     #hero .hl-app .hl-rech { width: 90px; padding: 3px 8px; border-radius: 8px; background: #12162E; }
     #hero .hl-app h4 { margin: 18px 0 10px; color: #fff; font-size: 10.5px; font-weight: 600; }
     #hero .hl-app table { width: 100%; border-collapse: collapse; } #hero .hl-app th { text-align: left; font-weight: 400; padding: 8px 4px; border-bottom: 1px solid #1C2142; } #hero .hl-app td { padding: 8px 4px; color: #C9D2F0; border-bottom: 1px solid #12162E; white-space: nowrap; }
     #hero .hl-case { display: inline-block; width: 9px; height: 9px; border: 1px solid #3A4170; border-radius: 3px; } #hero .hl-av { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; border-radius: 50%; font-size: 7px; font-weight: 700; color: #fff; vertical-align: middle; }
     #hero .hl-app .hl-notes { padding: 16px 12px; border-left: 1px solid #1C2142; } #hero .hl-notes b { display: block; color: #fff; font-size: 10px; font-weight: 600; margin-bottom: 12px; } #hero .hl-notes p { margin: 0 0 12px; font-size: 9.5px; color: #C9D2F0; text-align: left; line-height: 1.35; } #hero .hl-notes small { display: block; color: #6C7399; }
-    @media (max-width: 767px) { #hero .hl-app { grid-template-columns: 1fr; } #hero .hl-app aside, #hero .hl-notes { display: none; } #hero .hl-arc { width: 520px; height: 520px; } }
+    @media (max-width: 767px) { #hero .hl-app { grid-template-columns: 1fr; } #hero .hl-app aside, #hero .hl-notes { display: none; } #hero .hl-arc { width: 520px; height: 520px; } #hero h1 br { display: none; } }
   </style>
-  <span class="hl-rayons" aria-hidden="true"></span><span class="hl-arc" aria-hidden="true"></span>
+  <span class="hl-rayons" aria-hidden="true"></span><span class="hl-ciel" aria-hidden="true"><span class="hl-arc"></span></span>
   <span class="hl-pastille">${etoile(18)} Accès anticipé</span>
-  <h1>Avancez plus vite <span>avec des</span> idées <span>claires</span></h1>
+  <h1>Avancez plus vite <span>avec</span><br>des idées <span>claires</span></h1>
   <p>Un outil simple, aidé par l'IA, qui transforme vos tâches compliquées en étapes nettes, pour lancer vos projets plus tôt.</p>
   <div class="hl-actions"><a class="hl-b1" href="#tarifs">Commencer</a><a class="hl-b2" href="#fonctions">Voir la démo</a></div>
   <div class="hl-poussiere" aria-hidden="true"><i style="left:42%;top:4px"></i><i style="left:47%;top:2px"></i><i style="left:51%;top:24px"></i><i style="left:57%;top:6px"></i><i style="left:44.5%;top:30px"></i><i style="left:53%;top:34px"></i><i style="left:48%;top:56px"></i><i style="left:53.5%;top:60px"></i></div>
   <div class="hl-socle"><div class="hl-app" aria-label="Aperçu du tableau de bord">
     <aside><b>${etoile(12)} HALO</b><span>Favoris</span><span>Récents</span><span class="on">• Vue d'ensemble</span><span class="on">• Projets</span><span style="margin-top:22px">Tableaux</span></aside>
-    <main><div class="hl-top"><span>Tableaux / <em>Principal</em></span><span class="hl-rech">Rechercher</span></div>
+    <div class="hl-centre"><div class="hl-top"><span>Tableaux / <em>Principal</em></span><span class="hl-rech">Rechercher</span></div>
       <h4>Commandes</h4>
       <table><thead><tr><th></th><th>N°</th><th>Client</th><th>Projet</th><th>Adresse</th><th>Date</th><th>Statut</th></tr></thead><tbody>
       ${ligne("#HL9801", "Inès Morel", "IM", "Page d'accueil", "Rue des Lilas, Lyon", "À l'instant", ["En cours", "#9DB0FF"], "#5B6BE0")}
       ${ligne("#HL9802", "Hugo Bernard", "HB", "Application", "Quai Saint-Jean, Nantes", "Il y a 1 min", ["Terminé", "#6FE0B0"], "#2F9D7E")}
       ${ligne("#HL9803", "Léa Martin", "LM", "Tableau de bord", "Rue Pasteur, Lille", "Il y a 1 h", ["En attente", "#8C93B8"], "#A9539F")}
-      </tbody></table></main>
+      </tbody></table></div>
     <div class="hl-notes"><b>Notifications</b><p>Vous avez corrigé un bug.<small>À l'instant</small></p><p>Nouvel utilisateur inscrit.<small>Il y a 59 min</small></p><p>Rapport hebdo prêt.<small>Il y a 12 h</small></p></div>
   </div></div>
 </section>` },
