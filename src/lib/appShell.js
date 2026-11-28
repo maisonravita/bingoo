@@ -254,7 +254,7 @@ const lisible = (() => {
       // Jamais dans un bouton à état (onglet, segment choisi) : sa couleur change avec son état et ne doit pas être figée
       if (!el.firstChild || el.dataset.lisible === "1" || el.closest("svg, select, input, textarea, [role=tab], [aria-pressed], [aria-selected], [aria-current]")) continue;
       // Premier écran de composition et en-tête posé dessus : couleurs réglées par le kit sur la photo (que ce contrôle ne voit pas)
-      if (el.closest(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .hero-affiche, .hero-carte, .hero-ruban, .hero-moitie, .hero-arche, .hero-bandeau, .hero-mosaique, .hero-paysage, .hero-horizon, .hero-immersif, .s-recit") || (window.__bingooNavHaut && el.closest(".nav"))) continue;
+      if (el.closest(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .hero-affiche, .hero-carte, .hero-ruban, .hero-moitie, .hero-arche, .hero-bandeau, .hero-mosaique, .hero-paysage, .hero-horizon, .hero-immersif, .s-recit, .s-clair") || (window.__bingooNavHaut && el.closest(".nav"))) continue;
       // Un bouton plein (fond de couleur, dégradé) garde ses couleurs : seuls les liens et boutons sans fond sont corrigés
       const btn = el.closest("a, button, [role=button]");
       if (btn) { const cb = getComputedStyle(btn), bg = num(cb.backgroundColor); if ((bg && bg[3] > 0.1) || (cb.backgroundImage && cb.backgroundImage !== "none") || /\bbtn\b/.test(btn.className)) continue; }
@@ -1129,7 +1129,7 @@ function SitePageGeneree({ onAuth, saas }) {
       const couvre = (n) => getComputedStyle(n).position === "absolute" && n.offsetWidth >= sec.offsetWidth * 0.8 && n.offsetHeight >= sec.offsetHeight * 0.6;
       const img = [...sec.querySelectorAll("img")].find(couvre);
       // Les premiers écrans de composition (cinéma, mot géant…) ont déjà leur voile et leurs couleurs dans le kit
-      if (!img || sec.matches(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .hero-affiche, .hero-carte, .hero-ruban, .hero-moitie, .hero-arche, .hero-bandeau, .hero-mosaique, .hero-paysage, .hero-horizon, .hero-immersif, .s-recit, .s-duo")) return;
+      if (!img || sec.matches(".hero-cine, .hero-mot, .hero-hublot, .hero-lueur, .hero-galerie, .hero-bento, .hero-affiche, .hero-carte, .hero-ruban, .hero-moitie, .hero-arche, .hero-bandeau, .hero-mosaique, .hero-paysage, .hero-horizon, .hero-immersif, .s-recit, .s-duo, .s-clair")) return;
       sec.classList.remove("ground-brand", "ground-surface", "ground-inverse");
       [...sec.querySelectorAll("div, span")].filter((n) => n !== img && !n.textContent.trim() && !n.querySelector("img") && couvre(n)).forEach((n) => { n.style.display = "none"; });
       for (const [k, v] of [["--ink", "#ffffff"], ["--muted", "rgba(255,255,255,.84)"], ["--accent", "#ffffff"], ["--accent-ink", "#111111"], ["--action", "#ffffff"], ["--action-ink", "#111111"], ["--line", "rgba(255,255,255,.3)"], ["--line-strong", "rgba(255,255,255,.5)"]]) sec.style.setProperty(k, v);

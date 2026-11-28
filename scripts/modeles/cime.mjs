@@ -31,7 +31,7 @@ export const sections = [
     <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
 </header>` },
-  { id: "hero", html: `<section id="hero" class="hero ci-hero">
+  { id: "hero", html: `<section id="hero" class="hero ci-hero s-clair">
   <style>
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(120px, 12vw, 150px) 24px 0 !important; text-align: center; background: #FBF7F0 !important; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }

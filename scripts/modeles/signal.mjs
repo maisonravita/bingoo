@@ -35,11 +35,11 @@ export const sections = [
     <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
 </header>` },
-  { id: "hero", html: `<section id="hero" class="hero sg-hero">
+  { id: "hero", html: `<section id="hero" class="hero sg-hero s-clair">
   <style>
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(130px, 12vw, 160px) 24px 0 !important; text-align: center; background: #fff !important; }
     #hero::after { display: none !important; }
-    #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 !important; filter: brightness(1.18) saturate(1.25) sepia(.2); -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
+    #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 !important; -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
     #hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgb(255 214 186 / .5), rgb(255 236 222 / .5) 60%, #fff); }
     #hero > :not(img) { position: relative; z-index: 2; }
     #hero h1 { margin: 0 auto; font-weight: 500; font-size: clamp(40px, 4.6vw, 64px); line-height: 1.05; letter-spacing: -.04em; color: #141414 !important; -webkit-text-fill-color: #141414; }
