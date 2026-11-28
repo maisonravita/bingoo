@@ -62,6 +62,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /facturation|factures?|devis|gestion commerciale|crm|stock|pme|tpe|ind[ée]pendant|logiciel de gestion/ },
   { id: "boussole", nom: "Boussole", slug: "boussole-modele", pour: "Cabinet de conseil, finance, stratégie",
     mots: /conseil|consultant|cabinet|strat[ée]gie|expert-comptable|comptable|audit|gestion de patrimoine|finance|accompagnement/ },
+  { id: "pilier", nom: "Pilier", slug: "pilier-modele", pour: "Finances personnelles, épargne, budget",
+    mots: /[ée]pargne|budget|finances personnelles|banque|n[ée]obanque|fintech|investir|investissement|placement|argent|patrimoine/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
