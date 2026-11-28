@@ -46,6 +46,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /livraison|livreur|colis|logistique|transport|d[ée]m[ée]nag|coursier|exp[ée]di|fret|entrep[ôo]t|stockage|taxi|vtc|chauffeur/ },
   { id: "altiere", nom: "Altière", slug: "altiere-modele", pour: "Groupe immobilier, hôtellerie, prestige",
     mots: /groupe|h[ôo]tellerie|promotion immobili|investissement|patrimoine|prestige|luxe|r[ée]sidences?|bureaux|immeubles?|fonci[èe]re|syndic/ },
+  { id: "cadran", nom: "Cadran", slug: "cadran-modele", pour: "Agence marketing, communication, publicité",
+    mots: /agence|marketing|communication|publicit|r[ée]seaux sociaux|growth|acquisition|seo|r[ée]f[ée]rencement|community|brand|branding/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
