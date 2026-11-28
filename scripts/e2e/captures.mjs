@@ -222,10 +222,15 @@ if (CONSTRUIRE === "modele-site") {
   for (const [nom, vw] of [[`modele-${M.slugBase}`, { width: 1440, height: 900 }], [`modele-${M.slugBase}-mobile`, { width: 390, height: 844 }]]) {
     const c = await browser.newContext({ viewport: vw, locale: "fr-FR" }); const p = await c.newPage();
     await p.goto(`${SITE}/?c=${Date.now()}#/app/${slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(6000);
-    // Les apparitions au défilement : on descend toute la page avant la photo
-    for (let y = 0; y < 8000; y += 700) { await p.evaluate((yy) => { document.querySelectorAll("iframe").forEach(() => null); scrollTo(0, yy); }, y); await p.waitForTimeout(250); }
-    await p.evaluate(() => scrollTo(0, 0)); await p.waitForTimeout(1500);
-    await p.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom);
+    // Le site vit dans un cadre qui défile seul : une photo par écran, du haut en bas (assemblées ensuite)
+    const fr = p.frames().find((f) => f !== p.mainFrame()) ?? p.mainFrame();
+    const haut = await fr.evaluate(() => Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)).catch(() => vw.height);
+    let k = 0;
+    for (let y = 0; y < Math.min(haut, 9000); y += vw.height, k++) {
+      await fr.evaluate((yy) => scrollTo(0, yy), y); await p.waitForTimeout(1600);
+      await p.screenshot({ path: `${DOSSIER}/${nom}-${String(k).padStart(2, "0")}.png` });
+    }
+    console.log("✓", nom, `(${k} écrans, ${haut} px)`);
     await c.close();
   }
 }
