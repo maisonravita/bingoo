@@ -35,7 +35,8 @@ export const sections = [
     header.nav .nav__bar { max-width: none !important; padding: 10px clamp(24px, 4vw, 48px) !important; }
     header.nav .nav__logo { display: inline-flex; align-items: center; gap: 8px; color: #fff !important; font-size: 19px; font-weight: 500; } header.nav .nav__logo i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: ${C}; color: ${N}; font-style: normal; font-weight: 700; }
     header.nav .nav__links { justify-content: center; gap: 8px !important; } header.nav .nav__link { color: #fff !important; font-size: 13px; }
-    header.nav .bo-ins { padding: 7px 16px; border-radius: 999px; background: rgb(255 255 255 / .75); color: ${N}; font-size: 12.5px; }
+    header.nav .nav__link.bo-ins { padding: 7px 16px !important; border-radius: 999px; background: rgb(255 255 255 / .75); color: ${N} !important; font-size: 12.5px; }
+    header.nav:not(.nav--sur-photo) { background: rgb(255 255 255 / .92) !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); top: 0 !important; } header.nav:not(.nav--sur-photo) .nav__link, header.nav:not(.nav--sur-photo) .nav__logo { color: ${N} !important; } header.nav:not(.nav--sur-photo) .bo-ins { background: #F6F4F2 !important; }
     header.nav .bo-rech { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: rgb(255 255 255 / .8); color: ${N}; font-size: 14px; }
     header.nav .bo-go { padding: 10px 20px; border-radius: 999px; background: ${C}; color: ${N}; font-size: 13px; font-weight: 500; text-decoration: none; }
   </style>
