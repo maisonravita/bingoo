@@ -25,7 +25,7 @@ export const sections = [
     header.nav .ci-go { padding: 9px 18px; border-radius: 10px; background: #1D1A16; color: #fff; font-size: 14px; text-decoration: none; }
   </style>
   <div class="wrap nav__bar">
-    <a class="nav__logo" href="#hero">⛰ Cime</a>
+    <a class="nav__logo" href="#hero">Cime</a>
     <nav class="nav__links" aria-label="Principal"><div class="nav__item"><a class="nav__link" href="#fonctions">Fonctions</a></div><div class="nav__item"><a class="nav__link" href="#contact">Tarifs</a></div><div class="nav__item"><a class="nav__link" href="#fonctions">Solutions</a></div><div class="nav__item"><a class="nav__link" href="#contact">Blog</a></div></nav>
     <div class="nav__actions"><a class="ci-go" href="#contact">Démarrer</a></div>
     <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
@@ -39,7 +39,7 @@ export const sections = [
     #hero .ci-pas { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: rgb(255 255 255 / .7); font-size: 12px; color: #1D1A16; } #hero .ci-pas i { width: 7px; height: 7px; border-radius: 50%; background: ${T}; }
     #hero h1 { margin: 18px auto 0; max-width: none; font-family: Fraunces, serif; font-weight: 600; font-size: clamp(40px, 4.8vw, 68px); line-height: 1.05; letter-spacing: -.03em; color: #1D1A16; }
     #hero p { margin: 18px auto 0; max-width: 440px; font-size: 15px; color: #3B352D; }
-    #hero .ci-act { display: flex; justify-content: center; gap: 10px; margin-top: 26px; } #hero .ci-act a { padding: 11px 20px; border-radius: 10px; font-size: 14px; text-decoration: none; } #hero .ci-act a:first-child { background: #1D1A16; color: #fff; } #hero .ci-act a:last-child { background: #fff; color: #1D1A16; }
+    #hero .ci-act { display: flex; justify-content: center; gap: 10px; margin-top: 26px; } #hero .ci-act a { padding: 11px 20px; border-radius: 10px; font-size: 14px; text-decoration: none; } #hero .ci-act a:first-child { background: #1D1A16; color: #fff !important; } #hero .ci-act a:last-child { background: #fff !important; color: #1D1A16 !important; }
     #hero .ci-app { max-width: 920px; margin: 56px auto 0; padding: 18px; border-radius: 18px 18px 0 0; background: rgb(255 255 255 / .92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 -10px 50px rgb(60 40 10 / .18); text-align: left; }
     #hero .ci-hd { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; color: #1D1A16; } #hero .ci-hd span { font-weight: 400; font-size: 11px; color: #6D655A; }
     #hero .ci-ks { display: grid; grid-template-columns: repeat(3, 1fr) 1.1fr; gap: 10px; margin-top: 14px; }
