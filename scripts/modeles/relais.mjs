@@ -24,7 +24,7 @@ export const sections = [
     .nav .nav__bar { max-width: 1120px; margin-inline: auto; padding: 12px 14px 12px 34px !important; border-radius: 999px; background: #fff; box-shadow: 0 18px 40px -24px rgb(40 30 20 / .35); }
     .nav .nav__logo { font-size: 26px; font-weight: 800; letter-spacing: -.04em; color: #15151A; }
     .nav .nav__logo b { color: #FF6A13; }
-    .nav .nav__link { font-size: 15px; color: #15151A !important; text-shadow: none !important; } .nav .nav__logo { color: #15151A !important; text-shadow: none !important; }
+    .nav .nav__link { font-size: 15px; } header.nav.nav--sur-photo .nav__bar .nav__link, header.nav.nav--sur-photo .nav__bar .nav__logo, header.nav.nav--sur-photo .nav__bar .nav__toggle, header.nav .nav__link, header.nav .nav__logo { color: #15151A !important; text-shadow: none !important; } header.nav.nav--sur-photo .re-env { background: #15151A !important; color: #fff !important; }
     .nav .nav__actions { display: flex; gap: 8px; align-items: center; }
     .nav .re-cnx { padding: 12px 22px; border-radius: 999px; background: #F3F1EF; color: #15151A; font-size: 15px; text-decoration: none; }
     .nav .re-env { display: inline-flex !important; align-items: center; gap: 10px; border-radius: 999px !important; padding: 12px 22px !important; background: #15151A !important; border-color: #15151A !important; color: #fff !important; font-size: 15px; }
@@ -43,7 +43,7 @@ export const sections = [
     <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
 </header>` },
-  { id: "hero", html: `<section id="hero" class="hero re-hero">
+  { id: "hero", html: `<section id="hero" class="hero hero-immersif re-hero">
   <style>
     #hero { position: relative; min-height: clamp(700px, 100svh, 920px) !important; padding: 0 !important; overflow: hidden; isolation: isolate; color: #15151A; background: #F7F4F1; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% center; z-index: -2; }
