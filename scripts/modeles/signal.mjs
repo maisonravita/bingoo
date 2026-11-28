@@ -40,7 +40,7 @@ export const sections = [
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(130px, 12vw, 160px) 24px 0 !important; text-align: center; background: #fff !important; }
     #hero::after { display: none !important; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 !important; -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
-    #hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgb(255 214 186 / .5), rgb(255 236 222 / .5) 60%, #fff); }
+    #hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgb(255 205 170 / .55), rgb(255 230 212 / .6) 55%, #fff); mix-blend-mode: screen; }
     #hero > :not(img) { position: relative; z-index: 2; }
     #hero h1 { margin: 0 auto; font-weight: 500; font-size: clamp(40px, 4.6vw, 64px); line-height: 1.05; letter-spacing: -.04em; color: #141414 !important; -webkit-text-fill-color: #141414; }
     #hero > p { margin: 22px auto 0; max-width: 480px; font-size: 15px; line-height: 1.6; color: #4A4540 !important; -webkit-text-fill-color: #4A4540; }
