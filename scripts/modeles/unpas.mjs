@@ -20,7 +20,7 @@ const tache = (t, d, s, ok = false) => `<li class="${ok ? "ok" : ""}"><i>${ok ? 
 export const sections = [
   { id: "nav", html: `<header class="nav">
   <style>
-    .up-ann { position: absolute; left: 0; right: 0; top: 0; height: 40px; display: grid; place-items: center; font-size: 13px; color: #00140D; background: linear-gradient(90deg, #B8F5D9, #E8FFF4, #A6EDF0); }
+    .up-ann { position: absolute; left: 0; right: 0; top: 0; height: 40px; display: flex; justify-content: center; align-items: center; gap: 4px; font-size: 13px; color: #00140D; background: linear-gradient(90deg, #B8F5D9, #E8FFF4, #A6EDF0); }
     header.nav { top: 0 !important; background: transparent !important; border: 0 !important; padding-top: 40px !important; }
     header.nav .nav__bar { max-width: none !important; padding: 14px 18px !important; }
     header.nav .nav__logo { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: #0B0F0D; box-shadow: 0 0 14px rgb(61 220 151 / .4); } header.nav .nav__logo i { width: 14px; height: 14px; transform: rotate(45deg); border: 3px solid ${E}; border-radius: 3px; }
