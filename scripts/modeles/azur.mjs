@@ -99,7 +99,7 @@ export const sections = [
   <div class="az-g">
     <div class="az-sol" aria-label="Exemple de solde"><div class="az-hd"><span>€ Euro</span><i>◎</i></div><small>Solde total disponible</small><b>47 586,32 €</b><div class="az-bt"><span>▦</span><span>↙ Demander</span><span>↗ Virer</span><i>+</i></div></div>
     <div><h2 id="etapes-h">Gérez votre argent<br>en 3 étapes simples</h2>
-      <ul><li><i>◉</i>Inscrivez-vous et reliez vos comptes. Banque, cartes et portefeuilles, avec un chiffrement de niveau bancaire.</li><li><i>▥</i>Des conseils d'investissement malins, adaptés à votre profil de risque.</li><li><i>⛨</i>Tous vos comptes synchronisés au même endroit, chiffrés et toujours à jour.</li></ul></div>
+      <ul><li><i>◉</i>Inscrivez-vous et reliez vos comptes. Banque, cartes et portefeuilles, avec un chiffrement de niveau bancaire.</li><li><i>▥</i>Des conseils d'investissement malins, adaptés à votre profil de risque.</li><li><i>✓</i>Tous vos comptes synchronisés au même endroit, chiffrés et toujours à jour.</li></ul></div>
   </div>
 </section>` },
   { id: "contact", html: `<footer class="footer closing az-contact" id="contact" aria-labelledby="contact-h">
