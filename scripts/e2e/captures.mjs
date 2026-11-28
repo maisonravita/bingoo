@@ -216,7 +216,7 @@ if (CONSTRUIRE === "modele-site") {
   const [m2] = await q(`select m.workspace_id id from members m where m.user_id = ${lit(s2.user.id)} limit 1`);
   const slug = `${M.slugBase}-modele`;
   const [deja] = await q(`select spec->'site'->'page'->'images' im from saas_apps where slug = ${lit(slug)}`);
-  let imgs = deja?.im && Object.keys(deja.im).length >= M.images.length && process.env.REFAIRE_IMAGES !== "1" ? deja.im : null;
+  let imgs = deja?.im && Object.keys(deja.im).length >= M.images.length && M.images.every((d) => deja.im[d.id] && (!d.detourer || deja.im[d.id].detoure)) && process.env.REFAIRE_IMAGES !== "1" ? deja.im : null;
   if (!imgs) {
     const r = await fetch(`${SB}/functions/v1/r/modele-images`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${s2.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: m2.id, demandes: M.images }) });
     const j = await r.json().catch(() => ({}));

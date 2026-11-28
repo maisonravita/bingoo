@@ -12,7 +12,7 @@ export const design = {
 const SANS = "no logo, no badge, no brand, no text, no licence plate";
 export const images = [
   { id: "IMG_1", pour: "hero", taille: { width: 1920, height: 960 }, prompt: `Photograph of a modern boxy electric camper van painted steel blue with black wheels and two surfboards on the roof rack, parked on a coastal road by a wooden fence, the ocean and a far headland behind, clear blue sky, bright summer sunlight, side three-quarter view, the upper third of the image calm sky, photorealistic automotive advertising, ${SANS}.` },
-  { id: "IMG_2", pour: "modele", taille: { width: 1920, height: 960 }, prompt: `Studio photograph of a modern boxy electric camper van in dark graphite grey seen exactly from the side, black wheels, isolated on a perfectly plain very light warm grey background (#F3F2F0) with a soft contact shadow under the wheels, nothing else, photorealistic, ${SANS}.` },
+  { id: "IMG_2", pour: "modele", detourer: true, taille: { width: 1920, height: 960 }, prompt: `Studio photograph of a modern boxy electric camper van in dark graphite grey seen exactly from the side, black wheels, isolated on a perfectly plain very light warm grey background (#F3F2F0) with a soft contact shadow under the wheels, nothing else, photorealistic, ${SANS}.` },
   { id: "IMG_3", pour: "aventure", taille: "landscape_4_3", prompt: `Photograph of the interior of a camper van: a cosy bed with linen sheets by a big side window opening onto a pine forest and a lake, warm morning light, wood panels, photorealistic, ${SANS}.` },
   { id: "IMG_4", pour: "aventure", taille: "landscape_4_3", prompt: `Photograph of a steel blue electric camper van driving on a gravel mountain road with dust, alpine peaks behind, dynamic, photorealistic, ${SANS}.` },
   { id: "IMG_5", pour: "aventure", taille: "landscape_4_3", prompt: `Photograph of the dashboard of a modern electric van seen from the driver seat, a simple screen and a minimal wooden dashboard, a winding coastal road through the windshield, photorealistic, ${SANS}.` },
@@ -74,7 +74,7 @@ export const sections = [
     #modele { position: relative; padding-block: clamp(48px, 6vw, 88px) clamp(56px, 7vw, 104px) !important; text-align: center; overflow: hidden; }
     #modele .es-scene { position: relative; max-width: 1100px; margin-inline: auto; }
     #modele h2 { margin: 0; font-weight: 600; font-size: clamp(140px, 19vw, 300px); line-height: .8; letter-spacing: -.05em; color: #111; }
-    #modele img { position: relative; display: block; width: 100%; margin-top: -13vw; aspect-ratio: 2.4; object-fit: cover; object-position: center 62%; -webkit-mask-image: radial-gradient(ellipse 58% 62% at 50% 55%, #000 72%, transparent 100%); mask-image: radial-gradient(ellipse 58% 62% at 50% 55%, #000 72%, transparent 100%); }
+    #modele img { position: relative; z-index: 1; display: block; width: min(100%, 980px); margin: -11vw auto 0; height: auto; filter: drop-shadow(0 28px 22px rgb(0 0 0 / .18)); }
     #modele .es-ligne { margin: 4px 0 0; font-size: 17px; font-weight: 500; }
     #modele .es-prix { margin: 8px 0 0; font-size: 12.5px; color: #4A4845; }
     #modele .es-btns { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }

@@ -1805,7 +1805,14 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     const { imagesPage } = await import("../_shared/gen-images.ts");
     const demandes = (Array.isArray(b.demandes) ? b.demandes : []).slice(0, 8).map((d: any) => ({ id: String(d.id), pour: String(d.pour ?? ""), prompt: String(d.prompt ?? "").slice(0, 900), taille: d.taille }));
     setAi({ ws: ws.id, live: true, feature: "modele-images" });
-    return await imagesPage(demandes, 0.6);
+    const r: any = await imagesPage(demandes, 0.6);
+    // Images à détourer (fond transparent : un véhicule ou un objet posé devant un grand mot)
+    const { detourer } = await import("../_shared/gen-images.ts");
+    for (const d of (Array.isArray(b.demandes) ? b.demandes : []).filter((x: any) => x?.detourer)) {
+      const im = r?.images?.[String(d.id)];
+      if (im?.url) { const t = await detourer(im.url).catch(() => null); if (t?.url) r.images[String(d.id)] = { ...im, url: t.url, detoure: true }; }
+    }
+    return r;
   },
   async "video-creer"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);
