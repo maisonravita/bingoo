@@ -120,13 +120,13 @@ export const sections = [
     #contact { padding-block: clamp(96px, 12vw, 168px) 28px !important; position: relative; overflow: hidden; text-align: center; }
     #contact::before { content: ""; position: absolute; left: 50%; top: 10%; width: 900px; height: 520px; transform: translateX(-50%); background: radial-gradient(closest-side, rgb(255 107 74 / .32), rgb(120 200 230 / .12) 55%, transparent); filter: blur(10px); pointer-events: none; }
     #contact h2 { position: relative; margin: 0 auto; max-width: 14ch; font-weight: 400; font-size: clamp(38px, 4.6vw, 72px); line-height: 1.04; letter-spacing: -.035em; }
-    #contact .ob-btn { position: relative; display: inline-flex; margin-top: 32px; padding: 14px 26px; border-radius: 999px; background: linear-gradient(180deg, rgb(255 255 255 / .34), rgb(255 255 255 / .12)); border: 1px solid rgb(255 255 255 / .28); color: #fff; font-family: ${MONO}; font-size: 12.5px; text-transform: uppercase; text-decoration: none; }
+    #contact .ob-btn { position: relative; display: table; width: auto !important; max-width: max-content; margin-inline: auto; margin-top: 32px; padding: 14px 26px; border-radius: 999px; background: linear-gradient(180deg, rgb(255 255 255 / .34), rgb(255 255 255 / .12)); border: 1px solid rgb(255 255 255 / .28); color: #fff; font-family: ${MONO}; font-size: 12.5px; text-transform: uppercase; text-decoration: none; }
     #contact .ob-pied { position: relative; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin-top: clamp(80px, 10vw, 140px); padding-top: 20px; border-top: 1px solid rgb(255 255 255 / .12); font-family: ${MONO}; font-size: 12px; text-transform: uppercase; color: #8C8C8C; }
     #contact .ob-pied nav { display: flex; gap: 22px; } #contact .ob-pied a { color: #8C8C8C; text-decoration: none; }
   </style>
   <div class="wrap">
     <h2 id="contact-h">Ton prochain visuel commence ici.</h2>
-    <a class="ob-btn" href="#hero">Essayer Orbe</a>
+    <p style="margin:0"><a class="ob-btn" href="#hero">Essayer Orbe</a></p>
     <div class="ob-pied"><span>© Orbe · modèle de la bibliothèque Bingoo!</span><nav aria-label="Pied de page"><a href="#avantages">Avantages</a><a href="#comment">Comment ça marche</a><a href="#contact">Mentions légales</a></nav></div>
   </div>
 </footer>` },
