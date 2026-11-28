@@ -168,8 +168,9 @@ function ChantierFlou({ texte, genre, children }) {
 // Un clic sur un SaaS de la vitrine remplit l'idée (point de départ à adapter)
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 export const VITRINE = [
-  // Modèles recopiés des maquettes de Jean (28/11) : paysage illustré, vitrine en duo
+  // Modèles recopiés des maquettes de Jean (28/11) : paysage illustré, horizon, vitrine en duo
   ["vallee-verte", "Vallée Verte", "Site d'agence immobilière nature", "Le site de mon agence de maisons à la campagne dans le Vercors, avec les maisons à vendre", "site"],
+  ["orbe", "Orbe", "Site d'outil IA", "Le site de mon outil de retouche photo et vidéo par IA pour les créateurs", "site"],
   ["onde", "Onde", "Site de galerie en ligne", "Le site de ma galerie en ligne d'œuvres numériques, avec les enchères", "site"],
   // Premiers écrans signatures (26/11) : mot géant, hublot, galerie courbe, lueur
   ["domaine-trois-collines", "Domaine des Trois Collines", "Site de vigneron", "Le site de mon domaine viticole dans le Luberon, avec les dégustations au domaine", "site"],
