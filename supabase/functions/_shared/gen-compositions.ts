@@ -5,7 +5,7 @@
 import type { TypeProjet } from "./design-fiches.ts";
 
 export type Composition = {
-  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento" | "affiche" | "carte" | "ruban" | "moitie" | "arche" | "bandeau" | "paysage" | "vitrine-duo" | "mosaique";
+  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento" | "affiche" | "carte" | "ruban" | "moitie" | "arche" | "bandeau" | "paysage" | "vitrine-duo" | "horizon" | "mosaique";
   nom: string;
   /** Il faut une photo d'en-tête (générée ou du membre) */
   photo: boolean;
@@ -21,6 +21,23 @@ export type Composition = {
 const HONNETE = "Tous les textes viennent du brief : aucun chiffre, prix, note, nombre de clients, date, zone ou rayon d'intervention inventés (pas de « partout en France » si le brief ne le dit pas). Une ligne d'infos ou une carte sans fait réel du brief n'existe pas (retire-la).";
 
 export const COMPOSITIONS: Record<Composition["id"], Composition> = {
+  // 28 nov. 2026 : image sombre plein cadre, lumière à droite ; badge, titre fin sur 3 lignes et bouton en haut à gauche ; phrase et preuve en bas à gauche
+  horizon: {
+    id: "horizon", nom: "Horizon", photo: true,
+    image: "IMG_1 is a wide cinematic artwork, dark on the left third (near black with a few faint stars) so white text reads there, and on the right a huge luminous curved wall of light with streaks of coral red, orange and pale cyan bleeding like an aurora into bright white, above a calm reflective water surface; one small lone figure in a simple rounded helmet walking towards the camera on the water in the middle right, reflected below, dreamy, high contrast, soft film grain, no text, no logo.",
+    structure: `<section id="hero" class="hero hero-horizon">
+  <img class="hero-horizon__fond" src="IMG_1" alt="(l'image en une phrase)">
+  <div class="hero-horizon__haut">
+    <p class="hero-horizon__badge">(une accroche courte, 3 à 5 mots)</p>
+    <h1 class="hero-horizon__titre">(ce qu'il propose, 6 à 9 mots, sur trois lignes)</h1>
+    <a class="btn hero-horizon__btn" href="#contact">(le bouton principal, 2 mots)</a>
+  </div>
+  <div class="hero-horizon__bas">
+    <p>(ce que fait le produit ou le service, 15 à 25 mots)</p>
+    <p class="hero-horizon__preuve"><span class="hero-horizon__ronds" aria-hidden="true"><i></i><i></i><i></i><i></i></span>(une preuve tirée du brief, sinon retire ce paragraphe)</p>
+  </div>
+</section>`,
+  },
   // 28 nov. 2026 : texte à gauche, deux visuels carrés qui se chevauchent à droite, chiffres sous les boutons (galerie, boutique)
   "vitrine-duo": {
     id: "vitrine-duo", nom: "Vitrine en duo", photo: true,
@@ -330,6 +347,7 @@ export function nettoyerHeroCompo(html: string): string {
     .replace(/\sstyle\s*=\s*("|')([^"']*)\1/gi, (_m, q, css) => { const garde = String(css).split(";").map((x) => x.trim()).filter((x) => /^--(lettres|h|p)\s*:/.test(x)); return garde.length ? ` style=${q}${garde.join(";")}${q}` : ""; });
 }
 const CLES: Record<Composition["id"], string[]> = {
+  horizon: ["hero-horizon__fond", "hero-horizon__titre", "hero-horizon__bas"],
   "vitrine-duo": ["hero-duo__titre", "hero-duo__visuels", "hero-duo__un"],
   paysage: ["hero-paysage__fond", "hero-paysage__titre", "hero-paysage__btn"],
   cinema: ["hero-cine__fond", "hero-cine__titre", "hero-cine__bas"],
