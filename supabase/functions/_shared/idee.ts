@@ -234,7 +234,11 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
   const { typeDeProjet } = await import("./design-fiches.ts");
   const { estAlimentaire, imagesPage } = await import("./gen-images.ts");
   const texte = `${idee} ${precisions.join(" ")} ${apercu.metier}`;
-  const images = !estAlimentaire(texte) && !!Deno.env.get("FAL_KEY");
+  // Les 3 modèles de la bibliothèque les plus proches (vrais sites déjà construits, montrés tels quels : aucune IA en plus)
+  const { modelesApercu } = await import("./site-modeles.ts");
+  const modelesSite = await modelesApercu(`${texte} ${String(r?.secteur_en ?? "")}`, apercu.modele).catch(() => []);
+  // Avec des modèles à montrer, plus besoin de photo d'aperçu générée
+  const images = !modelesSite.length && !estAlimentaire(texte) && !!Deno.env.get("FAL_KEY");
   const compositions = compositionsPour({ type: typeDeProjet({ site: true, modele: apercu.modele, metier: apercu.metier, idee }), texte, images });
   let photo: string | null = null;
   const avecPhoto = compositions.find((c) => COMPOSITIONS[c].photo);
@@ -243,7 +247,7 @@ Règles : aucun avis client, aucun chiffre ni année d'expérience inventés. To
   }
   // Sans photo (restauration, image indisponible) : les mises en scène sans photo de la bibliothèque, choisies pour ce métier
   const sansPhoto = compositionsPour({ type: typeDeProjet({ site: true, modele: apercu.modele, metier: apercu.metier, idee }), texte, images: false });
-  return { apercu: { ...apercu, design: ds[0], designs: ds, compositions: photo ? compositions : sansPhoto.filter((c) => !COMPOSITIONS[c].photo), photo }, proches: [] };
+  return { apercu: { ...apercu, design: ds[0], designs: ds, compositions: photo ? compositions : sansPhoto.filter((c) => !COMPOSITIONS[c].photo), photo, modeles_site: modelesSite, modele_site: modelesSite[0]?.id ?? null }, proches: [] };
 }
 
 

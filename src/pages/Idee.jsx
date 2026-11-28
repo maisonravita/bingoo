@@ -114,6 +114,36 @@ function SaasReel({ nom, ap }) {
     </div>
   );
 }
+// Site : le modèle de la bibliothèque sur lequel il sera construit (vrai site déjà en ligne), et les 2 autres proposés
+function ModeleReel({ ap, choisir }) {
+  const ms = ap.modeles_site ?? [];
+  const m = ms.find((x) => x.id === ap.modele_site) ?? ms[0];
+  const boite = useRef(null), [k, setK] = useState(0.6);
+  useEffect(() => {
+    const el = boite.current; if (!el) return;
+    const o = new ResizeObserver(() => { const w = el.clientWidth; setK(Math.min(1, w / 1280)); });
+    o.observe(el); return () => o.disconnect();
+  }, []);
+  const H = 600;
+  return (
+    <div>
+      <div className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_30px_70px_-35px_rgba(20,20,40,.5)]">
+        <div className="flex items-center gap-1.5 border-b border-black/[.06] bg-[#F6F5F2] px-3 py-2"><span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" /><span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" /><span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" /><span className="ml-2 truncate text-[11.5px] text-ink-faint">Modèle « {m?.nom} » · ton site reprend cette mise en page, avec tes textes et tes photos</span></div>
+        <div ref={boite} className="relative w-full overflow-hidden" style={{ height: H }}>
+          {m && <iframe key={m.slug} title={`Modèle ${m.nom}`} src={`/#/app/${m.slug}`} className="absolute left-0 top-0 border-0" style={{ width: 1280, height: H / k, transform: `scale(${k})`, transformOrigin: "0 0" }} />}
+        </div>
+      </div>
+      {ms.length > 1 && <div className="mt-3 grid grid-cols-3 gap-2">
+        {ms.map((x) => (
+          <button key={x.id} type="button" onClick={() => choisir(x.id)} className={cx("overflow-hidden rounded-xl border-2 bg-white text-left transition", x.id === m?.id ? "border-[#E8571C]" : "border-line hover:border-ink/30")}>
+            <div className="h-16 bg-[#F6F5F2] bg-cover bg-center" style={x.photo ? { backgroundImage: `url(${x.photo})` } : undefined} />
+            <p className="px-2 pt-1.5 text-[12.5px] font-bold leading-tight">{x.nom}</p>
+            <p className="px-2 pb-1.5 text-[11px] text-ink-faint leading-tight">{x.pour}</p>
+          </button>))}
+      </div>}
+    </div>
+  );
+}
 function SiteReel({ nom, ap }) {
   const compo = ap.composition && ap.composition !== "auto" ? ap.composition : ap.compositions?.[0];
   const spec = useMemo(() => specSite(nom, ap, compo), [nom, ap, compo]);
@@ -318,7 +348,7 @@ export default function Idee() {
                 </div>}
                 {ap.limites?.length > 0 && <div className="mt-5 rounded-xl bg-[#FFF7F0] p-3"><p className="text-[13px] font-bold text-[var(--p)]">Fait autrement</p><ul className="mt-1 space-y-1">{ap.limites.map((l) => <li key={l.demande} className="text-[13.5px]"><span className="line-through decoration-[#C2410C]/50">{l.demande}</span> → {l.alternative}</li>)}</ul></div>}
               </div>
-              {!outil && <div className="order-first">{site ? <SiteReel nom={nom || ap.nom} ap={ap} /> : idee.type === "app" ? <TelReel nom={nom || ap.nom} ap={ap} /> : <SaasReel nom={nom || ap.nom} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil : Bingoo! a choisi la mise en scène, les couleurs et les polices qui vont à ton projet. Fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal dans la vraie coque de ton SaaS, avec des données d'exemple : la construction écrit chaque écran pour de vrai, avec ces couleurs et ces polices."}</p>{!site && (ap.principal?.blocs ?? []).some((b) => (b.images ?? []).some(Boolean)) && <p className="mt-1 text-center text-[11px] text-ink-faint">Images d'exemple créées par l'IA pour cet aperçu : tu mettras les tiennes.</p>}</div>}
+              {!outil && <div className="order-first">{site ? (ap.modeles_site?.length ? <ModeleReel ap={ap} choisir={(id) => { const na = { ...ap, modele_site: id }; setR((x) => ({ ...x, apercu: na })); ecrire("bingoo-idee", { ...idee, apercu: na }); }} /> : <SiteReel nom={nom || ap.nom} ap={ap} />) : idee.type === "app" ? <TelReel nom={nom || ap.nom} ap={ap} /> : <SaasReel nom={nom || ap.nom} ap={ap} />}<p className="mt-2 text-center text-[12px] text-ink-faint">{site ? "Ta future page d'accueil : Bingoo! a choisi la mise en scène, les couleurs et les polices qui vont à ton projet. Fais-la défiler. Tu ajouteras ta photo, tes horaires et ton adresse ensuite." : "Ton écran principal dans la vraie coque de ton SaaS, avec des données d'exemple : la construction écrit chaque écran pour de vrai, avec ces couleurs et ces polices."}</p>{!site && (ap.principal?.blocs ?? []).some((b) => (b.images ?? []).some(Boolean)) && <p className="mt-1 text-center text-[11px] text-ink-faint">Images d'exemple créées par l'IA pour cet aperçu : tu mettras les tiennes.</p>}</div>}
             </div>
             {ideeCourte && site && <div className="mt-6 rounded-2xl border border-line bg-[#FBFAF7] p-4 sm:p-5">
               <p className="text-[15px] font-bold">Dis-en un peu plus pour un site plus riche <span className="font-normal text-ink-faint">· facultatif, 1 minute</span></p>

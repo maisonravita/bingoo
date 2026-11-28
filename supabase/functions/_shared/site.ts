@@ -74,7 +74,15 @@ export async function pageSurMesure(appId: string, demarrerVerification: (id: st
   if (!spec?.ecrans?.length) throw new Error("Brouillon du site introuvable pour la page sur mesure");
   try {
     const { genererPage } = await import("./site-gen.ts");
+    // Modèle de la bibliothèque : celui choisi dans l'aperçu, sinon le plus proche de la demande (28 nov. 2026)
+    const { refModele, modelesSitePour, modeleSiteParId } = await import("./site-modeles.ts");
+    const texteDemande = [idee.texte, spec.site?.metier, spec.pitch].filter(Boolean).join(" ");
+    const idModele = [idee.apercu?.modele_site, idee.apercu?.modeles_site?.[0]?.id].find((x) => modeleSiteParId(x)) ?? modelesSitePour(texteDemande, spec.site?.modele ?? "vitrine", 1)[0]?.id;
+    const ref = idModele ? await refModele(idModele).catch(() => null) : null;
+    // Le site prend l'allure du modèle : ses polices, ses couleurs et son style (la page de référence les utilise)
+    if (ref?.design) { spec.design = { ...ref.design }; spec.site = { ...spec.site, modele_site: ref.id }; }
     const g = await genererPage({
+      ref,
       nom: spec.nom, brief: [idee.texte, ...(Array.isArray(idee.reponses) ? idee.reponses.map((x: any) => `${x.q} : ${x.r}`) : [])].filter(Boolean).join("\n") || String(spec.pitch ?? ""),
       modele: spec.site?.modele, metier: spec.site?.metier, ville: spec.site?.ville, cta: spec.site?.cta, demande: spec.site?.demande,
       sansSections: String((Array.isArray(idee.reponses) ? idee.reponses : []).find((x: any) => x?.q === "Sections à NE PAS mettre sur la page")?.r ?? "").split(",").map((x) => x.trim()).filter(Boolean),
