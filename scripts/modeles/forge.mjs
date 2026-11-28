@@ -53,7 +53,7 @@ export const sections = [
   <a class="fo-b" href="#contact">Candidater</a>
   <div class="fo-info"><div><span>LIEU</span><b>Nantes / Lyon</b></div><div><span>DURÉE</span><b>8 semaines</b></div><div><span>MENTORS</span><b>5</b></div><div><span>COURS</span><b>4</b></div></div>
 </section>` },
-  { id: "atouts", html: `<section id="atouts" class="section fo-atouts" aria-labelledby="atouts-h">
+  { id: "atouts", html: `<section id="atouts" class="section hero-immersif fo-atouts" aria-labelledby="atouts-h">
   <style>
     #atouts { position: relative; overflow: hidden; isolation: isolate; padding: clamp(90px, 9vw, 130px) 24px clamp(120px, 12vw, 170px) !important; text-align: center; color: #fff; background: radial-gradient(ellipse 80% 40% at 50% 100%, rgb(244 192 78 / .75), transparent 60%), radial-gradient(ellipse 50% 40% at 0% 85%, rgb(20 150 140 / .95), transparent 65%), radial-gradient(ellipse 40% 40% at 100% 90%, rgb(170 220 60 / .6), transparent 60%), #070B0E !important; }
     #atouts::before { content: ""; position: absolute; inset: 0; z-index: -1; background: ${GRAIN}; mix-blend-mode: overlay; }
@@ -86,7 +86,7 @@ export const sections = [
   <div class="fo-in"><h2 id="cours-h">Les cours</h2>
   <ol><li>Développement web<span>Lyon · 8 semaines</span></li><li>Design d'interface<span>Nantes · 8 semaines</span></li><li>Développement mobile<span>Lyon · 8 semaines</span></li><li>Tests et qualité<span>Nantes · 8 semaines</span></li></ol></div>
 </section>` },
-  { id: "contact", html: `<footer class="footer closing fo-contact" id="contact" aria-labelledby="contact-h">
+  { id: "contact", html: `<footer class="footer closing hero-immersif fo-contact" id="contact" aria-labelledby="contact-h">
   <style>
     #contact { padding: clamp(70px, 7vw, 100px) 24px 28px !important; text-align: center; background: ${VAGUE("50% 120%")}, #070B0E !important; }
     #contact h2 { margin: 0 auto; font-size: clamp(36px, 4vw, 56px); font-weight: 500; letter-spacing: -.03em; color: #fff; } #contact a.fo-go { display: inline-block; margin-top: 30px; padding: 14px 30px; border-radius: 999px; background: #fff; color: #070B0E; text-decoration: none; }
