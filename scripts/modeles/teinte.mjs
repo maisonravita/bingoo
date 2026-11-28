@@ -74,7 +74,7 @@ export const sections = [
   <style>
     #types { padding-block: clamp(48px, 6vw, 96px) !important; }
     #types h2 { max-width: 1000px; margin: 0 auto 32px; font-weight: 400; font-size: clamp(28px, 2.8vw, 42px); text-transform: uppercase; }
-    #types .te-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 1000px; margin-inline: auto; }
+    #types .te-grille { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 14px; width: 100%; max-width: 1000px !important; margin-inline: auto; } #types .te-type { width: auto !important; max-width: none !important; margin: 0 !important; }
     #types .te-type { position: relative; overflow: hidden; min-height: 240px; padding: 22px; border-radius: 6px; background: #1A1C22; box-shadow: 0 0 0 1px #23252D; }
     #types .te-type h3 { position: relative; z-index: 1; margin: 0; font-size: 13.5px; font-weight: 500; text-transform: uppercase; }
     #types .te-type img { position: absolute; right: 0; bottom: 0; width: 62%; height: 78%; object-fit: cover; object-position: left center; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); }
@@ -100,7 +100,7 @@ export const sections = [
     #engagements .te-g { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; max-width: 1000px; margin-inline: auto; }
     #engagements h2 { grid-column: 1 / -1; margin: 0 0 16px; max-width: 14ch; font-weight: 400; font-size: clamp(28px, 2.8vw, 42px); line-height: 1.12; text-transform: uppercase; }
     #engagements .te-intro { margin: 0; font-size: 12.5px; line-height: 1.65; color: #A3A7B5; }
-    #engagements .te-cartes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    #engagements .te-cartes { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     #engagements .te-c { padding: 22px; border-radius: 6px; background: #1A1C22; box-shadow: 0 0 0 1px #23252D; }
     #engagements .te-c h3 { margin: 0 0 12px; font-size: 13px; font-weight: 500; text-transform: uppercase; }
     #engagements .te-c p { margin: 0; font-size: 12px; line-height: 1.6; color: #A3A7B5; }
