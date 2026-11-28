@@ -34,7 +34,7 @@ export const sections = [
 </header>` },
   { id: "hero", html: `<section id="hero" class="hero hero-immersif rp-hero">
   <style>
-    #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; height: clamp(860px, 118vh, 1100px); padding: 0 !important; background: #000 !important; color: #fff; }
+    #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; height: clamp(860px, 118vh, 1100px) !important; padding: 0 !important; background: #000 !important; color: #fff; }
     #hero > img { position: absolute; left: 50%; top: -4%; width: min(780px, 72vw); height: 108%; transform: translateX(-46%); object-fit: cover; z-index: -1; mix-blend-mode: screen; }
     #hero h1 { position: absolute; inset: 0; margin: 0; font-weight: 500; font-size: clamp(80px, 11.5vw, 170px); line-height: .9; letter-spacing: -.02em; text-transform: lowercase; color: #fff; pointer-events: none; }
     #hero h1 span { position: absolute; white-space: nowrap; } #hero h1 .l1 { left: 8%; top: 8%; } #hero h1 .l2 { right: 7%; top: 21%; } #hero h1 .l3 { left: 27%; top: 34%; }
@@ -85,7 +85,7 @@ export const sections = [
     #avantages .rp-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-width: 1080px; margin: 0 auto; }
     #avantages article { position: relative; display: flex; flex-direction: column; min-height: 470px; padding: 34px 30px; border-radius: 20px; overflow: hidden; background: linear-gradient(180deg, #17171D, #0D0D11); box-shadow: inset 0 1px 0 rgb(255 255 255 / .06); }
     #avantages h3 { margin: 0; font-size: 21px; font-weight: 400; line-height: 1.3; color: #fff; } #avantages p { margin: 34px 0 0; font-size: 14px; line-height: 1.45; color: #C8C8D0; }
-    #avantages article:nth-child(2) { justify-content: flex-end; } #avantages article:nth-child(2) img { position: absolute; left: 10%; top: 8%; width: 80%; mix-blend-mode: screen; }
+    #avantages article:nth-child(2) { justify-content: flex-end; } #avantages article:nth-child(2) img { position: absolute; left: 10%; top: 8%; width: 80%; mix-blend-mode: screen; -webkit-mask: radial-gradient(circle at 50% 45%, #000 38%, transparent 62%); mask: radial-gradient(circle at 50% 45%, #000 38%, transparent 62%); }
     #avantages article:nth-child(3) p { margin-top: auto; }
     @media (max-width: 899px) { #avantages .rp-g { grid-template-columns: 1fr; } }
   </style>
