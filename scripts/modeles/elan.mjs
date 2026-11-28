@@ -20,7 +20,7 @@ export const nav = [{ mot: "Fonctions", ancre: "fonctions" }, { mot: "Comment ç
 export const sections = [
   { id: "nav", html: `<header class="nav">
   <style>
-    header.nav { top: 14px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); width: min(560px, calc(100% - 24px)) !important; background: #0E0E12 !important; border: 3px solid #fff !important; border-radius: 16px; box-shadow: 0 10px 30px -10px rgb(0 0 0 / .35); }
+    header.nav { top: 14px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); width: min(660px, calc(100% - 24px)) !important; background: #0E0E12 !important; border: 3px solid #fff !important; border-radius: 16px; box-shadow: 0 10px 30px -10px rgb(0 0 0 / .35); }
     header.nav .nav__bar { max-width: none !important; padding: 4px 4px 4px 10px !important; min-height: 0 !important; gap: 14px; }
     header.nav .nav__links { gap: 2px !important; margin: 0 auto; } header.nav .nav__link { color: #fff !important; font-size: 13.5px; padding: 6px 8px !important; }
     header.nav .el-demo { padding: 7px 16px; border-radius: 11px; background: #fff; color: #0E0E12; font-size: 14px; font-weight: 500; text-decoration: none; }
@@ -37,9 +37,9 @@ export const sections = [
     #hero { min-height: 0 !important; padding: 70px 14px 0 !important; background: #fff !important; }
     #hero .el-carte { position: relative; overflow: hidden; isolation: isolate; max-width: 1240px; margin: 0 auto; padding: clamp(80px, 8vw, 104px) 24px 0; border-radius: 26px; text-align: center; color: #0E0E12;
       background: radial-gradient(ellipse 30% 10% at 50% 0%, rgb(110 86 245 / .75), transparent), radial-gradient(ellipse 60% 48% at 50% 78%, ${V} 0%, rgb(110 86 245 / .55) 45%, transparent 80%), #F1F1F4; }
-    #hero .el-courbe { display: block; width: 230px; margin: 0 auto -6px; overflow: visible; }
-    #hero h1 { margin: 0 auto; max-width: none; font-weight: 500; font-size: clamp(46px, 5.8vw, 82px); line-height: 1.05; letter-spacing: -.035em; color: #0E0E12; } #hero h1 span { color: ${V}; }
-    #hero p { margin: 26px auto 0; max-width: 470px; font-size: 16.5px; line-height: 1.45; color: #1E1E26; }
+    #hero .el-courbe { display: block; width: 300px; margin: 0 auto -6px; overflow: visible; }
+    #hero h1 { margin: 0 auto; max-width: none; font-weight: 500; font-size: clamp(46px, 5.8vw, 82px); line-height: 1.05; letter-spacing: -.035em; color: #0E0E12; } #hero h1 span { color: ${V} !important; opacity: 1 !important; -webkit-text-fill-color: ${V}; }
+    #hero .el-carte > p { margin: 26px auto 0; max-width: 470px; font-size: 16.5px; line-height: 1.45; color: #1E1E26 !important; opacity: 1 !important; }
     #hero .el-go { display: inline-block; margin-top: 26px; padding: 11px 22px; border-radius: 13px; background: #0E0E12; color: #fff; font-size: 15px; text-decoration: none; box-shadow: 0 0 0 3px rgb(110 86 245 / .4); }
     #hero .el-app { display: grid; grid-template-columns: 58px 1fr; max-width: 1040px; margin: 40px auto 0; border-radius: 14px 14px 0 0; background: #121218; color: #fff; text-align: left; overflow: hidden; }
     #hero .el-app aside { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0; border-right: 1px solid #23232C; } #hero .el-app aside i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; } #hero .el-app aside i.on { background: #26262F; }
@@ -56,7 +56,7 @@ export const sections = [
     @media (max-width: 899px) { #hero .el-g { grid-template-columns: 1fr; } #hero .el-app { grid-template-columns: 1fr; } #hero .el-app aside { display: none; } }
   </style>
   <div class="el-carte">
-    <svg class="el-courbe" viewBox="0 0 230 50" aria-hidden="true"><defs><path id="el-arc" d="M10 48 Q115 -6 220 48"/></defs><text font-size="13" fill="#0E0E12" font-family="Space Grotesk, sans-serif"><textPath href="#el-arc" startOffset="50%" text-anchor="middle">Rapide ✦ Accessible ✦ Bien référencé</textPath></text></svg>
+    <svg class="el-courbe" viewBox="0 0 300 56" aria-hidden="true"><defs><path id="el-arc" d="M8 54 Q150 -8 292 54"/></defs><text font-size="13" fill="#0E0E12" font-family="Space Grotesk, sans-serif"><textPath href="#el-arc" startOffset="50%" text-anchor="middle">Rapide ✦ Accessible ✦ Bien référencé</textPath></text></svg>
     <h1>Lancez votre outil IA<br><span>en un instant !</span></h1>
     <p>Une page claire, pensée pour convertir, pour les outils IA, les jeunes logiciels et les produits en ligne.</p>
     <a class="el-go" href="#tarifs">Commencer</a>
@@ -115,7 +115,7 @@ export const sections = [
     #contact { padding: 0 14px 14px !important; background: #fff !important; }
     #contact .el-bloc { max-width: 1240px; margin: 0 auto; padding: clamp(64px, 7vw, 96px) 24px 32px; border-radius: 26px; text-align: center; background: radial-gradient(ellipse 70% 60% at 50% 100%, ${V}, rgb(110 86 245 / .45) 50%, transparent 85%), #F1F1F4; }
     #contact h2 { margin: 0 auto; font-size: clamp(30px, 3.2vw, 46px); font-weight: 500; letter-spacing: -.035em; color: #0E0E12; }
-    #contact p { margin: 14px auto 0; max-width: 400px; color: #2A2A33; }
+    #contact .el-bloc > p { margin: 14px auto 0; max-width: 400px; color: #2A2A33 !important; opacity: 1 !important; }
     #contact .el-champ { display: flex; justify-content: space-between; align-items: center; width: min(380px, 100%); margin: 26px auto 0; padding: 5px 5px 5px 18px; border-radius: 14px; background: #fff; box-shadow: 0 6px 20px -8px rgb(0 0 0 / .2); font-size: 13.5px; color: #8D8D9A; }
     #contact .el-champ a { padding: 9px 22px; border-radius: 11px; background: #0E0E12; color: #fff; text-decoration: none; font-size: 13.5px; }
     #contact .el-bas { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; max-width: 1080px; margin: clamp(80px, 8vw, 120px) auto 0; font-size: 13px; color: #fff; }
