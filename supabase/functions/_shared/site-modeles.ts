@@ -58,6 +58,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /donn[ée]es|data|plateforme|intelligence|analyse|knowledge|connaissances|b2b|entreprise|crm|erp/ },
   { id: "socle", nom: "Socle", slug: "socle-modele", pour: "Plateforme de gestion, RH, finances d'entreprise",
     mots: /gestion|rh\b|ressources humaines|paie|finances?|comptabilit|erp|pilotage|tableau de bord|entreprise|pme/ },
+  { id: "cime", nom: "Cime", slug: "cime-modele", pour: "Logiciel de gestion, facturation pour PME",
+    mots: /facturation|factures?|devis|gestion commerciale|crm|stock|pme|tpe|ind[ée]pendant|logiciel de gestion/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
