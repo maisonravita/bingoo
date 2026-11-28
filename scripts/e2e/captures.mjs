@@ -196,6 +196,39 @@ if (CONSTRUIRE === "gratuit") {
   }
   await ctx.close();
 }
+// CONSTRUIRE=modele-site, IDEE=nom du fichier de scripts/modeles : pose un modèle de la bibliothèque (page écrite à la main
+// d'après une maquette, images générées), en copiant la fiche d'un site de la bibliothèque, puis le photographie
+if (CONSTRUIRE === "modele-site") {
+  const M = await import(`../modeles/${String(process.env.IDEE || "").replace(/[^a-z0-9-]/g, "")}.mjs`);
+  const E2 = "robot-gratuit@maisonravita.fr", M2 = crypto.randomBytes(18).toString("base64url");
+  const [u2] = await q(`select id from auth.users where email = ${lit(E2)}`);
+  await adminAuth(`users/${u2.id}`, "PUT", { password: M2 });
+  const s2 = await (await fetch(`${SB}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: JSON.stringify({ email: E2, password: M2 }) })).json();
+  const [m2] = await q(`select m.workspace_id id from members m where m.user_id = ${lit(s2.user.id)} limit 1`);
+  const slug = `${M.slugBase}-modele`;
+  const [deja] = await q(`select spec->'site'->'page'->'images' im from saas_apps where slug = ${lit(slug)}`);
+  let imgs = deja?.im && Object.keys(deja.im).length >= M.images.length && process.env.REFAIRE_IMAGES !== "1" ? deja.im : null;
+  if (!imgs) {
+    const r = await fetch(`${SB}/functions/v1/r/modele-images`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${s2.access_token}`, "content-type": "application/json" }, body: JSON.stringify({ workspace_id: m2.id, demandes: M.images }) });
+    const j = await r.json().catch(() => ({}));
+    imgs = j.images ?? {};
+    console.log(`images : ${Object.keys(imgs).length}/${M.images.length} (${r.status})`);
+  } else console.log("images : reprises de la version précédente");
+  const page = { nav: M.nav, sections: M.sections, images: imgs };
+  const patch = { nom: M.nom, design: M.design, site: { modele: "vitrine", metier: M.metier, gabarit: "editorial", page }, gen: { journal: M.journal, modele_bibliotheque: true, at: new Date().toISOString() } };
+  if (deja) await q(`update saas_apps set spec = spec || ${lit(JSON.stringify(patch))}::jsonb, maj = now() where slug = ${lit(slug)}`);
+  else await q(`insert into saas_apps select (jsonb_populate_record(null::saas_apps, to_jsonb(a) || jsonb_build_object('id', gen_random_uuid(), 'slug', ${lit(slug)}, 'domaine', null, 'brouillon', null, 'spec', a.spec || ${lit(JSON.stringify(patch))}::jsonb))).* from saas_apps a where slug = 'maison-rive-4y5y'`);
+  console.log("✓ modèle posé :", slug);
+  for (const [nom, vw] of [[`modele-${M.slugBase}`, { width: 1440, height: 900 }], [`modele-${M.slugBase}-mobile`, { width: 390, height: 844 }]]) {
+    const c = await browser.newContext({ viewport: vw, locale: "fr-FR" }); const p = await c.newPage();
+    await p.goto(`${SITE}/?c=${Date.now()}#/app/${slug}`, { waitUntil: "networkidle", timeout: 60000 }).catch(() => null); await p.waitForTimeout(6000);
+    // Les apparitions au défilement : on descend toute la page avant la photo
+    for (let y = 0; y < 8000; y += 700) { await p.evaluate((yy) => { document.querySelectorAll("iframe").forEach(() => null); scrollTo(0, yy); }, y); await p.waitForTimeout(250); }
+    await p.evaluate(() => scrollTo(0, 0)); await p.waitForTimeout(1500);
+    await p.screenshot({ path: `${DOSSIER}/${nom}.png`, fullPage: true }); console.log("✓", nom);
+    await c.close();
+  }
+}
 // CONSTRUIRE=verif-offres : vérifie la grille de bout en bout avec un compte gratuit, SANS rien payer :
 // formules renvoyées par le serveur, pages de paiement Stripe ouvertes (montants photographiés), refus attendus du compte gratuit
 if (CONSTRUIRE === "verif-offres") {
@@ -1552,7 +1585,7 @@ if (CONSTRUIRE === "spec") {
     await page.screenshot({ path: `${DOSSIER}/atelier-${CAS}-fin.png`, fullPage: true }).catch(() => null);
   }
   await ctx.close();
-} else if (CONSTRUIRE === "verif-offres" || CONSTRUIRE === "abonnement" || CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "semis" || CONSTRUIRE === "plan-apercu" || CONSTRUIRE === "motion-style" || CONSTRUIRE === "modeles-video" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
+} else if (CONSTRUIRE === "modele-site" || CONSTRUIRE === "verif-offres" || CONSTRUIRE === "abonnement" || CONSTRUIRE === "gratuit" || CONSTRUIRE === "premier-client" || CONSTRUIRE === "audit" || CONSTRUIRE === "motion" || CONSTRUIRE === "video-produit" || CONSTRUIRE === "film" || CONSTRUIRE === "selection" || CONSTRUIRE === "plan" || CONSTRUIRE === "quatre" || CONSTRUIRE === "photos" || CONSTRUIRE === "diag-site" || CONSTRUIRE === "vitrine" || CONSTRUIRE === "connecteurs" || CONSTRUIRE === "pages" || CONSTRUIRE === "videos-varies" || CONSTRUIRE === "lien-public" || CONSTRUIRE === "stores" || CONSTRUIRE === "style-outil" || CONSTRUIRE === "brouillon" || CONSTRUIRE === "connexions" || CONSTRUIRE === "rdv-photos" || CONSTRUIRE === "acompte" || CONSTRUIRE === "marche" || CONSTRUIRE === "marche-paye" || CONSTRUIRE === "marche-locataire" || CONSTRUIRE === "flux" || CONSTRUIRE === "semis" || CONSTRUIRE === "plan-apercu" || CONSTRUIRE === "motion-style" || CONSTRUIRE === "modeles-video" || CONSTRUIRE === "video-images" || CONSTRUIRE === "video-clip" || CONSTRUIRE === "automatisations" || CONSTRUIRE === "gratuit-ia" || CONSTRUIRE === "visiteur-apercu" || CONSTRUIRE === "galerie" || CONSTRUIRE === "vitrine-accueil" || CONSTRUIRE === "edition-directe" || CONSTRUIRE === "modif-rendue" || CONSTRUIRE === "support" || CONSTRUIRE === "support-ecran" || CONSTRUIRE === "blog" || CONSTRUIRE === "pages") {
   console.log("Compte gratuit photographié");
 } else if (!CONSTRUIRE) {
   const { ctx, page } = await ouvrir(ws);

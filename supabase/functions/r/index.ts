@@ -1798,6 +1798,15 @@ Si tu ne sais pas, si c'est un bug que tu ne peux pas régler, un remboursement,
     if (change) await admin.from("saas_videos").update({ script: { ...v.script, images } }).eq("id", v.id);
     return { script: { ...v.script, images }, restants: Object.values(images).filter((x: any) => x?.attente).length };
   },
+  // Images d'un modèle de la bibliothèque (robot de construction ou compte fondateur seulement) : illustrations et photos
+  async "modele-images"(req, b) {
+    const { ws } = await requireMember(req, b.workspace_id);
+    if (!/^Robot/.test(String(ws.name ?? "")) && ws.plan !== "fondateur") throw new HttpError(403, "Réservé à la bibliothèque de modèles");
+    const { imagesPage } = await import("../_shared/gen-images.ts");
+    const demandes = (Array.isArray(b.demandes) ? b.demandes : []).slice(0, 8).map((d: any) => ({ id: String(d.id), pour: String(d.pour ?? ""), prompt: String(d.prompt ?? "").slice(0, 900), taille: d.taille }));
+    setAi({ ws: ws.id, live: true, feature: "modele-images" });
+    return await imagesPage(demandes, 0.6);
+  },
   async "video-creer"(req, b) {
     const { ws, userId } = await requireMember(req, b.workspace_id);
     const texte = String(b.texte ?? "").trim().slice(0, 800);

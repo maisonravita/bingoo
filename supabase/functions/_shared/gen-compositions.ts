@@ -5,7 +5,7 @@
 import type { TypeProjet } from "./design-fiches.ts";
 
 export type Composition = {
-  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento" | "affiche" | "carte" | "ruban" | "moitie" | "arche" | "bandeau" | "mosaique";
+  id: "cinema" | "mot-geant" | "hublot" | "lueur" | "galerie" | "bento" | "affiche" | "carte" | "ruban" | "moitie" | "arche" | "bandeau" | "paysage" | "mosaique";
   nom: string;
   /** Il faut une photo d'en-tête (générée ou du membre) */
   photo: boolean;
@@ -21,6 +21,20 @@ export type Composition = {
 const HONNETE = "Tous les textes viennent du brief : aucun chiffre, prix, note, nombre de clients, date, zone ou rayon d'intervention inventés (pas de « partout en France » si le brief ne le dit pas). Une ligne d'infos ou une carte sans fait réel du brief n'existe pas (retire-la).";
 
 export const COMPOSITIONS: Record<Composition["id"], Composition> = {
+  // 28 nov. 2026 : paysage illustré plein cadre (titre centré, bouton vert), le bas de l'illustration se fond dans la page
+  paysage: {
+    id: "paysage", nom: "Paysage illustré", photo: true,
+    image: "IMG_1 is a FLAT VECTOR ILLUSTRATION, not a photograph: a wide digital landscape artwork in a modern flat illustration style, layered stylised mountains in deep teal, pine green and sage green, a pale minty sky with a few soft rounded cream clouds near the top, a bright green valley in the middle third with a winding light path and a few small simple buildings matching the activity, rows of dark rounded pine trees framing the left and right edges, the whole lower quarter getting darker and ending in a deep forest green (#173B34) so it melts into a dark page, clean vector shapes, subtle grain, calm, no people, no text, no logo.",
+    structure: `<section id="hero" class="hero hero-paysage">
+  <img class="hero-paysage__fond" src="IMG_1" alt="(le paysage en une phrase)">
+  <div class="hero-paysage__contenu">
+    <h1 class="hero-paysage__titre">(ce qu'il propose, 5 à 8 mots, sur deux lignes)</h1>
+    <p>(une phrase concrète du brief, 15 à 25 mots)</p>
+    <a class="btn btn--primary hero-paysage__btn" href="#contact">(le bouton principal)</a>
+  </div>
+</section>
+Le titre est centré, en deux lignes de longueur proche. Rien d'autre dans ce premier écran.`,
+  },
   cinema: {
     id: "cinema", nom: "Cinéma", photo: true,
     image: "IMG_1 is the full-screen hero: a wide cinematic landscape or place at golden hour or blue hour, soft atmospheric haze, layered depth (foreground, middle, far horizon), calm open sky in the upper third for a large title, rich but natural colour grading, shot on a full-frame camera with a 35mm lens, ultra detailed.",
@@ -297,6 +311,7 @@ export function nettoyerHeroCompo(html: string): string {
     .replace(/\sstyle\s*=\s*("|')([^"']*)\1/gi, (_m, q, css) => { const garde = String(css).split(";").map((x) => x.trim()).filter((x) => /^--(lettres|h|p)\s*:/.test(x)); return garde.length ? ` style=${q}${garde.join(";")}${q}` : ""; });
 }
 const CLES: Record<Composition["id"], string[]> = {
+  paysage: ["hero-paysage__fond", "hero-paysage__titre", "hero-paysage__btn"],
   cinema: ["hero-cine__fond", "hero-cine__titre", "hero-cine__bas"],
   "mot-geant": ["hero-mot__fond", "hero-mot__mot", "hero-mot__carte"],
   hublot: ["hero-hublot__tete", "hero-hublot__cadre", "hero-hublot__bas"],
