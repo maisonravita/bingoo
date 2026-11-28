@@ -72,6 +72,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /t[âa]ches?|to-?do|productivit|organisation|planning|gestion de projet|habitudes|objectifs|kanban/ },
   { id: "signal", nom: "Signal", slug: "signal-modele", pour: "Analyse de données, tableaux de bord, IA",
     mots: /analyse|donn[ée]es|data|statistiques|reporting|tableaux? de bord|business intelligence|bi\b|logistique|livraison/ },
+  { id: "prisme", nom: "Prisme", slug: "prisme-modele", pour: "Logiciel collaboratif, outil d'équipe",
+    mots: /collaborat|[ée]quipe|teams?|workspace|espace de travail|projets?|design|produit|startup|saas/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
