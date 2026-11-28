@@ -42,6 +42,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /vans?\b|camping-car|v[ée]lo|trottinette|bateau|voilier|constructeur|fabricant|mod[èe]le phare|produit phare|[ée]lectrique|lancement d.un produit|pr[ée]commande|engin|drone/ },
   { id: "houle", nom: "Houle", slug: "houle-modele", pour: "Surf, sport de glisse, mer",
     mots: /surf|glisse|plage|oc[ée]an|mer\b|voile|kitesurf|plong[ée]e|paddle|cano[ëe]|kayak|bodyboard|nautique|[ée]cole de (surf|voile)/ },
+  { id: "relais", nom: "Relais", slug: "relais-modele", pour: "Livraison, logistique, transport",
+    mots: /livraison|livreur|colis|logistique|transport|d[ée]m[ée]nag|coursier|exp[ée]di|fret|entrep[ôo]t|stockage|taxi|vtc|chauffeur/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];

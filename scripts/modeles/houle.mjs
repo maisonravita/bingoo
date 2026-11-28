@@ -22,7 +22,7 @@ export const sections = [
   { id: "nav", html: `<header class="nav">
   <style>
     ${FONTS}
-    .nav .nav__logo { font-family: Yellowtail, cursive; font-size: 30px; font-weight: 400; color: #8FD4E0; }
+    .nav .nav__logo { font-family: Yellowtail, cursive; font-size: 30px; font-weight: 400; color: #0E5466; }
     .nav .nav__bar { display: flex !important; align-items: center; justify-content: space-between !important; } .nav .nav__links { margin-left: auto !important; margin-right: 0 !important; gap: 26px; justify-content: flex-end; flex: 1; } .nav .nav__link { font-family: "Bebas Neue", Oswald, sans-serif; font-size: 24px; letter-spacing: .02em; color: rgb(255 255 255 / .72); }
     .nav .nav__item:first-child .nav__link { color: #fff; text-decoration: underline; text-underline-offset: 8px; text-decoration-thickness: 2px; }
     .nav .nav__actions { display: none; }
