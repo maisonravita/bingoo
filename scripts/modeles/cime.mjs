@@ -35,6 +35,7 @@ export const sections = [
   <style>
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(120px, 12vw, 150px) 24px 0 !important; text-align: center; background: #FBF7F0 !important; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+    #hero::after { display: none !important; }
     #hero::before { content: ""; position: absolute; inset: 0 0 auto; height: 55%; z-index: -1; background: linear-gradient(180deg, rgb(251 247 240 / .75), transparent); }
     #hero .ci-pas { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: rgb(255 255 255 / .7); font-size: 12px; color: #1D1A16; } #hero .ci-pas i { width: 7px; height: 7px; border-radius: 50%; background: ${T}; }
     #hero h1 { margin: 18px auto 0; max-width: none; font-family: Fraunces, serif; font-weight: 600; font-size: clamp(40px, 4.8vw, 68px); line-height: 1.05; letter-spacing: -.03em; color: #1D1A16; }
