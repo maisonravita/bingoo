@@ -44,6 +44,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /surf|glisse|plage|oc[ée]an|mer\b|voile|kitesurf|plong[ée]e|paddle|cano[ëe]|kayak|bodyboard|nautique|[ée]cole de (surf|voile)/ },
   { id: "relais", nom: "Relais", slug: "relais-modele", pour: "Livraison, logistique, transport",
     mots: /livraison|livreur|colis|logistique|transport|d[ée]m[ée]nag|coursier|exp[ée]di|fret|entrep[ôo]t|stockage|taxi|vtc|chauffeur/ },
+  { id: "altiere", nom: "Altière", slug: "altiere-modele", pour: "Groupe immobilier, hôtellerie, prestige",
+    mots: /groupe|h[ôo]tellerie|promotion immobili|investissement|patrimoine|prestige|luxe|r[ée]sidences?|bureaux|immeubles?|fonci[èe]re|syndic/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
