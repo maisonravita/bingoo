@@ -40,8 +40,8 @@ export const sections = [
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; padding: clamp(130px, 12vw, 160px) 24px 0 !important; text-align: center; background: #fff !important; }
     #hero::after { display: none !important; }
     #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0 !important; -webkit-mask: linear-gradient(180deg, #000 60%, transparent); mask: linear-gradient(180deg, #000 60%, transparent); }
-    #hero::before { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgb(255 214 186 / .55), rgb(255 236 222 / .5) 60%, #fff); }
-    #hero > :not(img) { position: relative; z-index: 1; }
+    #hero::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgb(255 214 186 / .5), rgb(255 236 222 / .5) 60%, #fff); }
+    #hero > :not(img) { position: relative; z-index: 2; }
     #hero h1 { margin: 0 auto; font-weight: 500; font-size: clamp(40px, 4.6vw, 64px); line-height: 1.05; letter-spacing: -.04em; color: #141414 !important; -webkit-text-fill-color: #141414; }
     #hero > p { margin: 22px auto 0; max-width: 480px; font-size: 15px; line-height: 1.6; color: #4A4540 !important; -webkit-text-fill-color: #4A4540; }
     #hero .sg-act { display: flex; justify-content: center; gap: 10px; margin-top: 28px; } #hero .sg-act a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; font-size: 13px; text-decoration: none; } #hero .sg-act a:first-child { background: ${O}; color: #fff !important; } #hero .sg-act a:last-child { background: #141414; color: #fff !important; } #hero .sg-act i { width: 10px; height: 10px; border-radius: 50%; background: #3DDC6B; }
@@ -68,7 +68,7 @@ export const sections = [
     #defi .sg-tete a { padding: 9px 16px; border-radius: 999px; border: 1px solid #ECE7E2; font-size: 12.5px; color: #141414; text-decoration: none; white-space: nowrap; }
     #defi .sg-g { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 40px; }
     #defi article { padding: 20px; border-radius: 18px; background: #F7F5F3; } #defi article.on { background: linear-gradient(180deg, ${O}, #FF9B5E); color: #fff; }
-    #defi article > div { display: flex; gap: 14px; } #defi article i { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: ${O}; color: #fff; font-style: normal; } #defi article.on > div > i { background: #fff; color: ${O}; }
+    #defi article > div { display: flex; gap: 14px; } #defi article > div > i { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: ${O}; color: #fff; font-style: normal; } #defi article.on > div > i { background: #fff; color: ${O}; }
     #defi h3 { margin: 4px 0 8px; font-size: 14px; font-weight: 600; color: inherit; } #defi article p { margin: 0; font-size: 11.5px; line-height: 1.55; color: inherit; opacity: .8; }
     #defi .sg-mini { margin-top: 22px; padding: 12px; border-radius: 12px; background: #fff; color: #141414; font-size: 10px; } #defi .sg-mini .sg-hist { height: 60px; }
     @media (max-width: 899px) { #defi .sg-g { grid-template-columns: 1fr; } #defi .sg-tete { flex-direction: column; align-items: start; } }
