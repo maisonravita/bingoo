@@ -24,7 +24,7 @@ export const sections = [
   { id: "nav", html: `<header class="nav">
   <style>
     header.nav { top: 22px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); width: auto !important; background: rgb(14 29 37 / .85) !important; border: 1px solid #1C3038 !important; border-radius: 999px; }
-    header.nav .nav__bar { max-width: none !important; padding: 5px !important; min-height: 0 !important; gap: 18px; }
+    header.nav .nav__bar { max-width: none !important; width: max-content !important; margin: 0 !important; padding: 5px !important; min-height: 0 !important; gap: 18px; } header.nav { width: max-content !important; padding: 0 !important; }
     header.nav .sc-o { width: 30px; height: 30px; border-radius: 50%; border: 4px solid #fff; box-sizing: border-box; display: block; }
     header.nav .nav__link { color: #fff !important; font-size: 13px; } header.nav .nav__bar { display: flex !important; align-items: center; } header.nav .nav__links { flex: none !important; display: flex !important; gap: 22px; margin: 0 6px; }
     header.nav .sc-p { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #fff; } header.nav .sc-p i { width: 10px; height: 10px; border-radius: 50%; border: 3px solid #08141A; }
