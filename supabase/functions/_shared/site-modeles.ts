@@ -34,6 +34,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /\bappli|application mobile|assistant|iphone|android|t[ée]l[ée]chargement|abonnement|produit num[ée]rique|\bia\b/ },
   { id: "seuil", nom: "Seuil", slug: "seuil-modele", pour: "Agence immobilière, biens à vendre",
     mots: /immobili|appartements?|maisons? [àa] vendre|achat|vente|location|biens?\b|logement|promoteur|r[ée]sidence|neuf\b|courtier/ },
+  { id: "faite", nom: "Faîte", slug: "faite-modele", pour: "Architecte, constructeur, maisons d'exception",
+    mots: /architect|constructeur|construction|maisons? d.architecte|b[âa]tisseur|ma[îi]tre d.[œo]euvre|bureau d.[ée]tudes|paysagiste|chalet|maison contemporaine/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
