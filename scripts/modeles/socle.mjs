@@ -26,7 +26,7 @@ export const sections = [
     header.nav { top: 22px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); width: auto !important; background: rgb(14 29 37 / .85) !important; border: 1px solid #1C3038 !important; border-radius: 999px; }
     header.nav .nav__bar { max-width: none !important; padding: 5px !important; min-height: 0 !important; gap: 18px; }
     header.nav .sc-o { width: 30px; height: 30px; border-radius: 50%; border: 4px solid #fff; box-sizing: border-box; display: block; }
-    header.nav .nav__link { color: #fff !important; font-size: 13px; }
+    header.nav .nav__link { color: #fff !important; font-size: 13px; } header.nav .nav__bar { display: flex !important; align-items: center; } header.nav .nav__links { position: static !important; transform: none !important; display: flex !important; gap: 22px; margin: 0 6px; }
     header.nav .sc-p { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #fff; } header.nav .sc-p i { width: 10px; height: 10px; border-radius: 50%; border: 3px solid #08141A; }
   </style>
   <div class="wrap nav__bar">
@@ -69,7 +69,7 @@ export const sections = [
     <div class="sc-ctr"><div class="sc-hd"><span>Vue d'ensemble</span><span>Rechercher…  ·  28 novembre 2026</span></div>
       <div class="sc-msg">Faites grandir votre équipe avec des chiffres clairs.  <b>Passez à l'offre Pro.</b></div>
       <div class="sc-g">
-        <div class="sc-radar"><b>Résumé des performances</b><svg viewBox="0 0 200 170" width="100%" aria-hidden="true"><g fill="none" stroke="#1C3038"><polygon points="100,20 176,75 147,160 53,160 24,75"/><polygon points="100,55 143,86 126,135 74,135 57,86"/></g><polygon points="100,40 160,80 130,140 66,145 44,82" fill="rgb(240 182 107 / .18)" stroke="${A}" stroke-width="1.5"/><g fill="#9BB0B8" font-size="7" text-anchor="middle"><text x="100" y="14">Engagement 7,8</text><text x="184" y="72" text-anchor="start">Prêts 8,5</text><text x="150" y="170">Formation 7,2</text><text x="50" y="170">Mobilité 6,5</text><text x="16" y="72" text-anchor="end">Postes clés 9,4</text></g></svg></div>
+        <div class="sc-radar"><b>Résumé des performances</b><svg viewBox="0 0 200 170" width="100%" aria-hidden="true"><g fill="none" stroke="#1C3038"><polygon points="100,20 176,75 147,160 53,160 24,75"/><polygon points="100,55 143,86 126,135 74,135 57,86"/></g><polygon points="100,40 160,80 130,140 66,145 44,82" fill="rgb(240 182 107 / .18)" stroke="${A}" stroke-width="1.5"/><g fill="#9BB0B8" font-size="7" text-anchor="middle"><text x="100" y="14">Engagement 7,8</text><text x="172" y="66">Prêts 8,5</text><text x="150" y="170">Formation 7,2</text><text x="50" y="170">Mobilité 6,5</text><text x="30" y="66">Postes clés 9,4</text></g></svg></div>
         <div class="sc-sts">${stat("Objectifs atteints", "85 %", "85 % de l'équipe atteint ses objectifs.", "85%")}${stat("Formation", "72 %", "72 % de l'équipe est formée.", "72%")}${stat("Mobilité interne", "65 %", "65 % des postes pourvus en interne.", "30%")}${stat("Postes clés", "94 %", "94 % des postes clés couverts.", "94%")}</div>
       </div></div>
   </div>
