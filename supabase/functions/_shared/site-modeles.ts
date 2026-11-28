@@ -76,6 +76,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /collaborat|[ée]quipe|teams?|workspace|espace de travail|projets?|design|produit|startup|saas/ },
   { id: "azur", nom: "Azur", slug: "azur-modele", pour: "Fintech, gestion d'argent, cartes bancaires",
     mots: /fintech|banque|carte bancaire|paiement|argent|budget|n[ée]obanque|portefeuille|transferts?|virement/ },
+  { id: "forge", nom: "Forge", slug: "forge-modele", pour: "École, formation, bootcamp",
+    mots: /[ée]cole|formation|bootcamp|acad[ée]mie|cours|stage|apprentissage|enseignement|certificat|mentor/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
