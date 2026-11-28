@@ -100,13 +100,13 @@ export const sections = [
     ${FONT}
     #agence { padding-block: clamp(80px, 10vw, 140px) !important; }
     #agence .se-grille { display: grid; grid-template-columns: 1fr 2.2fr; gap: 32px; max-width: 1000px; margin-inline: auto; }
-    #agence .se-etiq { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #1F2A9C; }
+    #agence .se-etiq { align-self: start; margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #1F2A9C; }
     #agence h2 { margin: 0; font-weight: 500; font-size: clamp(32px, 3.3vw, 48px); line-height: 1.08; letter-spacing: -.03em; color: #141A4A; }
     #agence h2 em, #agence dt { font-family: ${SERIF}; font-style: italic; font-weight: 400; }
     #agence p { margin: 22px 0 0; max-width: 520px; font-size: 14px; line-height: 1.7; color: #4A4F6A; }
     #agence dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 56px 0 0; }
     #agence dl div { padding-top: 14px; border-top: 1px solid #DADADF; }
-    #agence dt { font-size: clamp(44px, 4.6vw, 64px); line-height: 1; color: #1F2A9C; letter-spacing: -.02em; }
+    #agence dt { white-space: nowrap; font-size: clamp(40px, 4.2vw, 58px); line-height: 1; color: #1F2A9C; letter-spacing: -.02em; }
     #agence dd { margin: 10px 0 0; font-size: 11.5px; color: #6B6F86; }
     @media (max-width: 767px) { #agence .se-grille { grid-template-columns: 1fr; } #agence dl { grid-template-columns: 1fr 1fr; } }
   </style>
