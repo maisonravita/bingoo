@@ -54,6 +54,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /outil ia|assistant|chatbot|agent|ia\b|intelligence artificielle|gpt|automatis|saas|logiciel|template/ },
   { id: "rempart", nom: "Rempart", slug: "rempart-modele", pour: "Cybersécurité, protection des données",
     mots: /s[ée]curit|cyber|donn[ée]es|protection|chiffrement|vpn|antivirus|rgpd|confidentialit|h[ée]bergement s[ée]curis/ },
+  { id: "noyau", nom: "Noyau", slug: "noyau-modele", pour: "Plateforme de données, intelligence d'entreprise",
+    mots: /donn[ée]es|data|plateforme|intelligence|analyse|knowledge|connaissances|b2b|entreprise|crm|erp/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
