@@ -11,7 +11,7 @@ export const design = {
 };
 const SANS = "pure black background, no text, no logo";
 export const images = [
-  { id: "IMG_1", pour: "hero", taille: { width: 1088, height: 1920 }, prompt: `Abstract 3D render of several soft translucent glass blobs floating in darkness: a large rounded pebble-shaped blob with a glowing rim of orange, coral and red on top fading to violet and electric blue at the bottom, a second elongated blob above with white and orange highlights, a small blue blob on the right edge, iridescent refractions, dreamy, high contrast, ${SANS}.` },
+  { id: "IMG_3", pour: "hero", taille: { width: 1088, height: 1920 }, prompt: `Abstract 3D render of several soft translucent glass blobs floating in darkness, each blob almost black and hollow inside, only their thin edges glow like neon light (rim light, fresnel): a large rounded pebble-shaped blob in the lower middle with a glowing rim of orange, coral and red on top fading to violet and electric blue at the bottom, a second elongated blob above with white and orange highlights, a small blue blob on the right edge, iridescent refractions, dreamy, high contrast, ${SANS}.` },
   { id: "IMG_2", pour: "avantages", taille: "square_hd", prompt: `Abstract 3D render of a single soft rounded translucent glass blob, dark inside, its rim glowing orange, pink, green and blue iridescent, floating, centered, ${SANS}.` },
 ];
 export const nav = [{ mot: "Solution", ancre: "avantages" }, { mot: "Clients", ancre: "clients" }, { mot: "Avantages", ancre: "avantages" }, { mot: "Contact", ancre: "contact" }];
@@ -35,7 +35,7 @@ export const sections = [
   { id: "hero", html: `<section id="hero" class="hero hero-immersif rp-hero">
   <style>
     #hero { position: relative; overflow: hidden; isolation: isolate; min-height: 0 !important; height: clamp(860px, 118vh, 1100px) !important; padding: 0 !important; background: #000 !important; color: #fff; }
-    #hero > img { position: absolute; left: 50%; top: -4%; width: min(780px, 72vw); height: 108%; transform: translateX(-46%); object-fit: cover; z-index: -1; mix-blend-mode: screen; }
+    #hero > img { position: absolute; left: 50%; top: -4%; width: min(780px, 72vw); height: 108%; transform: translateX(-46%); object-fit: cover; z-index: -1; mix-blend-mode: screen; -webkit-mask: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent), linear-gradient(180deg, transparent, #000 8%); -webkit-mask-composite: source-in; mask: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent) intersect, linear-gradient(180deg, transparent, #000 8%); }
     #hero h1 { position: absolute; inset: 0; margin: 0; font-weight: 500; font-size: clamp(80px, 11.5vw, 170px); line-height: .9; letter-spacing: -.02em; text-transform: lowercase; color: #fff; pointer-events: none; }
     #hero h1 span { position: absolute; white-space: nowrap; } #hero h1 .l1 { left: 8%; top: 8%; } #hero h1 .l2 { right: 7%; top: 21%; } #hero h1 .l3 { left: 27%; top: 34%; }
     #hero .rp-chiffre { position: absolute; font-size: clamp(26px, 2.4vw, 36px); line-height: 1; } #hero .rp-chiffre small { display: block; margin-top: 6px; font-size: 11px; color: #C8C8D0; }
@@ -50,7 +50,7 @@ export const sections = [
     #hero .rp-bas { position: absolute; left: 15%; top: 79%; max-width: 330px; margin: 0; font-size: 17px; line-height: 1.4; color: #D5D5DD; }
     @media (max-width: 767px) { #hero h1 { font-size: 64px; } #hero .rp-texte, #hero .c3 { display: none; } #hero .rp-lede { top: 30%; } #hero .c2 { top: 44%; } #hero .rp-bas { left: 8%; right: 8%; } }
   </style>
-  <img src="IMG_1" alt="">
+  <img src="IMG_3" alt="">
   <h1><span class="l1">protégez</span><span class="l2">vos</span><span class="l3">données</span></h1>
   <p class="rp-lede">Nous gardons vos données avec le plus grand soin, et votre vie privée partout.</p>
   <span class="rp-chiffre c1">+65k<small>entreprises clientes</small></span>
