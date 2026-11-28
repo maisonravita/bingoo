@@ -169,6 +169,7 @@ function ChantierFlou({ texte, genre, children }) {
 // Premiers écrans réels de projets construits par Bingoo! (captures du robot, en visiteur) ; 5e valeur : "site" pour un site vitrine
 export const VITRINE = [
   // Modèles recopiés des maquettes de Jean (28/11) : paysage illustré, horizon, vitrine en duo
+  ["unpas", "Un pas", "Site d'appli de tâches", "Le site de mon application de tâches, en vert émeraude", "site"],
   ["aurore", "Aurore", "Site d'assistant IA", "Le site de mon assistant IA pour le service client, avec l'horizon d'une planète", "site"],
   ["abri", "Abri", "Site de promoteur de villas", "Le site de mes villas contemporaines, sous un ciel rosé", "site"],
   ["pilier", "Pilier", "Site d'appli de finances", "Le site de mon application d'épargne et de budget, en bleu nuit et ivoire", "site"],

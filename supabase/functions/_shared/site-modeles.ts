@@ -68,6 +68,8 @@ export const MODELES_SITE: ModeleSite[] = [
     mots: /villas?|promoteur|promotion|architecte|architecture|maison d.architecte|construction|constructeur|programme neuf|immobilier de luxe/ },
   { id: "aurore", nom: "Aurore", slug: "aurore-modele", pour: "Assistant IA, service client, chatbot",
     mots: /service client|support|chatbot|assistant ia|relation client|helpdesk|sav|multilingue|discussion/ },
+  { id: "unpas", nom: "Un pas", slug: "unpas-modele", pour: "Application de tâches, productivité",
+    mots: /t[âa]ches?|to-?do|productivit|organisation|planning|gestion de projet|habitudes|objectifs|kanban/ },
   { id: "nocta", nom: "Nocta", slug: "nocta-2v0n", pour: "Appli, produit, lancement", genre: "lancement",
     mots: /\bappli|application|startup|produit|logiciel|lancement|plateforme|[ée]v[ée]nement|festival|conf[ée]rence|salon professionnel|pr[ée]commande|liste d.attente|jeu vid[ée]o|podcast|newsletter/ },
 ];
