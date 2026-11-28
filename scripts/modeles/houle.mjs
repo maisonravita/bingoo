@@ -23,7 +23,7 @@ export const sections = [
   <style>
     ${FONTS}
     .nav .nav__logo { font-family: Yellowtail, cursive; font-size: 30px; font-weight: 400; color: #8FD4E0; }
-    .nav .nav__links { margin-left: auto; } .nav .nav__link { font-family: "Bebas Neue", Oswald, sans-serif; font-size: 24px; letter-spacing: .02em; color: rgb(255 255 255 / .72); }
+    .nav .nav__bar { display: flex !important; align-items: center; } .nav .nav__links { margin-left: auto; gap: 26px; } .nav .nav__link { font-family: "Bebas Neue", Oswald, sans-serif; font-size: 24px; letter-spacing: .02em; color: rgb(255 255 255 / .72); }
     .nav .nav__item:first-child .nav__link { color: #fff; text-decoration: underline; text-underline-offset: 8px; text-decoration-thickness: 2px; }
     .nav .nav__actions { display: none; }
   </style>
@@ -44,15 +44,15 @@ export const sections = [
   <style>
     ${FONTS}
     #hero { position: relative; min-height: clamp(640px, 100svh, 940px) !important; padding: 0 !important; overflow: hidden; isolation: isolate; color: #fff; background: #0B3A47; }
-    #hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: left center; z-index: -2; }
+    #hero > img { position: absolute; top: 0; left: -22%; width: 122%; height: 100%; object-fit: cover; object-position: left center; z-index: -2; }
     #hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, transparent 30%, rgb(5 40 50 / .25)); }
-    #hero .ho-gauche { position: absolute; left: clamp(24px, 27vw, 420px); bottom: 15%; max-width: 330px; }
-    #hero h1 { margin: 0; font-family: "Josefin Sans", sans-serif; font-weight: 400; font-size: clamp(30px, 3vw, 46px); line-height: 1.05; letter-spacing: .08em; color: #fff; }
+    #hero .ho-gauche { position: absolute; left: clamp(24px, 29vw, 460px); bottom: 15%; width: 340px; text-shadow: 0 2px 16px rgb(0 30 40 / .45); }
+    #hero h1 { max-width: 9.5ch; margin: 0; font-family: "Josefin Sans", sans-serif; font-weight: 400; font-size: clamp(30px, 3vw, 46px); line-height: 1.05; letter-spacing: .08em; color: #fff; }
     #hero .ho-gauche p { margin: 18px 0 0; font-family: "Josefin Sans", sans-serif; font-size: 13.5px; line-height: 1.45; letter-spacing: .06em; color: rgb(255 255 255 / .62); }
     #hero .ho-gauche a { display: inline-block; margin-top: 26px; padding: 10px 26px; border: 1px solid rgb(255 255 255 / .85); color: #fff; font-family: "Josefin Sans", sans-serif; font-size: 12.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; text-decoration: none; }
     #hero .ho-mots { position: absolute; right: clamp(48px, 6vw, 110px); top: 50%; transform: translateY(-52%); text-align: right; font-family: "Bebas Neue", Oswald, sans-serif; font-size: clamp(110px, 14vw, 220px); line-height: .86; letter-spacing: .01em; color: rgb(255 255 255 / .96); mix-blend-mode: overlay; }
     #hero .ho-mots span { display: block; }
-    #hero .ho-ombre { position: absolute; right: clamp(48px, 6vw, 110px); top: 50%; transform: translateY(-52%); text-align: right; font-family: "Bebas Neue", Oswald, sans-serif; font-size: clamp(110px, 14vw, 220px); line-height: .86; letter-spacing: .01em; color: rgb(230 245 248 / .5); }
+    #hero .ho-ombre { position: absolute; right: clamp(48px, 6vw, 110px); top: 50%; transform: translateY(-52%); text-align: right; font-family: "Bebas Neue", Oswald, sans-serif; font-size: clamp(110px, 14vw, 220px); line-height: .86; letter-spacing: .01em; color: rgb(230 245 248 / .3); }
     #hero .ho-ombre span { display: block; }
     #hero .ho-trait { position: absolute; right: clamp(20px, 3vw, 44px); top: 26%; height: 48%; width: 1px; background: rgb(255 255 255 / .35); }
     #hero .ho-num { position: absolute; right: clamp(48px, 6vw, 110px); bottom: 13%; display: flex; align-items: baseline; gap: 14px; font-family: "Josefin Sans", sans-serif; font-weight: 600; }
